@@ -114,6 +114,10 @@ export function envelopeOf(ctx: StepCtx): EventEnvelope {
         speed: Math.abs(ctx.vx),
         grounded: ctx.state.grounded,
         floorIndex: ctx.state.floorIndex,
+        // Amendment 1a: tier-at-event. Events emitted before tierPhase carry
+        // the tier as of the last completed tick — the same value any honest
+        // stateful consumer would hold at that moment, minus the desync risk.
+        tier: ctx.state.tier,
     };
 }
 

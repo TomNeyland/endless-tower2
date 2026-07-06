@@ -19,6 +19,13 @@ export interface EventEnvelope {
     speed: number;
     grounded: boolean;
     floorIndex: number;
+    /**
+     * Current speed-tier index at emission (movement.md Amendment 1a —
+     * additive under EVENT_SCHEMA_VERSION discipline, no bump). Two consumers
+     * (combo hot-landing spice, audio pitch-by-tier) need tier-at-event;
+     * stateful reconstruction downstream would ship known-desynced.
+     */
+    tier: number;
 }
 
 export type WallSide = 'left' | 'right';
