@@ -249,6 +249,26 @@ export function mysteryEventById(id: string): MysteryEvent {
     return event;
 }
 
+/**
+ * The choice's worst-case coin charge — the stake a wallet must cover
+ * before the choice may be taken. Every coin figure a mystery prints (a
+ * label's "Offer 15 coins", an outcome's "−20 coins") must be chargeable
+ * in full: resolving below the printed number is a lie on the label
+ * (pillar 2 — the price tag is real, and DEVIATIONS entry 10's reasoning).
+ * The overlay disables choices whose stake exceeds the wallet; zero-stake
+ * choices (gains, free outs, heart gambles) are never gated.
+ */
+export function choiceCoinStake(choice: MysteryChoice): number {
+    let stake = 0;
+    for (const outcome of choice.outcomes) {
+        const delta = outcome.effect.coinsDelta;
+        if (delta !== undefined && delta < 0) {
+            stake = Math.max(stake, -delta);
+        }
+    }
+    return stake;
+}
+
 /** Resolve a choice against the node's pre-rolled value — pure and seeded. */
 export function resolveMystery(
     event: MysteryEvent,
@@ -283,6 +303,9 @@ export function validateMysteryEvents(events: readonly MysteryEvent[]): void {
         seen.add(e.id);
         if (e.choices.length < 2) {
             fail(e.id, 'a mystery with one choice is a toll, not a choice');
+        }
+        if (!e.choices.some((c) => choiceCoinStake(c) === 0)) {
+            fail(e.id, 'no zero-stake choice — a poor climber must always have a way out');
         }
         for (const choice of e.choices) {
             if (choice.outcomes.length === 0) {

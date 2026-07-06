@@ -20,7 +20,12 @@ import { rollRelicReward } from '../../core/economy/shop';
 import type { MapEvent } from '../../core/map/events';
 import { actGraphSummary, generateActGraph } from '../../core/map/gen';
 import { buildNodeLabel, type NodeLabel } from '../../core/map/label';
-import { mysteryEventById, type MysteryEffect, resolveMystery } from '../../core/map/mystery';
+import {
+    choiceCoinStake,
+    type MysteryEffect,
+    mysteryEventById,
+    resolveMystery,
+} from '../../core/map/mystery';
 import { ACT_COUNT, type ActGraph, nodeById, type NodeSpec } from '../../core/map/types';
 import type { SegmentSpec } from '../../core/pressure/segment';
 import { RunHost } from '../../core/run/host';
@@ -150,11 +155,17 @@ export class RunOrchestrator {
         if (node.type !== 'mystery' || node.mysteryEventId === null || node.mysteryRoll === null) {
             throw new Error(`run: ${node.id} is not a mystery node`);
         }
-        const effect = resolveMystery(
-            mysteryEventById(node.mysteryEventId),
-            choiceIndex,
-            node.mysteryRoll,
-        );
+        const event = mysteryEventById(node.mysteryEventId);
+        const effect = resolveMystery(event, choiceIndex, node.mysteryRoll);
+        // The overlay disables unaffordable stakes; this is the backstop (the
+        // shop's "UI is the gate, the command is the backstop" pattern).
+        const stake = choiceCoinStake(event.choices[choiceIndex]);
+        if (stake > this.host.run.coins) {
+            throw new Error(
+                `run: mystery choice ${choiceIndex} stakes ${stake} coins with ` +
+                    `${this.host.run.coins} in the wallet — affordability is the overlay's gate`,
+            );
+        }
         applyMysteryEffect(this.host.run, effect);
         return effect;
     }

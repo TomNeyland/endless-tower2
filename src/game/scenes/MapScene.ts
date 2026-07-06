@@ -219,6 +219,8 @@ export class MapScene extends Scene {
             palette,
             // Rendered from the same data the resolution reads — one authority.
             mysteryEventById(node.mysteryEventId),
+            // The wallet gates the stakes (unaffordable choices disable).
+            this.run.snapshot().coins,
             (choiceIndex) => this.run.resolveMysteryChoice(choiceIndex).text,
             () => this.closeOverlay(),
         );

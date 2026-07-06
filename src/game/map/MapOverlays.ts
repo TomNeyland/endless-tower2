@@ -12,13 +12,19 @@
  */
 import type { GameObjects, Scene } from 'phaser';
 import { groupDigits } from '../../core/format';
-import type { MysteryEvent } from '../../core/map/mystery';
+import { choiceCoinStake, type MysteryEvent } from '../../core/map/mystery';
 import type { RunSnapshot } from '../../core/run/state';
 import { GAME_HEIGHT, GAME_WIDTH } from '../main';
 import { buildPanel, OverlayButton, PANEL_W } from './overlayKit';
 import type { ActPalette } from './palettes';
 
-/** The mystery event: prompt, choices, then the outcome and a Continue. */
+/**
+ * The mystery event: prompt, choices, then the outcome and a Continue.
+ * Choices whose worst-case coin stake exceeds the wallet are disabled and
+ * say why — every printed coin figure must be chargeable in full (pillar 2;
+ * see choiceCoinStake). The mystery roster's validation guarantees at least
+ * one zero-stake choice, so the overlay always has a live way out.
+ */
 export class MysteryOverlay {
     private readonly scene: Scene;
     private readonly palette: ActPalette;
@@ -33,6 +39,7 @@ export class MysteryOverlay {
         scene: Scene,
         palette: ActPalette,
         event: MysteryEvent,
+        coins: number,
         resolve: (choiceIndex: number) => string,
         onClose: () => void,
     ) {
@@ -62,21 +69,27 @@ export class MysteryOverlay {
                 .setOrigin(0.5),
         );
         event.choices.forEach((choice, i) => {
+            const stake = choiceCoinStake(choice);
+            const affordable = stake <= coins;
+            const label = affordable
+                ? `${i + 1}. ${choice.label}`
+                : `${i + 1}. ${choice.label} — needs ${stake} coins`;
             const button = new OverlayButton(
                 scene,
                 this.container,
-                `${i + 1}. ${choice.label}`,
+                label,
                 cx,
                 top + 168 + i * 52,
                 () => {
                     const text = resolve(i);
                     this.showOutcome(text, onClose);
                 },
+                affordable,
             );
             button.onHover(() => this.setFocus(i));
             this.buttons.push(button);
         });
-        this.setFocus(0);
+        this.setFocus(this.buttons.findIndex((b) => b.enabled));
         scene.input.keyboard?.on('keydown', this.onKey);
     }
 
@@ -99,7 +112,15 @@ export class MysteryOverlay {
         }
         if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
             const step = event.key === 'ArrowUp' ? -1 : 1;
-            this.setFocus((this.focusIndex + step + this.buttons.length) % this.buttons.length);
+            // Walk to the next ENABLED button; disabled ones never hold focus.
+            let i = this.focusIndex;
+            for (let hops = 0; hops < this.buttons.length; hops += 1) {
+                i = (i + step + this.buttons.length) % this.buttons.length;
+                if (this.buttons[i].enabled) {
+                    this.setFocus(i);
+                    return;
+                }
+            }
             return;
         }
         const digit = Number.parseInt(event.key, 10);

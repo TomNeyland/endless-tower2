@@ -15,6 +15,9 @@ export const PANEL_W = 460;
 
 const BUTTON_BG = '#26202e';
 const BUTTON_BG_FOCUS = '#3a3348';
+const BUTTON_BG_DISABLED = '#1a161f';
+const BUTTON_TEXT = '#ffe9b0';
+const BUTTON_TEXT_DISABLED = '#7d7788';
 
 /** A dim scrim plus a centered panel container. */
 export function buildPanel(
@@ -37,8 +40,15 @@ export function buildPanel(
     return c;
 }
 
-/** An overlay action, pressable by pointer or by the overlay's key handler. */
+/**
+ * An overlay action, pressable by pointer or by the overlay's key handler.
+ * A disabled button is inert on BOTH devices — it renders dim, takes no
+ * pointer events, refuses press(), and never receives focus (the overlay's
+ * focus walk skips it).
+ */
 export class OverlayButton {
+    readonly enabled: boolean;
+
     private readonly text: GameObjects.Text;
     private readonly handler: () => void;
 
@@ -49,33 +59,43 @@ export class OverlayButton {
         x: number,
         y: number,
         onPress: () => void,
+        enabled = true,
     ) {
+        this.enabled = enabled;
         this.handler = onPress;
         this.text = scene.add
             .text(x, y, label, {
                 fontFamily: 'Arial Black',
                 fontSize: 17,
-                color: '#ffe9b0',
-                backgroundColor: BUTTON_BG,
+                color: enabled ? BUTTON_TEXT : BUTTON_TEXT_DISABLED,
+                backgroundColor: enabled ? BUTTON_BG : BUTTON_BG_DISABLED,
                 padding: { x: 14, y: 8 },
             })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-        this.text.on('pointerdown', () => this.press());
+            .setOrigin(0.5);
+        if (enabled) {
+            this.text.setInteractive({ useHandCursor: true });
+            this.text.on('pointerdown', () => this.press());
+        }
         container.add(this.text);
     }
 
     /** Pointer hover reports here so the overlay can move its ONE focus. */
     onHover(fn: () => void): void {
-        this.text.on('pointerover', fn);
+        if (this.enabled) {
+            this.text.on('pointerover', fn);
+        }
     }
 
     /** Focus highlight — the same look for keyboard focus and pointer hover. */
     setFocused(on: boolean): void {
-        this.text.setStyle({ backgroundColor: on ? BUTTON_BG_FOCUS : BUTTON_BG });
+        if (this.enabled) {
+            this.text.setStyle({ backgroundColor: on ? BUTTON_BG_FOCUS : BUTTON_BG });
+        }
     }
 
     press(): void {
-        this.handler();
+        if (this.enabled) {
+            this.handler();
+        }
     }
 }

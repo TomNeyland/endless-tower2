@@ -307,16 +307,24 @@ export class RunState {
 
     /**
      * Map-loop wallet bookkeeping: mystery outcomes and clear bounties.
-     * A negative delta below the wallet floor takes what's there — a mystery
-     * charges up to its price, never into debt (pillar 1's mercy; the CHOICE
-     * behavior, kept). Eventless like loseHeart: the mystery text and the
+     * Underflow throws exactly like spendCoins: mystery choices are
+     * stake-gated before the roll (choiceCoinStake — the overlay disables
+     * what the wallet cannot cover, the orchestrator backstops), so every
+     * printed coin figure charges in full and a negative wallet is a wiring
+     * bug, never mercy. Eventless like loseHeart: the mystery text and the
      * results toast carry the moment.
      */
     adjustCoins(delta: number): number {
         if (!Number.isFinite(delta)) {
             throw new Error(`run: adjustCoins(${delta})`);
         }
-        this._coins = Math.max(0, this._coins + delta);
+        if (this._coins + delta < 0) {
+            throw new Error(
+                `run: adjustCoins(${delta}) with ${this._coins} in the wallet — ` +
+                    'stakes are gated before the roll, the wallet never goes negative',
+            );
+        }
+        this._coins += delta;
         return this._coins;
     }
 
