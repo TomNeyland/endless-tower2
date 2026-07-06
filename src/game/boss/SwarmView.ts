@@ -10,8 +10,6 @@ import { Atlas, CritterFrames } from '../assets';
 import type { PlayerSystem } from '../player/PlayerSystem';
 import type { ExamFieldSystem } from '../systems/ExamFieldSystem';
 
-const CRITTER_SCALE = 0.6; // 128px double frames -> ~77px: bigger than a
-// coin, smaller than the player — an obstacle, not a monster
 const CRITTER_DEPTH = 4;
 
 export class SwarmView {
@@ -52,11 +50,12 @@ export class SwarmView {
             if (!sprite) {
                 sprite = this.scene.add
                     .image(c.x, c.y, Atlas.enemiesDouble, frames[0])
-                    .setScale(CRITTER_SCALE)
+                    .setScale(c.scale)
                     .setDepth(CRITTER_DEPTH);
                 this.sprites.set(c.critterId, sprite);
             }
             sprite.setPosition(c.x, c.y);
+            sprite.setScale(c.scale);
             sprite.setTexture(Atlas.enemiesDouble, this.flip ? frames[0] : frames[1]);
             sprite.setTint(justHit ? 0xffffff : 0xffe8e8);
         }

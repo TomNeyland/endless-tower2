@@ -30,9 +30,8 @@ export interface LootPatch {
 /**
  * Generation/skin patches carried as data. Fields without a live consumer
  * yet are the reason their modifier is not rollable (see ModifierSpec) —
- * crumble/sticky await movement.md Amendment 1c's land classifications,
- * the swarm awaits critter entities, the fog veil awaits its skin layer,
- * and the line surge is EXAM's toolkit.
+ * the fog veil awaits its skin layer, and line surges await their ambient
+ * map cadence. Crumble/sticky/swarm have live EXAM consumers.
  */
 export interface GenPatch {
     crumbleFraction?: number;

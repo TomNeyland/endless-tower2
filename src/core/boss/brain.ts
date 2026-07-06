@@ -354,8 +354,17 @@ export class BossBrain {
     }
 
     private spawnSwarm(def: BossAttackDef, input: BrainInput, out: BrainStepOutput): void {
-        const count = def.swarmCount ?? 2;
-        const pattern = def.swarmPattern ?? 'drift';
+        if (
+            def.swarmCount === undefined ||
+            def.swarmSkin === undefined ||
+            def.swarmPattern === undefined ||
+            def.swarmLifeTicks === undefined ||
+            def.swarmScale === undefined
+        ) {
+            throw new Error(`boss ${this.def.id}: swarm attack ${def.id} missing swarm data`);
+        }
+        const count = def.swarmCount;
+        const pattern = def.swarmPattern;
         const innerWidth = WALL_RIGHT_X - WALL_LEFT_X;
         for (let i = 0; i < count; i += 1) {
             this.critterSeq += 1;
@@ -364,8 +373,10 @@ export class BossBrain {
                 op: 'swarm',
                 spawn: {
                     critterId: this.critterSeq,
-                    skin: def.swarmSkin ?? 'bee',
+                    skin: def.swarmSkin,
                     pattern,
+                    scale: def.swarmScale,
+                    radiusPx: this.t.value('exam.swarmRadiusPx'),
                     x0:
                         pattern === 'wall'
                             ? wallSide
@@ -375,7 +386,7 @@ export class BossBrain {
                     omega: 1.2 + this.rng() * 1.4,
                     phase: this.rng() * Math.PI * 2,
                     vy: pattern === 'wall' ? 90 + this.rng() * 60 : 45 + this.rng() * 45,
-                    lifeTicks: def.swarmLifeTicks ?? 480,
+                    lifeTicks: def.swarmLifeTicks,
                     spawnTick: input.tick,
                 },
             });

@@ -45,6 +45,10 @@ export const Gen = {
     glowBand: 'gen-glow-band',
     /** Soft radial glow — the combo ladder's earned character light. */
     glow: 'gen-glow',
+    /** Warm ember dot — speed afterburners and wall redirect sparks. */
+    ember: 'gen-ember',
+    /** Tiny hot core — the sharp bit inside earned movement sparks. */
+    spark: 'gen-spark',
     /** Opaque white-to-near-black vertical falloff — tinted per act, it is
      *  the consumed zone: the world ending from below (pressure.md). */
     consumeGradient: 'gen-consume-gradient',
@@ -239,6 +243,20 @@ export function ensureGeneratedTextures(scene: Scene): void {
             g.fillCircle(32, 32, r);
         }
         g.generateTexture(Gen.glow, 64, 64);
+        g.destroy();
+    }
+    if (!scene.textures.exists(Gen.ember)) {
+        const g = scene.add.graphics();
+        g.fillStyle(0xffffff, 1);
+        g.fillCircle(5, 5, 5);
+        g.generateTexture(Gen.ember, 10, 10);
+        g.destroy();
+    }
+    if (!scene.textures.exists(Gen.spark)) {
+        const g = scene.add.graphics();
+        g.fillStyle(0xffffff, 1);
+        g.fillCircle(2, 2, 2);
+        g.generateTexture(Gen.spark, 4, 4);
         g.destroy();
     }
     if (!scene.textures.exists(Gen.consumeGradient)) {

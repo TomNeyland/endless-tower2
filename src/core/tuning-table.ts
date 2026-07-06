@@ -22,11 +22,10 @@ export const DEFAULT_TUNING = {
     SPEED_DEADBAND: 100, // px/s: takeoff speeds below this convert as zero
     JUMP_SPAN: 650, // px/s: the soft-knee tanh span above the knee
     JUMP_HARD_CAP: 2400, // px/s: absolute asymptote — no relic stack outruns the camera
-    JUMP_RETENTION: 0.78, // the spend: vx multiplier applied at takeoff — raised from
-    // 0.70 after the first human playtest: with 0.70, jump-spend vs runway-earn
-    // reached equilibrium near ~700 px/s (tier 2) and the ladder's top was a
-    // treadmill. 0.78 moves the buildable plateau into tier 3; perfect bhops
-    // (100% retention) remain the skill path above it.
+    JUMP_RETENTION: 0.84, // the spend: vx multiplier applied at takeoff — raised from
+    // 0.70 across human feel passes: below 0.80, jump-spend vs runway-earn
+    // reached equilibrium before the "screen on fire" band. 0.84 lets good
+    // routing climb into tier 4 without making held-key running the answer.
 
     // --- Gravity family ---
     GRAVITY_RISE: 1500, // px/s^2 while ascending
@@ -37,7 +36,7 @@ export const DEFAULT_TUNING = {
 
     // --- Run: two regimes, crisp skids, the ice glide ---
     RUN_ACCEL_LOW: 1600, // px/s^2 below the regime knee: 0->400 in 0.25s, hand-in-glove
-    RUN_ACCEL_HIGH: 500, // px/s^2 above: the top of the ladder is earned, not a held key
+    RUN_ACCEL_HIGH: 650, // px/s^2 above: the top is reachable without turning held-key into the answer
     RUN_REGIME_SPEED: 400, // px/s: boundary between the two regimes
     TURN_ACCEL: 2600, // px/s^2 when input opposes velocity — the skid
     GROUND_DRAG: 350, // px/s^2 with no input — a 900 px/s coast survives ~2.6s
@@ -82,12 +81,26 @@ export const DEFAULT_TUNING = {
     // --- Juice (sprite-only, event-driven, deletable) ---
     JUICE_SCALE: 1.0, // the global restraint knob
     DUST_MIN_IMPACT: 400, // px/s landing impact before dust appears
-    RUN_DUST_FRAC: 0.5, // of the effective ceiling
-    WIND_FRAC: 0.71, // of the effective ceiling
-    AFTERIMAGE_FRAC: 0.86, // the master's crown
+    RUN_DUST_FRAC: 0.42, // of the effective ceiling
+    WIND_FRAC: 0.62, // of the effective ceiling
+    AFTERIMAGE_FRAC: 0.78, // the master's crown
     SHAKE_MIN_IMPACT: 1100, // px/s: the ONE shake trigger
     'juice.landShakeAmpPx': 2, // FEEL's whole shake budget, now one scheduler contender
     'juice.landShakeMs': 90,
+    'juice.spinStartSpeed': 420, // px/s: accessible cartwheel threshold
+    'juice.spinFullSpeed': 1250, // px/s: speed that reaches max spin
+    'juice.spinExponent': 1.35, // gentle at entry, wild near the ceiling
+    'juice.spinMaxRadPerSec': 36, // v1's fun made legible, not debug-noisy
+    'juice.wallSpinMul': 1.12, // wall redirects punch slightly harder visually
+    'juice.afterburnerFrac': 0.58, // orange exhaust begins before afterimages
+    'juice.afterburnerMs': 38,
+    'juice.afterburnerMinParticles': 1,
+    'juice.afterburnerMaxParticles': 3,
+    'juice.spinAfterburnerHeat': 0.45,
+    'juice.wallSparkMinParticles': 3,
+    'juice.wallSparkMaxParticles': 12,
+    'juice.windMs': 38,
+    'juice.afterimageMs': 42,
     MASTER_VOLUME: 0.7, // audio ships audible — the level is audio.md's ruling, one authority
 
     // --- Player presentation ---

@@ -27,6 +27,7 @@ import type { TuningStack } from '../../core/tuning';
 import { characterFrames, Sfx } from '../assets';
 import { saveStore } from '../meta/SaveStore';
 import { ShopView } from '../shop/ShopView';
+import { MuteButton } from '../systems/MuteButton';
 
 export interface ShopLaunchData {
     run: RunState;
@@ -66,6 +67,7 @@ export class ShopScene extends Scene {
         this.purchases = [];
         this.rerolls = 0;
 
+        new MuteButton(this);
         this.view = new ShopView(this, characterFrames(data.run.characterId));
         this.view.buildChrome(data.run.coins);
         this.rollStock();

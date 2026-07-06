@@ -17,9 +17,10 @@ import { Physics, type Scene } from 'phaser';
 import type { EventBus, LandEvent } from '../../core/events';
 import { applyExamCommand, type ExamCommand } from '../../core/exam/commands';
 import { type FieldChange, PlatformField } from '../../core/exam/field';
+import { seedPassiveSwarm } from '../../core/exam/passive-swarm';
 import { SwarmRuntime } from '../../core/exam/swarm';
 import type { InputRecorder } from '../../core/input/recorder';
-import { doorPlacementFor } from '../../core/pressure/segment';
+import { doorPlacementFor, type SegmentSpec } from '../../core/pressure/segment';
 import type { TowerLayout } from '../../core/tower';
 import type { TuningStack } from '../../core/tuning';
 import type { PlayerSystem } from '../player/PlayerSystem';
@@ -57,6 +58,7 @@ export class ExamFieldSystem {
         bus: EventBus,
         tuning: TuningStack,
         recorder: InputRecorder,
+        segment: SegmentSpec,
     ) {
         this.player = player;
         this.t = tuning;
@@ -66,6 +68,7 @@ export class ExamFieldSystem {
         this.layout = layout;
         this.pressure = pressure;
         this.field = new PlatformField(layout.platforms);
+        seedPassiveSwarm(this.swarm, layout, segment, tuning);
 
         player.setLandClassifier((platformId) => this.field.classification(platformId));
         bus.on('movement/land', this.onLand);
@@ -115,7 +118,6 @@ export class ExamFieldSystem {
         const contacts = this.swarm.step(
             kin.tick,
             { x: kin.x, y: kin.y },
-            this.t.value('exam.swarmRadiusPx'),
             this.t.value('exam.swarmHitCooldownTicks'),
         );
         if (contacts.contacts.length > 0) {

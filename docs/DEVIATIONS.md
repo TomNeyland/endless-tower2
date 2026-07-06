@@ -227,20 +227,18 @@ the honest route is a scene-boot replay mode (restart into the recording's
 embedded segment, then arm the replay from tick 0) — the recording now
 carries everything that needs.
 
-## 10. Five modifiers ship as data only, outside the roll pool (map-modifiers.md, roster)
+## 10. Two modifiers ship as data only, outside the roll pool (map-modifiers.md, roster)
 
 **The design says:** a starting roster of 12 priced mutators; node contents
 roll from the node's forked stream.
 
 **What ships:** all 12 modifiers exist as data (`src/core/map/modifiers.ts`)
-with their tuning layers, genPatch, lootPatch, and price/pay text — but
-five carry `rollable: false` and never appear on generated nodes: Brittle
-Rows and Sticky Patches (their prices need movement.md Amendment 1c's
-crumble/sticky land classifications, not yet built), Swarm (critter
-entities), Dense Fog (the parallax-veil skin layer), and Surging Line
-(`line.surge` is EXAM's toolkit). Rolling them today would print a price
-on the label that the segment cannot charge — an unpriced pay is a lie on
-the label, and pillar 2 cuts both ways.
+with their tuning layers, genPatch, lootPatch, and price/pay text — but two
+carry `rollable: false` and never appear on generated nodes: Dense Fog (the
+parallax-veil skin layer), and Surging Line (the ambient telegraphed-pulse
+driver its genPatch describes). Rolling them today would print a price on
+the label that the segment cannot charge — an unpriced pay is a lie on the
+label, and pillar 2 cuts both ways.
 
 **Path back:** each modifier flips `rollable: true` in the same commit that
 lands its machinery; the validation and label plumbing already handle them.
@@ -248,11 +246,12 @@ lands its machinery; the validation and label plumbing already handle them.
 *(EXAM session, 2026-07-06: the flip condition is met for **Brittle Rows**
 and **Sticky Patches** — movement.md Amendment 1c's crumble/sticky land
 classifications shipped with the platform field, and both modifiers now
-roll. Three remain data-only: Swarm (the critter machinery now exists as
-the boss's swarm attack, but the ambient per-segment spawner does not),
-Dense Fog (the parallax veil), and Surging Line (the `line.surge` tuning
-layers and the flare view now exist via boss attacks, but the ambient
-telegraphed-pulse driver its genPatch describes does not).)*
+roll.)*
+
+*(Momentum/juice pass, 2026-07-06: the flip condition is met for **Swarm**.
+Its genPatch now seeds small passive saw critters through the existing EXAM
+SwarmRuntime in both browser and replay, so the price is live rather than a
+label IOU. Dense Fog and Surging Line remain data-only.)*
 
 ## 11. The shop is a hearts-only overlay; bounties are placeholder economy (map-modifiers.md, node table)
 

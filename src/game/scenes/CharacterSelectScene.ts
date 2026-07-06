@@ -12,6 +12,7 @@ import { characterUnlocked } from '../../core/meta/unlocks';
 import { Atlas, characterFrames, ensureGeneratedTextures, Gen, Img, Sfx } from '../assets';
 import { GAME_HEIGHT, GAME_WIDTH } from '../dims';
 import { saveStore } from '../meta/SaveStore';
+import { MuteButton } from '../systems/MuteButton';
 import { RunOrchestrator } from '../systems/RunOrchestrator';
 
 export interface CharacterSelectBootData {
@@ -72,6 +73,7 @@ export class CharacterSelectScene extends Scene {
         this.detailObjs = [];
 
         this.add.tileSprite(CX, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, Img.backgroundSky);
+        new MuteButton(this);
         this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a1220, 0.55).setOrigin(0);
         this.add
             .text(CX, 120, 'WHO CLIMBS?', {

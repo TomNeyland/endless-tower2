@@ -2,7 +2,7 @@
  * The EXAM harness — engine-free proof of the duel core, in Node, with
  * assertions (`npm run exam`). No Phaser, no browser: the same core the
  * scene composes is exercised directly, and the headless replay is driven
- * over synthetic v4 sessions so the recorded-channel plumbing is proven
+ * over synthetic v5 sessions so the recorded-channel plumbing is proven
  * end-to-end. Any failed assertion exits 1 — a broken exam is a stopped
  * line, never a shrug.
  */
@@ -14,6 +14,7 @@ import { DIFFICULTY_PROFILES } from '../core/difficulty/profiles';
 import type { BossEvent, LandEvent } from '../core/events';
 import type { ExamCommand } from '../core/exam/commands';
 import { PlatformField, rollFieldClassifications } from '../core/exam/field';
+import { seedPassiveSwarm } from '../core/exam/passive-swarm';
 import { SwarmRuntime } from '../core/exam/swarm';
 import { generateActGraph } from '../core/map/gen';
 import { rollableModifiers } from '../core/map/modifiers';
@@ -276,7 +277,7 @@ section('brain: seeded, deterministic, telegraphed');
     assert(
         swarmCmds.length === 0 ||
             a.events.some((e) => e.type === 'boss/attack' && e.kind === 'swarm'),
-        'swarm spawns only from resolved swarm attacks',
+        'recorded swarm commands come from resolved swarm attacks',
     );
 }
 
@@ -379,12 +380,13 @@ section('swarm: a deterministic tax on momentum, never hearts');
 {
     const t = new TuningStack();
     const swarm = new SwarmRuntime();
-    const radius = t.value('exam.swarmRadiusPx');
     const cooldown = t.value('exam.swarmHitCooldownTicks');
     swarm.spawn({
         critterId: 1,
         skin: 'bee',
         pattern: 'drift',
+        scale: 0.6,
+        radiusPx: t.value('exam.swarmRadiusPx'),
         x0: 500,
         y0: 300,
         ampX: 0,
@@ -394,15 +396,57 @@ section('swarm: a deterministic tax on momentum, never hearts');
         lifeTicks: 600,
         spawnTick: 100,
     });
-    const at = (tick: number) => swarm.step(tick, { x: 500, y: 300 }, radius, cooldown);
+    const at = (tick: number) => swarm.step(tick, { x: 500, y: 300 }, cooldown);
     assert(at(100).contacts.length === 1, 'overlap connects');
     assert(at(101).contacts.length === 0, 'the re-hit cooldown holds');
     assert(at(100 + cooldown).contacts.length === 1, 'and releases exactly on time');
     assert(
-        swarm.step(700, { x: 500, y: 300 }, radius, cooldown).expiredIds.length === 1,
+        swarm.step(700, { x: 500, y: 300 }, cooldown).expiredIds.length === 1,
         'lifetimes expire',
     );
     assert(swarm.count() === 0, 'expired critters despawn');
+}
+
+// ---------------------------------------------------------------------------
+section('passive swarm: the map modifier seeds replayable moving obstacles');
+{
+    const t = new TuningStack();
+    const swarmSpec = { seed: 12345, skin: 'saw' as const };
+    const spec: SegmentSpec = {
+        segmentId: 'swarm-proof',
+        floors: 60,
+        seed: 991,
+        difficulty: { profile: DIFFICULTY_PROFILES.climb, actIndex: 1 },
+        lineProfile: [],
+        modifiers: [],
+        loot: { coinsPerFloor: 0, powerupEveryFloors: 999 },
+        swarm: swarmSpec,
+    };
+    const build = buildSegmentTower(spec, t, GROUND_TOP_Y);
+    const a = new SwarmRuntime();
+    const b = new SwarmRuntime();
+    seedPassiveSwarm(a, build.layout, spec, t);
+    seedPassiveSwarm(b, build.layout, spec, t);
+    const tick = 180;
+    assert(
+        a.count() === Math.round(spec.floors * t.value('exam.passiveSwarmPerFloor')),
+        'density prices a real critter count',
+    );
+    assert(
+        JSON.stringify(a.positions(tick)) === JSON.stringify(b.positions(tick)),
+        'the passive swarm is seeded and replayable',
+    );
+    assert(
+        a
+            .positions(tick)
+            .every(
+                (c) =>
+                    c.scale === t.value('exam.passiveSwarmScale') &&
+                    c.skin === swarmSpec.skin &&
+                    c.critterId < 0,
+            ),
+        'passive critters are small, saw-skinned, and id-separated from boss spawns',
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -419,6 +463,7 @@ section('map: the boss row is real, the flipped prices roll');
     const pool = rollableModifiers().map((m) => m.id);
     assert(pool.includes('brittle_rows'), 'Brittle Rows is in the roll pool');
     assert(pool.includes('sticky_patches'), 'Sticky Patches is in the roll pool');
+    assert(pool.includes('swarm'), 'Swarm is in the roll pool');
 }
 
 // ---------------------------------------------------------------------------

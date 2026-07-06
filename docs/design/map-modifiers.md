@@ -80,7 +80,7 @@ RETURN unlocks; names PG and physical):
 | Tailwind | line grace −50% | run accel +20% (you're faster too) |
 | Dense Fog | far-visibility skin (parallax veil) | coins +60% |
 | Sticky Patches | 10% of platforms drain 30% speed on land | bounty +big |
-| Swarm | passive Kenney critters as moving obstacles | coins +50% |
+| Swarm | small saw critters shave 55% speed on touch | coins +50% |
 | Double Fuse | combo grace ×2 (a GIFT modifier — pay with no price; rare) | — |
 | Surging Line | line surges in telegraphed pulses (EXAM's toolkit, previewed) | loot ×1.75 |
 

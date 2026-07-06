@@ -59,6 +59,7 @@ function buildSegment(
     }));
     let crumbleFraction = 0;
     let stickyFraction = 0;
+    let swarm = false;
     for (const id of modifierIds) {
         const modifier = modifierById(id);
         modifierLayers.push(...modifier.tuningLayers.map((override) => ({ ...override })));
@@ -67,6 +68,9 @@ function buildSegment(
         }
         if (modifier.genPatch?.stickyFraction !== undefined) {
             stickyFraction += modifier.genPatch.stickyFraction;
+        }
+        if (modifier.genPatch?.swarm === true) {
+            swarm = true;
         }
     }
     const field: SegmentFieldSpec | undefined =
@@ -88,6 +92,7 @@ function buildSegment(
             powerupEveryFloors: DEFAULT_TUNING['powerup.everyFloors'],
         },
         field,
+        swarm: swarm ? { seed: forkSeed(runSeed, `swarm:${nodeId}`), skin: 'saw' } : undefined,
         boss: preset.type === 'boss' ? bossForAct(actIndex).id : undefined,
     };
 }

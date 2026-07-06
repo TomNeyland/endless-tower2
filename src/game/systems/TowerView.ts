@@ -110,7 +110,14 @@ export class TowerView {
         // Walls: camera-fixed columns scrolled by hand so they read infinite.
         this.walls = [TILE / 2, GAME_WIDTH - TILE / 2].map((x) =>
             scene.add
-                .tileSprite(x, GAME_HEIGHT / 2, TILE, GAME_HEIGHT, Atlas.tiles, TileFrame.wallColumn)
+                .tileSprite(
+                    x,
+                    GAME_HEIGHT / 2,
+                    TILE,
+                    GAME_HEIGHT,
+                    Atlas.tiles,
+                    TileFrame.wallColumn,
+                )
                 .setScrollFactor(0)
                 .setDepth(2),
         );

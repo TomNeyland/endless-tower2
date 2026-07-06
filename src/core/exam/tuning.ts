@@ -31,6 +31,13 @@ export const DEFAULT_EXAM_TUNING = {
     'exam.swarmSpeedKeep': 0.75, // vx multiplier when a critter connects
     'exam.swarmHitCooldownTicks': 45, // per-critter re-hit lockout (0.75s)
     'exam.swarmRadiusPx': 52, // contact radius around a critter's center
+    'exam.passiveSwarmPerFloor': 0.12, // CHOICE Swarm density: twelve critters per 100 floors
+    'exam.passiveSwarmScale': 0.32, // coin-ish saws, not boss-sized minions
+    'exam.passiveSwarmRadiusPx': 20, // contact matches the small warning sprite
+    'exam.passiveSwarmAmpX': 26, // tiny patrol sway around a platform center
+    'exam.passiveSwarmOmega': 1.05,
+    'exam.passiveSwarmFloatPx': 46,
+    'exam.passiveSwarmLifeTicks': 360000, // effectively whole-segment at 60Hz
 } satisfies Record<string, number>;
 
 export type ExamTuningKey = keyof typeof DEFAULT_EXAM_TUNING;
@@ -81,5 +88,24 @@ export function validateExamTuning(t: Record<string, number>): void {
     }
     if (v('exam.swarmRadiusPx') <= 0) {
         fail('exam.swarmRadiusPx', v('exam.swarmRadiusPx'), 'a contactless obstacle is a lie');
+    }
+    if (v('exam.passiveSwarmPerFloor') <= 0) {
+        fail(
+            'exam.passiveSwarmPerFloor',
+            v('exam.passiveSwarmPerFloor'),
+            'a swarm modifier with no critters is fake',
+        );
+    }
+    for (const key of [
+        'exam.passiveSwarmScale',
+        'exam.passiveSwarmRadiusPx',
+        'exam.passiveSwarmAmpX',
+        'exam.passiveSwarmOmega',
+        'exam.passiveSwarmFloatPx',
+        'exam.passiveSwarmLifeTicks',
+    ] as const) {
+        if (v(key) <= 0) {
+            fail(key, v(key), 'passive swarm values must be positive');
+        }
     }
 }

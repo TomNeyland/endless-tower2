@@ -15,6 +15,7 @@ import { NodeCardView } from '../map/NodeCardView';
 import { actPalette } from '../map/palettes';
 import { MysteryOverlay, ResultsToast, SummitCard } from '../map/MapOverlays';
 import { TowerExteriorView } from '../map/TowerExteriorView';
+import { MuteButton } from '../systems/MuteButton';
 import type { RunOrchestrator } from '../systems/RunOrchestrator';
 
 export interface MapSceneBootData {
@@ -51,6 +52,7 @@ export class MapScene extends Scene {
         const snap = this.run.snapshot();
         const palette = actPalette(snap.actIndex);
         const graph = this.run.actGraph();
+        new MuteButton(this);
         this.view = new TowerExteriorView(
             this,
             graph,

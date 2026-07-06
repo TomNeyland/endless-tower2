@@ -22,6 +22,10 @@ export interface SwarmSpawn {
     critterId: number;
     skin: SwarmSkin;
     pattern: SwarmPattern;
+    /** Visual size and contact size travel with the spawn so replay never
+     *  guesses from presentation skin. */
+    scale: number;
+    radiusPx: number;
     /** Anchor position at spawnTick. */
     x0: number;
     y0: number;
@@ -69,6 +73,29 @@ export class SwarmRuntime {
     private critters = new Map<number, CritterState>();
 
     spawn(cmd: SwarmSpawn): void {
+        for (const [key, value] of Object.entries({
+            x0: cmd.x0,
+            y0: cmd.y0,
+            ampX: cmd.ampX,
+            omega: cmd.omega,
+            phase: cmd.phase,
+            vy: cmd.vy,
+            spawnTick: cmd.spawnTick,
+        })) {
+            if (!Number.isFinite(value)) {
+                throw new Error(`swarm: critter ${cmd.critterId} has non-finite ${key}`);
+            }
+        }
+        if (
+            !Number.isFinite(cmd.scale) ||
+            !Number.isFinite(cmd.radiusPx) ||
+            !Number.isFinite(cmd.lifeTicks) ||
+            cmd.scale <= 0 ||
+            cmd.radiusPx <= 0 ||
+            cmd.lifeTicks < 1
+        ) {
+            throw new Error(`swarm: degenerate critter ${cmd.critterId}`);
+        }
         if (this.critters.has(cmd.critterId)) {
             throw new Error(`swarm: duplicate critter id ${cmd.critterId}`);
         }
@@ -88,12 +115,10 @@ export class SwarmRuntime {
     step(
         tick: number,
         player: { x: number; y: number },
-        radiusPx: number,
         hitCooldownTicks: number,
     ): SwarmStepResult {
         const contacts: SwarmContact[] = [];
         const expiredIds: number[] = [];
-        const r2 = radiusPx * radiusPx;
         for (const c of this.critters.values()) {
             if (tick - c.spawnTick >= c.lifeTicks) {
                 expiredIds.push(c.critterId);
@@ -102,6 +127,7 @@ export class SwarmRuntime {
             const pos = critterPosition(c, tick);
             const dx = pos.x - player.x;
             const dy = pos.y - player.y;
+            const r2 = c.radiusPx * c.radiusPx;
             if (dx * dx + dy * dy <= r2 && tick - c.lastHitTick >= hitCooldownTicks) {
                 c.lastHitTick = tick;
                 contacts.push({ critterId: c.critterId, x: pos.x, y: pos.y });
@@ -114,11 +140,23 @@ export class SwarmRuntime {
     }
 
     /** Live critters with their current positions — the view's read surface. */
-    positions(tick: number): (SwarmContact & { skin: SwarmSkin; pattern: SwarmPattern })[] {
-        const out: (SwarmContact & { skin: SwarmSkin; pattern: SwarmPattern })[] = [];
+    positions(tick: number): (SwarmContact & {
+        skin: SwarmSkin;
+        pattern: SwarmPattern;
+        scale: number;
+    })[] {
+        const out: (SwarmContact & { skin: SwarmSkin; pattern: SwarmPattern; scale: number })[] =
+            [];
         for (const c of this.critters.values()) {
             const pos = critterPosition(c, tick);
-            out.push({ critterId: c.critterId, x: pos.x, y: pos.y, skin: c.skin, pattern: c.pattern });
+            out.push({
+                critterId: c.critterId,
+                x: pos.x,
+                y: pos.y,
+                skin: c.skin,
+                pattern: c.pattern,
+                scale: c.scale,
+            });
         }
         return out;
     }

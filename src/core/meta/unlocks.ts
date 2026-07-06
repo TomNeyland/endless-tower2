@@ -8,9 +8,9 @@
  * marked unlockable are the tools of brokenness, earned by approaching
  * brokenness (Compounder arrives on a SUPERNOVA bank). The last 3 map
  * modifiers unlock via act completions, keeping early maps simpler by
- * construction. Brittle Rows / Sticky Patches / Swarm / Dense Fog / Surging
- * Line stay data-only behind their `rollable` flags — EXAM and later waves
- * own those flips; meta gating composes on top and never touches them.
+ * construction. Dense Fog and Surging Line stay data-only behind their
+ * `rollable` flags; meta gating composes on top and never touches those
+ * implementation flips.
  */
 import { modifierById, rollableModifiers } from '../map/modifiers';
 import type { ModifierSpec } from '../map/types';

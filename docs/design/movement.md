@@ -72,7 +72,7 @@ knee     = min(JUMP_BASE + EXCHANGE_K · maxSpeed_eff, HARD_CAP − SPAN)
 vy_jump  = raw                         if raw ≤ knee       # identity in play
          = knee + SPAN·tanh((raw−knee)/SPAN)               # SPAN = 650
                                        hard asymptote HARD_CAP = 2400 px/s
-vx      *= JUMP_RETENTION (0.70)       # the spend, applied at takeoff
+vx      *= JUMP_RETENTION (0.84)       # the spend, applied at takeoff
 ```
 
 Height = vy²/2g is quadratic in run speed: +0.4 floors per 100px/s when
@@ -94,9 +94,10 @@ via core Actions (Phaser config gravity = 0) so a relic can someday mutate it.
 ### Run
 
 Two-regime grounded accel: **1600 px/s² below 400 px/s** (0→400 in 0.25s —
-hand-in-glove), **500 above** (the last 400 px/s costs 0.8s of runway that
-does not fit on one floor — the ceiling is a career, reached through routing,
-not held keys). TURN_ACCEL 2600 when input opposes velocity (crisp skids;
+hand-in-glove), **650 above** (the last 400 px/s costs ~0.62s of runway —
+still earned through routing, no longer a treadmill). The 2026-07-06 human
+feel pass raised `JUMP_RETENTION` to 0.84 so good routing reaches the
+"screen on fire" band without making held-key running the answer. TURN_ACCEL 2600 when input opposes velocity (crisp skids;
 emits `reversal`). Ground drag 350 (no input — the glide). MAX_RUN_SPEED 1400,
 manual clamp. Speed tiers published as **fractions of the effective ceiling**
 TIER_FRACS [0.29, 0.50, 0.71, 0.89] + 50 px/s hysteresis — the ladder
@@ -209,12 +210,15 @@ Doctrine: triggered by bus events, scaled by kinematic magnitude, silent below
 threshold. Global `juiceScale` knob for live restraint auditions. Priority:
 squash/stretch (launch 0.80x/1.25y·80ms; land up to 1.45x/0.60y·110ms by
 impact; wall 0.70x/1.15y·70ms) → landing dust (≥400 impact, 4–12 particles) →
-run dust (≥0.5×ceiling) → the spin (captured-launch-speed drive, v1's one
-good visual instinct: `((launch−500)/900)^1.5 · 24 rad/s`, upright in 90ms) →
+run dust (≥0.42×ceiling) → the spin (captured-launch-speed drive, v1's one
+good visual instinct, retuned for earlier spectacle:
+`heat^1.35 · 36 rad/s`, where heat ramps from 420→1250 px/s; wall bounces
+multiply visible spin ×1.12, upright in 90ms) → afterburner embers at
+0.58×ceiling or hot spin →
 pitch-scaled audio (jump pitch 1.0→1.2 by conversionFraction; `sfx_gem`
 reserved exclusively for perfect-flag bounces — the skill sound; ±3% jitter;
-**master volume ships audible — the level is audio.md's call, one authority**) → speed wind at 0.71×ceiling → afterimage
-trail at 0.86×ceiling (the master's crown) → ONE shake trigger (land impact
+**master volume ships audible — the level is audio.md's call, one authority**) → speed wind at 0.62×ceiling → afterimage
+trail at 0.78×ceiling (the master's crown) → ONE shake trigger (land impact
 ≥1100: 2px, 90ms). Combo shoutouts and celebration audio are deliberately
 absent — they arrive in MASTERY as an *escalation*, not an inflation. The
 sandbox also carries act-1's visual identity from day one (parallax layers,
@@ -273,8 +277,9 @@ Player body: world-unit 44×58, bottom-aligned, independent of sprite scale
 
 ## Feel-gate A/B shortlist (pre-registered experiments)
 
-1. `JUMP_RETENTION` 0.70 vs 0.65 (the primary knob — chain sustainability vs
-   spend-weight).
+1. `JUMP_RETENTION` 0.84 vs 0.78 (the primary knob — chain sustainability vs
+   spend-weight; 0.70/0.65 were both too treadmill-heavy for the current
+   tower).
 2. Gravity family: 1500/×1.35 vs 1200-recomputed (float vs snap).
 3. Apex hang 0.6 vs off (1.0) — purist's objection, tested not assumed.
 4. Lossless-wall texture: if bounces read "dead," fix with sound/squash

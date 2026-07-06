@@ -27,6 +27,7 @@ import {
 import type { UnlockGrant } from '../meta/unlocks';
 
 export const SAVE_SCHEMA_VERSION = 1;
+export const DEFAULT_MASTER_VOLUME = 0.7;
 
 export interface SaveUnlocks {
     /** Feat ids earned, ever — the fire-once-ever set. */
@@ -61,7 +62,7 @@ export function freshSave(): SaveDocument {
         version: SAVE_SCHEMA_VERSION,
         unlocks: { feats: [], characters: [], relics: [], modifiers: [], newRelics: [] },
         stats: emptyLifetimeStats(),
-        settings: { masterVolume: 0.7 },
+        settings: { masterVolume: DEFAULT_MASTER_VOLUME },
         lastSeed: null,
     };
 }

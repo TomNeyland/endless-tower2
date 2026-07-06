@@ -2,6 +2,7 @@ import { type GameObjects, Scene } from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../main';
 import { Img, Sfx } from '../assets';
 import { saveStore } from '../meta/SaveStore';
+import { MuteButton } from '../systems/MuteButton';
 import type { CharacterSelectBootData } from './CharacterSelectScene';
 
 /** Seed characters accepted by the entry overlay (shareable, URL-safe). */
@@ -29,6 +30,7 @@ export class MainMenu extends Scene {
             GAME_HEIGHT,
             Img.backgroundSky,
         );
+        new MuteButton(this);
 
         this.add
             .text(GAME_WIDTH / 2, 220, 'ENDLESS TOWER 2', {
@@ -47,6 +49,7 @@ export class MainMenu extends Scene {
                 color: '#e8f4ff',
             })
             .setOrigin(0.5);
+        this.buildFieldGuide();
 
         // One start, ever: every listener is removed when any door opens.
         let started = false;
@@ -228,6 +231,43 @@ export class MainMenu extends Scene {
             hint.setAlpha(0.8);
         });
         t.on('pointerdown', go);
+    }
+
+    private buildFieldGuide(): void {
+        const x = 44;
+        const y = 374;
+        this.add
+            .rectangle(x, y, 268, 250, 0x07111f, 0.72)
+            .setOrigin(0, 0.5)
+            .setStrokeStyle(2, 0x3a5a7c, 0.75);
+        this.add
+            .text(x + 22, y - 102, 'FIELD GUIDE', {
+                fontFamily: 'Arial Black',
+                fontSize: 18,
+                color: '#ffe4a8',
+            })
+            .setOrigin(0, 0.5);
+        this.add
+            .text(
+                x + 22,
+                y - 60,
+                [
+                    'A/D or ←/→  build speed',
+                    'SPACE or Z  jump',
+                    'speed becomes height',
+                    'wall bounces keep momentum',
+                    'land a small hop to BANK',
+                    'bank before fire or critters',
+                    'turn your combo into safety',
+                ],
+                {
+                    fontFamily: 'Arial',
+                    fontSize: 15,
+                    color: '#dcecff',
+                    lineSpacing: 9,
+                },
+            )
+            .setOrigin(0, 0);
     }
 }
 

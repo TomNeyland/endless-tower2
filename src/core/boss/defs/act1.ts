@@ -38,6 +38,7 @@ export const SLIME_SOVEREIGN: BossDef = {
             swarmSkin: 'slime',
             swarmPattern: 'drift',
             swarmLifeTicks: 420,
+            swarmScale: 0.6,
         },
     ],
     phases: [

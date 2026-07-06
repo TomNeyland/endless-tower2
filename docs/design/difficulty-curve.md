@@ -43,7 +43,7 @@ value(t) = lerp(startBand, endBand, shape(t)) + phrase(t)
 | Climb | 0.15 → 0.60 | linear | standard |
 | Coin Rush | 0.10 → 0.25 | easeOut | generous |
 | Challenge | 0.30 → 0.75 | linear | standard |
-| Elite | 0.45 → 0.90 | easeIn | sparse |
+| Elite | 0.45 → 1.00 | easeIn | none — the endgame saturates the frontier |
 | Boss arena | 0.40 → 0.70 (cycles) | — | EXAM's brain owns spikes |
 
 The **difficulty index** maps to concrete bands in one place (a small table

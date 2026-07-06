@@ -14,6 +14,7 @@ import { characterById } from '../../core/meta/characters';
 import type { RunResultsData } from '../meta/MetaTracker';
 import { ensureGeneratedTextures, Sfx } from '../assets';
 import { ResultsView } from '../meta/ResultsView';
+import { MuteButton } from '../systems/MuteButton';
 
 export interface ResultsBootData {
     results: RunResultsData;
@@ -62,6 +63,7 @@ export class ResultsScene extends Scene {
         this.momentIndex = -1;
         this.done = this.results.fires.length === 0;
 
+        new MuteButton(this);
         const character = characterById(this.results.record.characterId);
         this.view = new ResultsView(this, this.results.record, character);
         this.view.renderSummary(this.results.fires.length);

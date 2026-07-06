@@ -19,6 +19,7 @@ import type { TuningStack } from '../../core/tuning';
 import { Gen } from '../assets';
 import type { PlayerAnimator } from '../player/PlayerAnimator';
 import type { PlayerSystem } from '../player/PlayerSystem';
+import { MomentumTrail } from './MomentumTrail';
 
 /** Shake priority: tier > bank > movement-land (combo-scoring.md graft #6). */
 const SHAKE_PRIORITY = { land: 0, bank: 1, tier: 2 } as const;
@@ -29,23 +30,19 @@ const SHAKE_INTENSITY_PER_PX = 0.0013;
 
 /** Glow alpha per tier index (SPARK -> BEYOND); the ladder of earned light. */
 const GLOW_ALPHA = [0.1, 0.16, 0.22, 0.28, 0.35, 0.44, 0.55, 0.55];
-const COMET_TIER = 5;
 const SUPERNOVA_TIER = 6;
 
 export class JuiceSystem {
     private readonly scene: Scene;
     private readonly camera: Cameras.Scene2D.Camera;
     private readonly player: PlayerSystem;
-    private readonly animator: PlayerAnimator;
     private readonly bus: EventBus;
     private readonly comboBus: ComboBus;
     private readonly t: TuningStack;
 
-    private wind: GameObjects.Particles.ParticleEmitter;
     private glow: GameObjects.Image;
     private warmOverlay: GameObjects.Rectangle;
-    private windAt = 0;
-    private afterimageAt = 0;
+    private trail: MomentumTrail;
     private comboTier = -1;
     /** Chain that already spent its BLAZING warm grading push. */
     private warmPushChainId = -1;
@@ -63,6 +60,7 @@ export class JuiceSystem {
 
     private readonly onComboTier = (e: ComboTierEvent): void => {
         this.comboTier = Math.min(e.tierIndex, GLOW_ALPHA.length - 1);
+        this.trail.setComboTier(this.comboTier);
         this.scene.tweens.add({
             targets: this.glow,
             alpha: GLOW_ALPHA[this.comboTier] * this.t.value('JUICE_SCALE'),
@@ -115,19 +113,11 @@ export class JuiceSystem {
         this.scene = scene;
         this.camera = scene.cameras.main;
         this.player = player;
-        this.animator = animator;
         this.bus = bus;
         this.comboBus = comboBus;
         this.t = tuning;
 
-        this.wind = scene.add.particles(0, 0, Gen.streak, {
-            lifespan: 320,
-            alpha: { start: 0.35, end: 0 },
-            scale: { start: 1, end: 0.4 },
-            tint: 0xffffff,
-            emitting: false,
-        });
-        this.wind.setDepth(8);
+        this.trail = new MomentumTrail(scene, player, animator, tuning);
 
         this.glow = scene.add
             .image(0, 0, Gen.glow)
@@ -211,6 +201,7 @@ export class JuiceSystem {
 
     private douseGlow(): void {
         this.comboTier = -1;
+        this.trail.clearComboTier();
         this.scene.tweens.add({ targets: this.glow, alpha: 0, duration: 350 });
     }
 
@@ -220,45 +211,9 @@ export class JuiceSystem {
             return;
         }
         const k = this.player.kinematics();
-        const speed = Math.abs(k.vx);
-        const ceiling = this.t.value('MAX_RUN_SPEED');
-        const now = this.scene.time.now;
 
         this.glow.setPosition(k.x, k.y);
-
-        // Speed wind: horizontal streaks trailing the sprint.
-        if (speed >= this.t.value('WIND_FRAC') * ceiling && now >= this.windAt) {
-            const dir = Math.sign(k.vx) || 1;
-            const px = k.x - dir * 30;
-            const py = k.y - 20 + Math.random() * 40;
-            this.wind.setParticleSpeed(-dir * (120 + Math.random() * 80), 0);
-            this.wind.emitParticleAt(px, py, 1);
-            this.windAt = now + 45;
-        }
-
-        // Afterimage trail: the visible signature of a run gone god-mode —
-        // and, from COMET up, the comet tail the ladder promises.
-        const trailBySpeed = speed >= this.t.value('AFTERIMAGE_FRAC') * ceiling;
-        const trailByTier = this.comboTier >= COMET_TIER;
-        if ((trailBySpeed || trailByTier) && now >= this.afterimageAt) {
-            const src = this.animator.visual;
-            const ghost = this.scene.add
-                .image(src.x, src.y, src.texture.key, src.frame.name)
-                .setOrigin(src.originX, src.originY)
-                .setScale(src.scaleX, src.scaleY)
-                .setFlipX(src.flipX)
-                .setRotation(src.rotation)
-                .setAlpha(0.35 * juice)
-                .setTint(trailByTier ? 0xffd28a : 0xbfe8ff)
-                .setDepth(7);
-            this.scene.tweens.add({
-                targets: ghost,
-                alpha: 0,
-                duration: 200,
-                onComplete: () => ghost.destroy(),
-            });
-            this.afterimageAt = now + 50;
-        }
+        this.trail.update();
     }
 
     destroy(): void {
@@ -267,7 +222,7 @@ export class JuiceSystem {
         this.comboBus.off('combo/banked', this.onComboBanked);
         this.comboBus.off('combo/voided', this.onComboEnded);
         this.comboBus.off('combo/reset', this.onComboEnded);
-        this.wind.destroy();
+        this.trail.destroy();
         this.glow.destroy();
         this.warmOverlay.destroy();
     }

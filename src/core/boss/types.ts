@@ -33,6 +33,7 @@ export interface BossAttackDef {
     swarmSkin?: SwarmSkin;
     swarmPattern?: SwarmPattern;
     swarmLifeTicks?: number;
+    swarmScale?: number;
 }
 
 /**
@@ -124,8 +125,19 @@ export function validateBossDef(def: BossDef): void {
         if (a.kind === 'gust' && (a.gustAccelX === undefined || a.gustAccelX === 0)) {
             fail(def.id, `${a.id} gust with no wind`);
         }
-        if (a.kind === 'swarm' && (a.swarmCount === undefined || a.swarmCount < 1)) {
-            fail(def.id, `${a.id} swarm with no critters`);
+        if (a.kind === 'swarm') {
+            if (a.swarmCount === undefined || a.swarmCount < 1) {
+                fail(def.id, `${a.id} swarm with no critters`);
+            }
+            if (a.swarmSkin === undefined || a.swarmPattern === undefined) {
+                fail(def.id, `${a.id} swarm missing skin or pattern`);
+            }
+            if (a.swarmLifeTicks === undefined || a.swarmLifeTicks < 1) {
+                fail(def.id, `${a.id} swarm lifetime missing`);
+            }
+            if (a.swarmScale === undefined || a.swarmScale <= 0) {
+                fail(def.id, `${a.id} swarm scale missing`);
+            }
         }
         if (
             (a.kind === 'crumble_volley' || a.kind === 'sticky_spit' || a.kind === 'body_slam') &&

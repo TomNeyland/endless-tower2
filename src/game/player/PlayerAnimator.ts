@@ -23,6 +23,8 @@ export class PlayerAnimator {
 
     private sprite: GameObjects.Sprite;
     private dust: GameObjects.Particles.ParticleEmitter;
+    private afterburner: GameObjects.Particles.ParticleEmitter;
+    private wallSparks: GameObjects.Particles.ParticleEmitter;
 
     private squash = { x: 1, y: 1 };
     private squashTween: Tweens.Tween | null = null;
@@ -33,16 +35,11 @@ export class PlayerAnimator {
     private walkToggleAt = 0;
     private walkFrameA = true;
     private runDustAt = 0;
+    private afterburnerAt = 0;
 
     private readonly onJump = (e: JumpEvent): void => {
         this.applySquash(0.8, 1.25, 80);
-        const launch = e.launchSpeedX;
-        if (launch > 500) {
-            this.spinOmega = ((launch - 500) / 900) ** 1.5 * 24;
-            this.spinDir = e.vx < 0 ? -1 : 1;
-        } else {
-            this.spinOmega = 0;
-        }
+        this.triggerSpin(e.launchSpeedX, e.vx < 0 ? -1 : 1, 1);
     };
 
     private readonly onLand = (e: LandEvent): void => {
@@ -67,10 +64,19 @@ export class PlayerAnimator {
         }
     };
 
-    // Wall squash only — movement.md's juice list prices squash for walls;
-    // dust is priced for landings and runs, not bounces. Restraint doctrine.
-    private readonly onWallBounce = (_e: WallBounceEvent): void => {
+    private readonly onWallBounce = (e: WallBounceEvent): void => {
         this.applySquash(0.7, 1.15, 70);
+        const dir = e.vx < 0 ? -1 : 1;
+        this.triggerSpin(e.exitSpeedX, dir, this.t.value('juice.wallSpinMul'));
+        const juice = this.t.value('JUICE_SCALE');
+        const heat = Math.min(1, e.exitSpeedX / this.t.value('MAX_RUN_SPEED'));
+        const sparkMin = this.t.value('juice.wallSparkMinParticles');
+        const sparkMax = this.t.value('juice.wallSparkMaxParticles');
+        const count = Math.round((sparkMin + (sparkMax - sparkMin) * heat) * juice);
+        if (count > 0) {
+            this.wallSparks.setParticleSpeed(-dir * (120 + 220 * heat), -80 - 120 * heat);
+            this.wallSparks.explode(count, e.x, e.y);
+        }
     };
 
     private readonly onSpawn = (): void => {
@@ -112,6 +118,26 @@ export class PlayerAnimator {
             emitting: false,
         });
         this.dust.setDepth(9);
+        this.afterburner = scene.add.particles(0, 0, Gen.ember, {
+            speedX: { min: -70, max: 70 },
+            speedY: { min: 40, max: 160 },
+            lifespan: { min: 180, max: 360 },
+            scale: { start: 0.9, end: 0.05 },
+            alpha: { start: 0.85, end: 0 },
+            tint: [0xffe28a, 0xff8a20, 0xff3d0f],
+            blendMode: 'ADD',
+            emitting: false,
+        });
+        this.afterburner.setDepth(8.5);
+        this.wallSparks = scene.add.particles(0, 0, Gen.spark, {
+            lifespan: { min: 140, max: 300 },
+            scale: { start: 1.4, end: 0 },
+            alpha: { start: 1, end: 0 },
+            tint: [0xfff0a0, 0xffa11a, 0xffffff],
+            blendMode: 'ADD',
+            emitting: false,
+        });
+        this.wallSparks.setDepth(9.5);
 
         bus.on('movement/jump', this.onJump);
         bus.on('movement/land', this.onLand);
@@ -136,6 +162,27 @@ export class PlayerAnimator {
             duration: durationMs,
             ease: 'Sine.easeOut',
         });
+    }
+
+    private triggerSpin(speed: number, dir: -1 | 1, mul: number): void {
+        const start = this.t.value('juice.spinStartSpeed');
+        if (speed <= start) {
+            this.spinOmega = 0;
+            return;
+        }
+        const full = this.t.value('juice.spinFullSpeed');
+        if (full <= start) {
+            throw new Error(
+                `juice tuning degenerate: spinFullSpeed ${full} <= spinStartSpeed ${start}`,
+            );
+        }
+        const span = full - start;
+        const heat = Math.min(1, (speed - start) / span);
+        this.spinOmega =
+            heat ** this.t.value('juice.spinExponent') *
+            this.t.value('juice.spinMaxRadPerSec') *
+            mul;
+        this.spinDir = dir;
     }
 
     update(deltaMs: number): void {
@@ -178,6 +225,27 @@ export class PlayerAnimator {
             this.dust.explode(1, k.x - Math.sign(k.vx) * 18, k.feetY - 4);
             this.runDustAt = now + 70;
         }
+
+        // Afterburner: the "screen on fire" body-language before the formal
+        // afterimage crown. Wall-bounce spin can keep it alive mid-air even
+        // while jump-spend temporarily lowers horizontal speed.
+        const afterburnerSpeed =
+            this.t.value('juice.afterburnerFrac') * this.t.value('MAX_RUN_SPEED');
+        const spinHeat = this.spinOmega / this.t.value('juice.spinMaxRadPerSec');
+        if (
+            juice > 0 &&
+            (speed >= afterburnerSpeed || spinHeat >= this.t.value('juice.spinAfterburnerHeat')) &&
+            now >= this.afterburnerAt
+        ) {
+            const dir = speed > 30 ? (k.vx < 0 ? -1 : 1) : this.spinDir;
+            const heat = Math.min(1, Math.max(speed / this.t.value('MAX_RUN_SPEED'), spinHeat));
+            const min = this.t.value('juice.afterburnerMinParticles');
+            const max = this.t.value('juice.afterburnerMaxParticles');
+            const count = Math.round((min + (max - min) * heat) * juice);
+            this.afterburner.setParticleSpeed(-dir * (100 + speed * 0.12), 70);
+            this.afterburner.emitParticleAt(k.x - dir * 20, k.feetY - 26, count);
+            this.afterburnerAt = now + this.t.value('juice.afterburnerMs');
+        }
     }
 
     destroy(): void {
@@ -189,5 +257,7 @@ export class PlayerAnimator {
         this.uprightTween?.stop();
         this.sprite.destroy();
         this.dust.destroy();
+        this.afterburner.destroy();
+        this.wallSparks.destroy();
     }
 }

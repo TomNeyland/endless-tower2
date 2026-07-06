@@ -48,6 +48,7 @@ import { ComboHud } from '../systems/ComboHud';
 import { ComboRelay } from '../systems/ComboRelay';
 import { InputMap } from '../systems/InputMap';
 import { JuiceSystem } from '../systems/JuiceSystem';
+import { MuteButton } from '../systems/MuteButton';
 import { ParallaxBackdrop } from '../systems/ParallaxBackdrop';
 import { PowerupSystem } from '../systems/PowerupSystem';
 import { PressureAudio } from '../systems/PressureAudio';
@@ -243,6 +244,7 @@ export class Sandbox extends Scene {
         }
 
         this.backdrop = new ParallaxBackdrop(this);
+        new MuteButton(this);
         this.towerView = new TowerView(this, layout);
         this.inputMap = new InputMap(this);
         this.replayDriver = new ReplayDriver(recorder, this.tuning, seed);
@@ -344,6 +346,7 @@ export class Sandbox extends Scene {
                 this.bus,
                 this.tuning,
                 recorder,
+                this.segmentSpec,
             );
             this.swarmView = new SwarmView(this, this.examField.swarm, this.examField, this.playerSystem);
             if (this.segmentSpec.boss !== undefined) {

@@ -33,9 +33,9 @@ export const DIFFICULTY_PROFILES = {
     elite: {
         id: 'elite',
         startIndex: 0.45,
-        endIndex: 0.9,
+        endIndex: 1,
         shape: 'easeIn',
-        phraseAmplitude: 0.06,
+        phraseAmplitude: 0,
         cycles: 0,
     },
     boss: {

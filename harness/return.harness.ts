@@ -258,7 +258,13 @@ ok('segment bounce counter resets on segment start (24+24 never fires)', () => {
 
 ok('clean-act refuses after a heart loss (line catch or mystery)', () => {
     const lineCatch = new FeatEngine([]);
-    lineCatch.handleMovement({ ...env(), type: 'run/heart_lost', heartsRemaining: 2, gapAtCatch: 0, catchFloorIndex: 3 });
+    lineCatch.handleMovement({
+        ...env(),
+        type: 'run/heart_lost',
+        heartsRemaining: 2,
+        gapAtCatch: 0,
+        catchFloorIndex: 3,
+    });
     assert.deepEqual(
         lineCatch.handleActCompleted(1).map((f) => f.featId),
         ['act1-complete'],
@@ -268,7 +274,10 @@ ok('clean-act refuses after a heart loss (line catch or mystery)', () => {
     assert.deepEqual(mystery.handleActCompleted(1), []);
     // The act scope resets: the NEXT act, played clean, fires clean-act.
     assert.deepEqual(
-        mystery.handleActCompleted(2).map((f) => f.featId).sort(),
+        mystery
+            .handleActCompleted(2)
+            .map((f) => f.featId)
+            .sort(),
         ['act2-complete', 'clean-act'].sort(),
     );
 });
@@ -276,12 +285,24 @@ ok('clean-act refuses after a heart loss (line catch or mystery)', () => {
 ok('ceiling entry fires touch-ceiling; exit does not', () => {
     const engine = new FeatEngine([]);
     assert.equal(
-        engine.handleMovement({ ...env(), type: 'movement/ceiling', state: 'exited', effectiveMaxSpeed: 1400, source: 'base' }).length,
+        engine.handleMovement({
+            ...env(),
+            type: 'movement/ceiling',
+            state: 'exited',
+            effectiveMaxSpeed: 1400,
+            source: 'base',
+        }).length,
         0,
     );
     assert.deepEqual(
         engine
-            .handleMovement({ ...env(), type: 'movement/ceiling', state: 'entered', effectiveMaxSpeed: 1400, source: 'base' })
+            .handleMovement({
+                ...env(),
+                type: 'movement/ceiling',
+                state: 'entered',
+                effectiveMaxSpeed: 1400,
+                source: 'base',
+            })
             .map((f) => f.featId),
         ['touch-ceiling'],
     );
@@ -352,7 +373,13 @@ ok('corrupt saves -> fresh + one warning (never a throw, never a lie)', () => {
         // An unlock naming a relic that does not exist is corrupt, not filtered.
         JSON.stringify({
             ...freshSave(),
-            unlocks: { feats: [], characters: [], relics: ['ghost-relic'], modifiers: [], newRelics: [] },
+            unlocks: {
+                feats: [],
+                characters: [],
+                relics: ['ghost-relic'],
+                modifiers: [],
+                newRelics: [],
+            },
         }),
     ]) {
         const loaded = loadSaveDocument(raw);
@@ -399,14 +426,19 @@ ok('pink folds flip grace x1.5 and retention -0.04', () => {
     const stack = new TuningStack();
     applyCharacterLayers(characterById('pink'), stack, 0);
     assert.equal(stack.value('STICK_FLIP_GRACE_MS'), DEFAULT_TUNING.STICK_FLIP_GRACE_MS * 1.5);
-    assert.ok(Math.abs(stack.value('JUMP_RETENTION') - (DEFAULT_TUNING.JUMP_RETENTION - 0.04)) < 1e-12);
+    assert.ok(
+        Math.abs(stack.value('JUMP_RETENTION') - (DEFAULT_TUNING.JUMP_RETENTION - 0.04)) < 1e-12,
+    );
 });
 
 ok('yellow folds accel x1.15 and a 12-tick hotter fuse', () => {
     const stack = new TuningStack();
     applyCharacterLayers(characterById('yellow'), stack, 0);
     assert.ok(Math.abs(stack.value('RUN_ACCEL_LOW') - DEFAULT_TUNING.RUN_ACCEL_LOW * 1.15) < 1e-9);
-    assert.equal(stack.value('combo.groundGraceTicks'), DEFAULT_TUNING['combo.groundGraceTicks'] - 12);
+    assert.equal(
+        stack.value('combo.groundGraceTicks'),
+        DEFAULT_TUNING['combo.groundGraceTicks'] - 12,
+    );
 });
 
 ok('purple folds gravity x0.9 and hearts.max 2; a fresh purple run starts at 2', () => {
@@ -414,7 +446,12 @@ ok('purple folds gravity x0.9 and hearts.max 2; a fresh purple run starts at 2',
     applyCharacterLayers(characterById('purple'), stack, 0);
     assert.equal(stack.value('GRAVITY_RISE'), DEFAULT_TUNING.GRAVITY_RISE * 0.9);
     assert.equal(stack.value('hearts.max'), 2);
-    const run = new RunState({ seed: 'h', characterId: 'purple' }, stack, () => 0, () => {});
+    const run = new RunState(
+        { seed: 'h', characterId: 'purple' },
+        stack,
+        () => 0,
+        () => {},
+    );
     assert.equal(run.hearts, 2); // hearts.start 3, clamped by the trait
     assert.equal(run.characterId, 'purple');
     // RunHost.begin does the same fold for the map side.
@@ -426,10 +463,25 @@ ok('purple folds gravity x0.9 and hearts.max 2; a fresh purple run starts at 2',
 ok('hearts.max floors at 1: the stack THROWS and rolls back below it', () => {
     const stack = new TuningStack();
     applyCharacterLayers(characterById('purple'), stack, 0); // max 2
-    stack.pushLayer({ id: 'b1', owner: 'boss:test', key: 'hearts.max', op: 'add', value: -1, tick: 0 });
+    stack.pushLayer({
+        id: 'b1',
+        owner: 'boss:test',
+        key: 'hearts.max',
+        op: 'add',
+        value: -1,
+        tick: 0,
+    });
     assert.equal(stack.value('hearts.max'), 1);
     assert.throws(
-        () => stack.pushLayer({ id: 'b2', owner: 'boss:test', key: 'hearts.max', op: 'add', value: -1, tick: 0 }),
+        () =>
+            stack.pushLayer({
+                id: 'b2',
+                owner: 'boss:test',
+                key: 'hearts.max',
+                op: 'add',
+                value: -1,
+                tick: 0,
+            }),
         /floors at 1/,
     );
     assert.equal(stack.value('hearts.max'), 1); // the bad layer rolled back
@@ -439,7 +491,14 @@ ok('canonical fold: character folds before relics regardless of push order', () 
     const stack = new TuningStack();
     // Relic pushed FIRST, character second — the fold must still run
     // base -> character (mul) -> relic (set).
-    stack.pushLayer({ id: 'r', owner: 'relic:test', key: 'GROUND_DRAG', op: 'set', value: 100, tick: 0 });
+    stack.pushLayer({
+        id: 'r',
+        owner: 'relic:test',
+        key: 'GROUND_DRAG',
+        op: 'set',
+        value: 100,
+        tick: 0,
+    });
     applyCharacterLayers(characterById('green'), stack, 0);
     assert.equal(stack.value('GROUND_DRAG'), 100);
     // Pop the character by owner; the relic band survives untouched.
@@ -451,7 +510,15 @@ ok('canonical fold: character folds before relics regardless of push order', () 
 ok('an unknown owner class still fails loud at push', () => {
     const stack = new TuningStack();
     assert.throws(
-        () => stack.pushLayer({ id: 'x', owner: 'meta:test', key: 'GROUND_DRAG', op: 'mul', value: 1, tick: 0 }),
+        () =>
+            stack.pushLayer({
+                id: 'x',
+                owner: 'meta:test',
+                key: 'GROUND_DRAG',
+                op: 'mul',
+                value: 1,
+                tick: 0,
+            }),
         /owner-tag contract/,
     );
 });
@@ -479,14 +546,21 @@ ok('16 of 24 relics initial; unlocks grow the pool one grant at a time', () => {
     assert.equal(relicPool([...UNLOCKABLE_RELICS]).length, 24);
 });
 
-ok('the locked modifier trio stays out of the roll pool until earned', () => {
+ok('unbuilt modifiers stay out of the roll pool until earned', () => {
     const initialIds = modifierPool([]).map((m) => m.id);
-    // EXAM flipped brittle_rows and sticky_patches rollable (the boss
+    // EXAM flipped brittle_rows, sticky_patches, and swarm rollable (the boss
     // toolkit's hazards graduating to map modifiers); RETURN's locked trio
     // is orthogonal to that flip. The initial pool is the merged truth.
     assert.deepEqual(
         initialIds.sort(),
-        ['brittle_rows', 'greedy_line', 'icy_floors', 'low_gravity', 'sticky_patches'].sort(),
+        [
+            'brittle_rows',
+            'greedy_line',
+            'icy_floors',
+            'low_gravity',
+            'sticky_patches',
+            'swarm',
+        ].sort(),
     );
     for (const id of UNLOCKABLE_MODIFIERS) {
         assert.ok(!initialIds.includes(id));
@@ -559,8 +633,26 @@ console.log('lifetime stats');
 
 ok('win streaks, per-character boards, and bests fold correctly', () => {
     let stats = emptyLifetimeStats();
-    stats = foldRunIntoStats(stats, runRecord({ reason: 'summit', characterId: 'beige', totalScore: 5000, actsCompleted: 3, fastestActTicks: 9000 }));
-    stats = foldRunIntoStats(stats, runRecord({ reason: 'summit', characterId: 'green', bestChainPayout: 45648, bestChainFace: '31 FLOORS ×4.75 — 45,648', fastestActTicks: 7000 }));
+    stats = foldRunIntoStats(
+        stats,
+        runRecord({
+            reason: 'summit',
+            characterId: 'beige',
+            totalScore: 5000,
+            actsCompleted: 3,
+            fastestActTicks: 9000,
+        }),
+    );
+    stats = foldRunIntoStats(
+        stats,
+        runRecord({
+            reason: 'summit',
+            characterId: 'green',
+            bestChainPayout: 45648,
+            bestChainFace: '31 FLOORS ×4.75 — 45,648',
+            fastestActTicks: 7000,
+        }),
+    );
     stats = foldRunIntoStats(stats, runRecord({ reason: 'death_line', characterId: 'green' }));
     assert.equal(stats.runs, 3);
     assert.equal(stats.wins, 2);

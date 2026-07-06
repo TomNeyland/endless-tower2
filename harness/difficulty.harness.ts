@@ -15,8 +15,13 @@ import { DEFAULT_TUNING, TuningStack } from '../src/core/tuning';
 const GROUND_TOP_Y = 704;
 const SEED_COUNT = 500;
 const FLOOR_COUNTS = [100, 200] as const;
-const PROFILE_TYPES = ['climb', 'coin_rush', 'challenge', 'elite', 'boss'] as const satisfies
-    readonly NodeType[];
+const PROFILE_TYPES = [
+    'climb',
+    'coin_rush',
+    'challenge',
+    'elite',
+    'boss',
+] as const satisfies readonly NodeType[];
 const EPSILON = 1e-12;
 
 let checks = 0;
@@ -47,10 +52,7 @@ function tuningFor(
     }
     const tuning = new TuningStack();
     const owner = `segment:${segmentId}`;
-    const allOverrides = [
-        ...LINE_PROFILES[preset.lineProfile].overrides,
-        ...modifiers,
-    ];
+    const allOverrides = [...LINE_PROFILES[preset.lineProfile].overrides, ...modifiers];
     allOverrides.forEach((override, index) => {
         tuning.pushLayer({
             id: `${owner}:${index}`,
@@ -93,13 +95,14 @@ function segmentSpec(
     return base;
 }
 
-function verifyTrace(spec: SegmentSpec, trace: ReturnType<typeof buildSegmentTower>['layout']['difficultyTrace']): void {
+function verifyTrace(
+    spec: SegmentSpec,
+    trace: ReturnType<typeof buildSegmentTower>['layout']['difficultyTrace'],
+): void {
     assert(trace.length === spec.floors + 1, `${spec.segmentId} trace length`);
-    const actLift =
-        (spec.difficulty.actIndex - 1) * DEFAULT_TUNING['difficulty.actStep'];
+    const actLift = (spec.difficulty.actIndex - 1) * DEFAULT_TUNING['difficulty.actStep'];
     assert(
-        Math.abs(trace[0].baselineIndex - (spec.difficulty.profile.startIndex + actLift)) <
-            EPSILON,
+        Math.abs(trace[0].baselineIndex - (spec.difficulty.profile.startIndex + actLift)) < EPSILON,
         `${spec.segmentId} act lift`,
     );
     for (let floor = 1; floor < trace.length; floor += 1) {
@@ -129,13 +132,7 @@ for (let seedIndex = 0; seedIndex < SEED_COUNT; seedIndex += 1) {
             const includeNarrow = seedIndex % 4 === 0;
             const segmentId = `difficulty-${type}-${actIndex}-${floors}-${seedIndex}`;
             const firstSetup = tuningFor(segmentId, type, includeNarrow);
-            const spec = segmentSpec(
-                type,
-                actIndex,
-                floors,
-                seedIndex,
-                firstSetup.modifiers,
-            );
+            const spec = segmentSpec(type, actIndex, floors, seedIndex, firstSetup.modifiers);
             const first = buildSegmentTower(spec, firstSetup.tuning, GROUND_TOP_Y);
             const secondSetup = tuningFor(segmentId, type, includeNarrow);
             const second = buildSegmentTower(spec, secondSetup.tuning, GROUND_TOP_Y);
@@ -172,10 +169,7 @@ for (let seedIndex = 0; seedIndex < SEED_COUNT; seedIndex += 1) {
 
 assert(phraseDrops > 0, 'no breather relief appeared');
 assert(bossTurns > 0, 'boss profile never cycled');
-assert(
-    eliteSaturations === SEED_COUNT * FLOOR_COUNTS.length,
-    'not every Elite endgame saturated',
-);
+assert(eliteSaturations === SEED_COUNT * FLOOR_COUNTS.length, 'not every Elite endgame saturated');
 assert(
     configurations === SEED_COUNT * PROFILE_TYPES.length * FLOOR_COUNTS.length,
     'sweep configuration count drifted',

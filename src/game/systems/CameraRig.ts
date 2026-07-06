@@ -46,8 +46,7 @@ export class CameraRig {
 
         const target = this.targetScrollY(k.y + this.look);
         const current = this.camera.scrollY;
-        const lerp =
-            target < current ? this.t.value('CAM_LERP_UP') : this.t.value('CAM_LERP_DOWN');
+        const lerp = target < current ? this.t.value('CAM_LERP_UP') : this.t.value('CAM_LERP_DOWN');
         this.camera.setScroll(0, current + (target - current) * lerp);
     }
 }

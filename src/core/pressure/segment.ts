@@ -9,6 +9,7 @@
  * never a place a finishing player can strand themselves.
  */
 import { rollFieldClassifications } from '../exam/field';
+import type { SwarmSkin } from '../exam/swarm';
 import { DIFFICULTY_PROFILES } from '../difficulty/profiles';
 import type { SegmentDifficulty } from '../difficulty/types';
 import { fork } from '../rng';
@@ -42,6 +43,12 @@ export interface SegmentFieldSpec {
     stickyFraction: number;
 }
 
+/** Passive EXAM critters seeded by the CHOICE Swarm modifier. */
+export interface SegmentSwarmSpec {
+    seed: number;
+    skin: SwarmSkin;
+}
+
 export interface SegmentSpec {
     segmentId: string;
     /** The door's floor — the climb's win condition. In a boss arena this is
@@ -60,6 +67,8 @@ export interface SegmentSpec {
     loot: SegmentLoot;
     /** Platform-field roll (crumble/sticky fractions); absent = clean tower. */
     field?: SegmentFieldSpec;
+    /** Initial passive critter field; absent = no ambient swarm. */
+    swarm?: SegmentSwarmSpec;
     /** Boss id (EXAM): present = this segment is a duel arena — endless
      *  upward, no exit door until `boss/defeated` commands one. */
     boss?: string;

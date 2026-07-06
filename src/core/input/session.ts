@@ -39,8 +39,12 @@ import type { EventIndex, MarkerRecord, Recording, TuningMutationRecord } from '
  * v4: difficulty adds the generated curve trace and platform phrase facts to
  * the embedded tower. A v3 file cannot serve the new debug truth, so it is
  * refused rather than partially loaded.
+ *
+ * v5: passive Swarm makes critter scale/contact radius spawn data and adds
+ * optional `SegmentSpec.swarm`. A v4 swarm command cannot replay the new
+ * contact contract, so it is refused rather than guessed.
  */
-export const SESSION_SCHEMA_VERSION = 4;
+export const SESSION_SCHEMA_VERSION = 5;
 
 /**
  * One run-length-encoded stretch of identical input:

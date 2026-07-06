@@ -23,6 +23,7 @@ export const WHIRRING_WARDEN: BossDef = {
             swarmSkin: 'saw',
             swarmPattern: 'wall', // hazards riding the routing surfaces
             swarmLifeTicks: 380,
+            swarmScale: 0.6,
         },
         {
             id: 'crosswind',

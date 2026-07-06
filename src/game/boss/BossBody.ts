@@ -291,8 +291,7 @@ export class BossBody {
         // at SOARING+ reads from across the room, and the openness stance
         // slumps to an exposed crawl — the window is visible in the body
         // itself, not just the aura.
-        const tempo =
-            this.mood === 'helpless' ? 900 : this.open ? 680 : this.agitated ? 130 : 420;
+        const tempo = this.mood === 'helpless' ? 900 : this.open ? 680 : this.agitated ? 130 : 420;
         if (now >= this.frameAt && this.mood !== 'helpless' && this.mood !== 'falling') {
             this.frameAt = now + tempo;
             this.frameFlip = !this.frameFlip;

@@ -47,8 +47,7 @@ export function ceilingPhase(ctx: StepCtx): void {
     const { state, t, emit } = ctx;
     const speed = Math.abs(ctx.vx);
     const maxEff = t.value('MAX_RUN_SPEED');
-    const source: 'base' | 'stack' =
-        maxEff === t.baseValue('MAX_RUN_SPEED') ? 'base' : 'stack';
+    const source: 'base' | 'stack' = maxEff === t.baseValue('MAX_RUN_SPEED') ? 'base' : 'stack';
     if (!state.ceilingActive && speed >= maxEff - 0.5) {
         state.ceilingActive = true;
         emit({

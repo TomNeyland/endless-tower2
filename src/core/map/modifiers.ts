@@ -8,9 +8,8 @@
  * Rollability: a modifier whose PRICE needs unbuilt machinery is excluded
  * from the roll pool (rollable: false) — shipping its pay without its price
  * would put a lie on the label. The roster still carries all 12 as data;
- * the pool grows as land classifications (Brittle/Sticky), critters (Swarm),
- * the fog veil skin (Dense Fog), and line surges (Surging Line, EXAM's
- * toolkit) arrive. Recorded in docs/DEVIATIONS.md.
+ * Dense Fog and Surging Line stay out until their ambient machinery lands.
+ * Recorded in docs/DEVIATIONS.md.
  */
 import type { ModifierSpec } from './types';
 
@@ -142,13 +141,14 @@ export const MODIFIER_ROSTER: readonly ModifierSpec[] = [
         id: 'swarm',
         name: 'Swarm',
         blurb: 'The tower has tenants, and they drift.',
-        price: 'passive critters as moving obstacles',
+        price: 'small saw critters shave 55% speed on touch',
         pay: 'coins +50%',
-        tuningLayers: [],
+        tuningLayers: [{ key: 'exam.swarmSpeedKeep', op: 'set', value: 0.45 }],
         genPatch: { swarm: true },
         lootPatch: { coinsMul: 1.5 },
-        // Awaits critter entities (the pack's unused enemies).
-        rollable: false,
+        // Rollable since passive critters seed through the EXAM swarm
+        // runtime and replay path.
+        rollable: true,
         nasty: true,
     },
     {

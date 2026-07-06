@@ -13,6 +13,7 @@
 import type { MovementEvent } from '../events';
 import { applyExamCommand, type ExamCommandSinks } from '../exam/commands';
 import { PlatformField } from '../exam/field';
+import { seedPassiveSwarm } from '../exam/passive-swarm';
 import { SwarmRuntime } from '../exam/swarm';
 import type { EventIndex } from '../input/recorder';
 import { recordingFromSession, type SessionRecording, shouldIndexEvent } from '../input/session';
@@ -87,11 +88,14 @@ export function simulateSession(session: SessionRecording): SimulationResult {
             : null;
 
     // ExamFieldSystem's construction mirror: the platform field starts from
-    // the embedded tower's landClass roll; the swarm starts empty. Commanded
-    // mutations arrive from the recorded exam-command timeline; touch-armed
-    // crumbles regenerate from the land events themselves (below).
+    // the embedded tower's landClass roll; passive swarm critters seed from
+    // the segment spec; commanded mutations arrive from the recorded
+    // exam-command timeline; touch-armed crumbles regenerate from land events.
     const field = session.segment !== null ? new PlatformField(tower.platforms) : null;
     const swarm = session.segment !== null ? new SwarmRuntime() : null;
+    if (swarm !== null && session.segment !== null) {
+        seedPassiveSwarm(swarm, tower, session.segment.spec, tuning);
+    }
     if (field !== null) {
         world.setPlatformField(field);
     }
@@ -144,7 +148,11 @@ export function simulateSession(session: SessionRecording): SimulationResult {
         // ExamFieldSystem's bus mirror: a landing arms a crumble ledge the
         // moment the land event fires (regenerable channel, never recorded).
         if (field !== null && landing !== null) {
-            field.handleLand(landing.platformId, state.tick, tuning.value('land.crumbleDelayTicks'));
+            field.handleLand(
+                landing.platformId,
+                state.tick,
+                tuning.value('land.crumbleDelayTicks'),
+            );
         }
         world.applyActions(actions);
         if (pressure) {
@@ -173,7 +181,6 @@ export function simulateSession(session: SessionRecording): SimulationResult {
             const contacts = swarm.step(
                 state.tick,
                 { x: body.x, y: body.y },
-                tuning.value('exam.swarmRadiusPx'),
                 tuning.value('exam.swarmHitCooldownTicks'),
             );
             if (contacts.contacts.length > 0) {

@@ -33,9 +33,36 @@ const EMBER_TINTS = [0xffd166, 0xffa14a, 0xff6b35];
  *  The additive strips run untinted/light so the edge is the brightest
  *  thing on screen — the line carries its own light (art-direction.md). */
 const EDGE_STRIPS = [
-    { yOff: 0, alpha: 0.95, add: false, tint: 0xffb050, scroll: 0.03, phase: 0, bobPx: 3, bobHz: 0.0021 },
-    { yOff: -10, alpha: 0.5, add: true, tint: 0xffffff, scroll: -0.019, phase: 173, bobPx: 5, bobHz: 0.0013 },
-    { yOff: 7, alpha: 0.35, add: true, tint: 0xffd9a0, scroll: 0.047, phase: 61, bobPx: 7, bobHz: 0.0032 },
+    {
+        yOff: 0,
+        alpha: 0.95,
+        add: false,
+        tint: 0xffb050,
+        scroll: 0.03,
+        phase: 0,
+        bobPx: 3,
+        bobHz: 0.0021,
+    },
+    {
+        yOff: -10,
+        alpha: 0.5,
+        add: true,
+        tint: 0xffffff,
+        scroll: -0.019,
+        phase: 173,
+        bobPx: 5,
+        bobHz: 0.0013,
+    },
+    {
+        yOff: 7,
+        alpha: 0.35,
+        add: true,
+        tint: 0xffd9a0,
+        scroll: 0.047,
+        phase: 61,
+        bobPx: 7,
+        bobHz: 0.0032,
+    },
 ] as const;
 
 /** Glow pulse per proximity tier: base alpha, pulse depth, pulse speed. */
@@ -47,13 +74,15 @@ const TIER_GLOW: Record<ProximityTierName, { base: number; amp: number; hz: numb
 };
 
 /** The breath per tier: emit cadence, embers per emission, which emitter. */
-const TIER_BREATH: Record<ProximityTierName, { intervalMs: number; count: number; fierce: boolean }> =
-    {
-        safe: { intervalMs: 210, count: 1, fierce: false },
-        aware: { intervalMs: 130, count: 1, fierce: false },
-        danger: { intervalMs: 70, count: 2, fierce: true },
-        critical: { intervalMs: 42, count: 3, fierce: true },
-    };
+const TIER_BREATH: Record<
+    ProximityTierName,
+    { intervalMs: number; count: number; fierce: boolean }
+> = {
+    safe: { intervalMs: 210, count: 1, fierce: false },
+    aware: { intervalMs: 130, count: 1, fierce: false },
+    danger: { intervalMs: 70, count: 2, fierce: true },
+    critical: { intervalMs: 42, count: 3, fierce: true },
+};
 
 export class PressureView {
     private readonly scene: Scene;
@@ -264,7 +293,11 @@ export class PressureView {
         const emitter = breath.fierce ? this.embersFierce : this.embers;
         if (onScreen && emitter && now >= this.emberAt) {
             for (let i = 0; i < breath.count; i += 1) {
-                emitter.emitParticleAt(TILE + Math.random() * (GAME_WIDTH - TILE * 2), lineY - 4, 1);
+                emitter.emitParticleAt(
+                    TILE + Math.random() * (GAME_WIDTH - TILE * 2),
+                    lineY - 4,
+                    1,
+                );
             }
             this.emberAt = now + breath.intervalMs;
         }

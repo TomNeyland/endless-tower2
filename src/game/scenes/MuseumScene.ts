@@ -16,6 +16,7 @@ import { Atlas, characterFrames, ensureGeneratedTextures, Gen, Sfx } from '../as
 import { GAME_HEIGHT, GAME_WIDTH } from '../dims';
 import { clockFace } from '../meta/ResultsView';
 import { saveStore } from '../meta/SaveStore';
+import { MuteButton } from '../systems/MuteButton';
 
 const CX = GAME_WIDTH / 2;
 
@@ -35,6 +36,7 @@ export class MuseumScene extends Scene {
         ensureGeneratedTextures(this);
         const stats = saveStore().doc.stats;
         this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0c1018, 1).setOrigin(0);
+        new MuteButton(this);
         this.add
             .text(CX, 56, 'THE MUSEUM', {
                 fontFamily: 'Arial Black',

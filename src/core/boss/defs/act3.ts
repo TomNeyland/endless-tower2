@@ -46,6 +46,7 @@ export const SUMMIT_KEEPER: BossDef = {
             swarmSkin: 'fly',
             swarmPattern: 'drift',
             swarmLifeTicks: 460,
+            swarmScale: 0.6,
         },
         {
             id: 'keeper-slam',
