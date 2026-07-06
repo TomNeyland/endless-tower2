@@ -15,6 +15,25 @@ export interface TuningMutationRecord {
     change: TuningChange;
 }
 
+/** The playtest vocabulary for quick marker tags (docs/design/session-logs.md). */
+export type MarkerTag = 'felt-bad' | 'felt-great' | 'bug';
+
+/**
+ * A tick-pinned playtest remark. Markers are annotations riding inside the
+ * recording — they never influence the simulation.
+ */
+export interface MarkerRecord {
+    tick: number;
+    tag: MarkerTag | null;
+}
+
+/**
+ * Sparse index: event type -> tick stamps, in emission order. A convenience
+ * for humans scanning a session and the replay CLI's divergence alarm —
+ * never the source of truth (the replay regenerates ground truth).
+ */
+export type EventIndex = Record<string, number[]>;
+
 export interface Recording {
     schemaVersion: number;
     seed: number;
@@ -29,6 +48,10 @@ export interface Recording {
      * (the two-pass determinism harness).
      */
     positions: number[];
+    /** Tick-pinned playtest markers (M key / bridge). */
+    markers: MarkerRecord[];
+    /** Sparse tick index of bus events heard while recording. */
+    eventIndex: EventIndex;
 }
 
 export interface ReplayReport {
@@ -47,6 +70,8 @@ export class InputRecorder {
     private frames: InputFrame[] = [];
     private mutations: TuningMutationRecord[] = [];
     private positions: number[] = [];
+    private markers: MarkerRecord[] = [];
+    private eventIndex: EventIndex = {};
     private seed = 0;
     private baseTuning: TuningTable | null = null;
     private baseLayers: TuningLayer[] = [];
@@ -70,6 +95,8 @@ export class InputRecorder {
         this.frames = [];
         this.mutations = [];
         this.positions = [];
+        this.markers = [];
+        this.eventIndex = {};
     }
 
     recordFrame(frame: InputFrame, x: number, y: number): void {
@@ -81,6 +108,27 @@ export class InputRecorder {
         if (this.mode === 'recording') {
             this.mutations.push({ frameIndex: this.frames.length, change });
         }
+    }
+
+    /** Pin a playtest marker to a tick. Annotation only — never sim input. */
+    addMarker(tick: number, tag: MarkerTag | null = null): void {
+        if (this.mode !== 'recording') {
+            throw new Error('recorder: addMarker without an active recording');
+        }
+        this.markers.push({ tick, tag });
+    }
+
+    /** Stamp a bus event's tick into the sparse index (game layer feeds this). */
+    recordIndexTick(type: string, tick: number): void {
+        if (this.mode !== 'recording') {
+            return;
+        }
+        let list = this.eventIndex[type];
+        if (list === undefined) {
+            list = [];
+            this.eventIndex[type] = list;
+        }
+        list.push(tick);
     }
 
     stopRecording(): Recording {
@@ -96,6 +144,31 @@ export class InputRecorder {
             frames: this.frames,
             mutations: this.mutations,
             positions: this.positions,
+            markers: this.markers,
+            eventIndex: this.eventIndex,
+        };
+    }
+
+    /**
+     * Non-destructive copy of the in-progress recording — the F9 export path
+     * captures the live session without interrupting it.
+     */
+    snapshot(): Recording {
+        if (this.mode !== 'recording' || this.baseTuning === null) {
+            throw new Error('recorder: snapshot without an active recording');
+        }
+        return {
+            schemaVersion: this.schemaVersion,
+            seed: this.seed,
+            baseTuning: { ...this.baseTuning },
+            baseLayers: this.baseLayers.map((l) => ({ ...l })),
+            frames: this.frames.map((f) => ({ ...f })),
+            mutations: this.mutations.map((m) => ({ ...m })),
+            positions: [...this.positions],
+            markers: this.markers.map((m) => ({ ...m })),
+            eventIndex: Object.fromEntries(
+                Object.entries(this.eventIndex).map(([k, v]) => [k, [...v]]),
+            ),
         };
     }
 

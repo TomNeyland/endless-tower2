@@ -11,7 +11,7 @@
 import { EVENT_SCHEMA_VERSION } from '../../core/events';
 import type { InputRecorder, Recording, ReplayReport } from '../../core/input/recorder';
 import type { InputFrame } from '../../core/movement/state';
-import type { TuningChange, TuningStack } from '../../core/tuning';
+import { applyTuningChange, type TuningChange, type TuningStack } from '../../core/tuning';
 
 export class ReplayDriver {
     private readonly recorder: InputRecorder;
@@ -42,7 +42,7 @@ export class ReplayDriver {
             return live;
         }
         for (const m of next.mutations) {
-            this.apply(m.change);
+            applyTuningChange(this.tuning, m.change);
         }
         return next.frame;
     }
@@ -87,23 +87,6 @@ export class ReplayDriver {
 
     lastReplayReport(): ReplayReport | null {
         return this.replayReport;
-    }
-
-    private apply(change: TuningChange): void {
-        switch (change.op) {
-            case 'setBase':
-                this.tuning.setBase(change.key, change.value);
-                break;
-            case 'pushLayer':
-                this.tuning.pushLayer({ ...change.layer });
-                break;
-            case 'removeLayer':
-                this.tuning.removeLayer(change.id);
-                break;
-            case 'clearLayers':
-                this.tuning.clearLayers();
-                break;
-        }
     }
 
     destroy(): void {

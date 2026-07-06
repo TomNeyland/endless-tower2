@@ -61,6 +61,8 @@ export function syntheticFactScript(
         frames,
         mutations: [],
         positions: [],
+        markers: [],
+        eventIndex: {},
     };
 }
 

@@ -32,6 +32,7 @@ import { PressureAudio } from '../systems/PressureAudio';
 import { PressureHud } from '../systems/PressureHud';
 import { PressureSystem } from '../systems/PressureSystem';
 import { PressureView } from '../systems/PressureView';
+import { SessionLog } from '../systems/SessionLog';
 import { TowerView } from '../systems/TowerView';
 
 const SANDBOX_SEED = 20260705;
@@ -56,6 +57,7 @@ export class Sandbox extends Scene {
     private backdrop!: ParallaxBackdrop;
     private towerView!: TowerView;
     private stats!: MovementStats;
+    private sessionLog!: SessionLog;
     private bridge!: DebugBridge;
     private pressureSystem!: PressureSystem;
     private pressureView!: PressureView;
@@ -176,12 +178,16 @@ export class Sandbox extends Scene {
         this.pressureHud = new PressureHud(this, this.pressureSystem, this.tuning);
         this.pressureAudio = new PressureAudio(this, this.bus);
         this.stats = new MovementStats(this.bus, this.playerSystem);
+        // The flight recorder: always on in dev, from scene start.
+        this.sessionLog = new SessionLog(this, this.bus, recorder, this.playerSystem, layout);
         this.bridge = new DebugBridge({
+            game: this.game,
             bus: this.bus,
             tuning: this.tuning,
             player: this.playerSystem,
             stats: this.stats,
             combo: this.comboRelay,
+            session: this.sessionLog,
             resetSandbox: () => this.resetRun(),
             pressure: {
                 system: this.pressureSystem,
@@ -204,13 +210,16 @@ export class Sandbox extends Scene {
     private resetRun(): void {
         if (this.segmentSpec) {
             // A pressured climb resets whole: fresh tower state, fresh line.
+            // The flight recorder saves this session from its shutdown hook.
             this.scene.restart({
                 segment: this.segmentSpec,
                 hearts: null,
             } satisfies SandboxBootData);
             return;
         }
-        this.playerSystem.reset('reset');
+        // Auto-save the run that just ended, then restart from a clean spawn
+        // (the session cycle resets the player as part of re-recording).
+        this.sessionLog.cycle();
         this.cameraRig.snap();
     }
 
@@ -240,12 +249,14 @@ export class Sandbox extends Scene {
         this.pressureView.update(scrollY);
         this.pressureHud.update();
         this.pressureAudio.update();
+        this.sessionLog.update();
     }
 
     private teardown(): void {
         this.input.keyboard?.off('keydown-R', this.onResetKey);
         this.bus.off('run/segment_end', this.onSegmentEnd);
         this.bus.off('run/ended', this.onRunEnded);
+        this.sessionLog.destroy();
         this.bridge.destroy();
         this.stats.destroy();
         this.pressureAudio.destroy();

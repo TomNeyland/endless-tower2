@@ -284,3 +284,25 @@ export class TuningStack {
         this.dirty = false;
     }
 }
+
+/**
+ * Apply one recorded TuningChange to a live stack — the single authority the
+ * browser replay driver and the headless replay CLI both use, so a recorded
+ * tuning timeline replays identically everywhere.
+ */
+export function applyTuningChange(stack: TuningStack, change: TuningChange): void {
+    switch (change.op) {
+        case 'setBase':
+            stack.setBase(change.key, change.value);
+            break;
+        case 'pushLayer':
+            stack.pushLayer({ ...change.layer });
+            break;
+        case 'removeLayer':
+            stack.removeLayer(change.id);
+            break;
+        case 'clearLayers':
+            stack.clearLayers();
+            break;
+    }
+}

@@ -99,3 +99,45 @@ complement).
 
 **Path back:** none needed unless a future system wants non-numeric tuning
 values, which would be a TuningStack design amendment first.
+
+## 5. `SessionRecording` embeds the tower layout (session-logs.md, schema)
+
+**The design says:** `SessionRecording = { version, startedAt, seed,
+character?, tuningTimeline, inputFrames, markers[], sparse eventIndex }` —
+the simulation is "a pure function of (seed, tuning-layer timeline,
+per-tick input frames)."
+
+**What ships:** the schema above, plus a `tower: TowerLayout` field (~12KB)
+and an `endPosition` pair.
+
+**Why:** the tower is not a pure function of the seed — it is generated
+once at scene create from the seed AND the tuning table in force at that
+moment (the reachability contract reads jump-curve constants). A session
+whose base table was live-tuned before recording began would regenerate a
+*different* tower from `(seed, baseTuning)` and every replay would read as
+a determinism alarm. Embedding the geometry makes the file self-contained
+("a file you can email is the 1.0 bar") and immune to generator evolution;
+`seed` stays for provenance and shareability. `endPosition` is two floats
+that turn the eventIndex divergence alarm into a bit-exact end-state check
+nearly for free.
+
+**Path back:** if the manager session prefers a seed-only file, the
+recording instead needs to capture the tuning table at *scene create* (a
+second table alongside `baseTuning`) and pin the generator's version; the
+schema is versioned, so either ruling lands as an additive change.
+
+## 6. `line/proximity` carries `zone`, not `tier` (pressure.md, events table)
+
+**The design says:** pressure.md's event table lists `line/proximity` with
+payload `tier: safe|aware|danger|critical`.
+
+**What ships:** the same closed 4-name set under the field name `zone`.
+
+**Why:** combo-scoring.md's graft #1 ("`tier` joins the event envelope")
+put a game-wide numeric speed-tier `tier` on every event's envelope, and
+one interface cannot carry the name with two types. The envelope is the
+global law; the event-local field renamed at integration (wave-1 merge).
+
+**Path back:** if the manager session prefers the envelope field renamed
+(e.g. `speedTier`), the proximity payload can reclaim `tier`; either way
+is one mechanical rename — no consumer decides anything on the name.

@@ -18,7 +18,8 @@ import {
     type MovementEventType,
     type TickEvent,
 } from '../../core/events';
-import type { Recording, ReplayReport } from '../../core/input/recorder';
+import type { MarkerTag, Recording, ReplayReport } from '../../core/input/recorder';
+import type { SessionRecording } from '../../core/input/session';
 import {
     DEFAULT_TUNING,
     type TuningKey,
@@ -35,7 +36,10 @@ import {
     syntheticFactScript,
     waitUntil,
 } from './EngineFacts';
+import type { Game } from 'phaser';
 import type { ComboRelay } from '../systems/ComboRelay';
+import type { SessionLog } from '../systems/SessionLog';
+import type { SessionSummary } from '../systems/SessionVault';
 import type { MovementStats, StatsSnapshot } from './Stats';
 
 const RING_SIZE = 1024;
@@ -100,6 +104,23 @@ export interface Et2Bridge {
         forceVoid(): void;
         clear(): void;
     };
+    /**
+     * Drive the game loop manually for N render frames (~1 fixed step each).
+     * Hidden tabs never fire requestAnimationFrame, so scripted verification
+     * through the Chrome harness stalls without this — the playtest protocol
+     * (DESIGN.md) requires deterministic checks to run unattended.
+     */
+    pump(steps?: number): void;
+    /** Download the live session (same as F9): file + clipboard when small. */
+    exportSession(): void;
+    /** Pin a tick-stamped marker to the live session, optionally tagged. */
+    marker(tag?: MarkerTag): void;
+    /** The auto-saved ring of the last five sessions. */
+    sessions: {
+        list(): SessionSummary[];
+        get(index: number): SessionRecording;
+        export(index: number): void;
+    };
     reset(): void;
 }
 
@@ -110,11 +131,13 @@ declare global {
 }
 
 interface BridgeDeps {
+    game: Game;
     bus: EventBus;
     tuning: TuningStack;
     player: PlayerSystem;
     stats: MovementStats;
     combo: ComboRelay;
+    session: SessionLog;
     resetSandbox: () => void;
     pressure: {
         system: PressureSystem;
@@ -159,7 +182,7 @@ export class DebugBridge {
     }
 
     private buildApi(): Et2Bridge {
-        const { tuning, player, stats, combo, resetSandbox, pressure } = this.deps;
+        const { tuning, player, stats, combo, session, resetSandbox, pressure } = this.deps;
         return {
             schemaVersion: EVENT_SCHEMA_VERSION,
             tuning: {
@@ -235,6 +258,19 @@ export class DebugBridge {
                 clear: () => {
                     this.comboRing = [];
                 },
+            },
+            pump: (steps = 1) => {
+                const loop = this.deps.game.loop;
+                for (let i = 0; i < steps; i += 1) {
+                    loop.step(loop.now + 1000 / 60);
+                }
+            },
+            exportSession: () => session.exportLive(),
+            marker: (tag?: MarkerTag) => session.marker(tag ?? null),
+            sessions: {
+                list: () => session.vault.list(),
+                get: (index: number) => session.vault.get(index),
+                export: (index: number) => session.vault.download(session.vault.get(index)),
             },
             reset: resetSandbox,
         };
