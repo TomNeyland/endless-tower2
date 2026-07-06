@@ -138,6 +138,11 @@ recording with their signals" scope note. The bump is deliberate:
 `TuningLayer` also gained its owner tag, so v1 files are refused loudly
 rather than replayed wrongly.)*
 
+*(EXAM session, 2026-07-06: v3 — the `examCommands` timeline and the
+tower's per-platform `landClass` join the file (entry 15). Same refusal
+precedent: a v2 file cannot represent a duel's world mutations and its
+segment shape predates nullable doors, so it is refused loudly.)*
+
 ## 6. `line/proximity` carries `zone`, not `tier` (pressure.md, events table)
 
 **The design says:** pressure.md's event table lists `line/proximity` with
@@ -240,6 +245,15 @@ the label, and pillar 2 cuts both ways.
 **Path back:** each modifier flips `rollable: true` in the same commit that
 lands its machinery; the validation and label plumbing already handle them.
 
+*(EXAM session, 2026-07-06: the flip condition is met for **Brittle Rows**
+and **Sticky Patches** — movement.md Amendment 1c's crumble/sticky land
+classifications shipped with the platform field, and both modifiers now
+roll. Three remain data-only: Swarm (the critter machinery now exists as
+the boss's swarm attack, but the ambient per-segment spawner does not),
+Dense Fog (the parallax veil), and Surging Line (the `line.surge` tuning
+layers and the flare view now exist via boss attacks, but the ambient
+telegraphed-pulse driver its genPatch describes does not).)*
+
 ## 11. The shop is a hearts-only overlay; bounties are placeholder economy (map-modifiers.md, node table)
 
 **The design says:** Shop is "no climb — a scene. spend coins: relics,
@@ -322,6 +336,11 @@ mutations), OR the headless replay grows the full combo+effects pipeline so
 triggered effects regenerate instead of replaying. Either is additive under
 SESSION_SCHEMA_VERSION discipline; the manager session picks the ruling.
 
+*(EXAM session, 2026-07-06: the first path is now precedent — session v3's
+`examCommands` timeline is exactly this pattern, built for the platform
+field (entry 15). Extending it to heart gains and Second Wind remains
+open; this entry stands.)*
+
 ## 14. `relic/acquired.source` admits `debug` (relics-economy.md, events table)
 
 **The design says:** `source: shop|elite|mystery`.
@@ -360,3 +379,74 @@ shop stock out of the generation-time roll (and relics-economy.md's fork
 label to carry the reroll ordinal) — it reads like the design catching up
 to a real constraint; or rule that map labels must preview concrete stock,
 which first needs a ruling on the ownership drift.
+
+## 16. The boss brain runs browser-side only; its world effects ride recorded channels (bosses.md / session-logs.md)
+
+**The design says:** determinism is sacred — the scripted-input replay
+harness must reproduce identical runs; bosses.md specifies a deterministic
+seeded brain.
+
+**What ships:** the brain IS deterministic (`fork(runSeed, 'boss:<nodeId>')`,
+tick-driven), but the headless replay does not re-run it. Instead, every
+PHYSICS consequence of its decisions travels a recorded channel and replays
+bit-for-bit: surge/gust tuning layers ride the existing tuning timeline
+(owner-tagged `boss:<attackId>`), and platform collapses, goo
+classifications, swarm spawns, and the defeat door ride session v3's new
+`examCommands` timeline (entry 13's run-command-timeline pattern,
+realized). Touch-armed crumbles are NOT recorded — they regenerate from the
+land events themselves. Boss facts (`boss/*` events) are excluded from the
+replay divergence index for exactly the run-economy reason in entry 13: the
+physics replay does not regenerate them, and indexing them would make every
+duel a false alarm. Damage/hp/openness never touch physics, so the position
+replay stays a pure function of the recording.
+
+**Why:** re-running the brain headless requires re-running the combo engine
+headless (damage consumes `combo/banked`, and phase turns feed back into
+the schedule) — a much larger replay surface with its own divergence risks,
+for zero physics fidelity gain today.
+
+**Path back:** grow simulateSession with the combo relay pipeline, then step
+the brain headless and drop `examCommands` for brain-issued commands (the
+timeline stays for the bridge's forced attacks). Additive, and the harness's
+determinism assertions on the brain make it mechanical.
+
+## 17. Boss body contact has no physics; act-3 layering ships staggered-sequenced (bosses.md, embodiment/risks)
+
+**The design says:** "its body blocks routes"; and, in the risks: "boss
+body-blocking routes must never read as unfair collision (body is an
+obstacle, telegraphed by its own visible movement — never instant)"; the
+act-3 double-attack "if it isn't readable at the gate, cut to
+sequenced-not-simultaneous before cutting anything else."
+
+**What ships:** (1) The body blocks routes by LOOMING — a 256px creature
+perching on the ledges you were about to use — but contact with it has no
+hidden physics. A collideable body would need core-stepped deterministic
+boss kinematics mirrored headless (its presentation movement is wall-clock
+tweens, which the determinism law forbids as physics), and an invisible
+speed tax on touch is pillar 2's named failure. Its mechanical truth is its
+telegraphed attacks. (2) The Summit Keeper's paired pattern entries ignite
+staggered (the second telegraph starts mid-first): two threats are live at
+once, but no two telegraphs IGNITE simultaneously — the doc's
+pre-registered readability cut, adopted at build time per the phase brief's
+own authorization ("sequenced if simultaneous reads unclear").
+
+**Path back:** (1) if the gate wants a physical body, the boss's anchor
+must move into the core brain as f(tick) and its collider into both worlds
+— an amendment-sized change. (2) True simultaneous ignition is a data
+change (stagger 0) once the gate proves the read.
+
+## 18. `doorFloorIndex` is nullable (pressure.md, events table)
+
+**The design says:** `run/segment_start` carries `doorFloorIndex: number`;
+the segment always builds its door ("the door never appears in boss arenas
+until the boss dies" was reserved for EXAM).
+
+**What ships:** `doorFloorIndex: number | null` on the event and the
+pressure snapshot — null exactly in boss arenas, where the door does not
+exist until `boss/defeated` commands one through the recorded channel
+(PressureRuntime.setDoor). A fabricated index would be a lie on the wire;
+the nullable field is the honest shape of "no exit door until it's won."
+
+**Path back:** ratify by amending pressure.md's event table (one line), or
+rule for a sentinel value — the consumers (HUD, replay analysis) already
+handle null.

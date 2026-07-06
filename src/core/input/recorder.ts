@@ -6,6 +6,7 @@
  * reproduce identical per-tick positions, and the report says exactly where
  * it didn't.
  */
+import type { ExamCommand, ExamCommandRecord } from '../exam/commands';
 import type { InputFrame } from '../movement/state';
 import type { TuningChange, TuningLayer, TuningTable } from '../tuning';
 
@@ -43,6 +44,13 @@ export interface Recording {
     frames: InputFrame[];
     mutations: TuningMutationRecord[];
     /**
+     * Commanded world mutations (EXAM): boss-driven platform collapses,
+     * goo classifications, swarm spawns, the defeat door — frame-stamped
+     * exactly like tuning mutations (docs/DEVIATIONS.md entry 13's
+     * run-command-timeline pattern, realized for the platform field).
+     */
+    examCommands: ExamCommandRecord[];
+    /**
      * Per-tick [x, y] pairs captured after Actions applied. A synthetic
      * recording may ship without positions; its first replay stamps them
      * (the two-pass determinism harness).
@@ -69,6 +77,7 @@ export class InputRecorder {
 
     private frames: InputFrame[] = [];
     private mutations: TuningMutationRecord[] = [];
+    private examCommands: ExamCommandRecord[] = [];
     private positions: number[] = [];
     private markers: MarkerRecord[] = [];
     private eventIndex: EventIndex = {};
@@ -94,6 +103,7 @@ export class InputRecorder {
         this.schemaVersion = schemaVersion;
         this.frames = [];
         this.mutations = [];
+        this.examCommands = [];
         this.positions = [];
         this.markers = [];
         this.eventIndex = {};
@@ -107,6 +117,14 @@ export class InputRecorder {
     recordChange(change: TuningChange): void {
         if (this.mode === 'recording') {
             this.mutations.push({ frameIndex: this.frames.length, change });
+        }
+    }
+
+    /** Record a commanded world mutation (EXAM) — same frame semantics as
+     *  tuning changes: applied before the stamped frame replays. */
+    recordExamCommand(cmd: ExamCommand): void {
+        if (this.mode === 'recording') {
+            this.examCommands.push({ frameIndex: this.frames.length, cmd });
         }
     }
 
@@ -143,6 +161,7 @@ export class InputRecorder {
             baseLayers: this.baseLayers,
             frames: this.frames,
             mutations: this.mutations,
+            examCommands: this.examCommands,
             positions: this.positions,
             markers: this.markers,
             eventIndex: this.eventIndex,
@@ -164,6 +183,7 @@ export class InputRecorder {
             baseLayers: this.baseLayers.map((l) => ({ ...l })),
             frames: this.frames.map((f) => ({ ...f })),
             mutations: this.mutations.map((m) => ({ ...m })),
+            examCommands: this.examCommands.map((c) => ({ ...c })),
             positions: [...this.positions],
             markers: this.markers.map((m) => ({ ...m })),
             eventIndex: Object.fromEntries(

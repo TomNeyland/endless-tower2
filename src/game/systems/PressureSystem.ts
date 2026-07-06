@@ -68,6 +68,12 @@ export class PressureSystem {
         }
     }
 
+    /** The boss-defeat door (EXAM): materialize the exit mid-segment. The
+     *  ONE caller is the exam-command applicator — recorded by construction. */
+    setDoor(door: DoorPlacement): void {
+        this.runtime().setDoor(door);
+    }
+
     // --- Read surfaces for the presentation layers (they never write) ---
 
     /** True while the scene runs a segment at all — ended or not. */

@@ -17,6 +17,7 @@
  */
 import { validateComboTuning } from './combo/tuning';
 import { validateIdentityTuning } from './economy/tuning';
+import { validateExamTuning } from './exam/tuning';
 import { DEFAULT_TUNING, type TuningKey, type TuningTable } from './tuning-table';
 
 export { DEFAULT_TUNING } from './tuning-table';
@@ -141,6 +142,7 @@ export class TuningStack {
             const resolved = this.snapshot();
             validateComboTuning(resolved);
             validateIdentityTuning(resolved);
+            validateExamTuning(resolved);
         } catch (error) {
             this.layers.pop();
             this.dirty = true;

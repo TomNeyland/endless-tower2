@@ -11,7 +11,8 @@
  * by exact validation — generation may be as structured as it likes, but
  * violations always regenerate whole, never get patched by hand.
  */
-import type { SegmentSpec, SegmentTuningOverride } from '../pressure/segment';
+import { bossForAct } from '../boss/defs';
+import type { SegmentFieldSpec, SegmentSpec, SegmentTuningOverride } from '../pressure/segment';
 import { fork, forkSeed, pick, rangeInt, type Rng, weightedIndex } from '../rng';
 import { DEFAULT_TUNING } from '../tuning-table';
 import { compatible, modifierById, rollableModifiers } from './modifiers';
@@ -106,6 +107,7 @@ function rollRewards(rng: Rng, preset: NodeTypePreset, modifierIds: string[]): N
 
 function buildSegment(
     runSeed: string,
+    actIndex: number,
     nodeId: string,
     rng: Rng,
     preset: NodeTypePreset,
@@ -116,9 +118,19 @@ function buildSegment(
         return null;
     }
     const modifierLayers: SegmentTuningOverride[] = [...preset.genOverrides.map((o) => ({ ...o }))];
+    // The platform-field roll (EXAM): Brittle Rows / Sticky Patches carry
+    // their fractions as genPatch data; folded here so the segment build
+    // rolls exactly what the label priced.
+    let crumbleFraction = 0;
+    let stickyFraction = 0;
     for (const id of modifierIds) {
-        modifierLayers.push(...modifierById(id).tuningLayers.map((o) => ({ ...o })));
+        const m = modifierById(id);
+        modifierLayers.push(...m.tuningLayers.map((o) => ({ ...o })));
+        crumbleFraction += m.genPatch?.crumbleFraction ?? 0;
+        stickyFraction += m.genPatch?.stickyFraction ?? 0;
     }
+    const field: SegmentFieldSpec | undefined =
+        crumbleFraction > 0 || stickyFraction > 0 ? { crumbleFraction, stickyFraction } : undefined;
     return {
         // segmentId IS the nodeId, so pressure's owner tag lands verbatim as
         // `segment:<nodeId>` (playthrough-trace.md finding 6).
@@ -135,6 +147,9 @@ function buildSegment(
             coinsPerFloor: DEFAULT_TUNING['coins.perFloor'] * preset.lootCoinsMul * coinsMul,
             powerupEveryFloors: DEFAULT_TUNING['powerup.everyFloors'],
         },
+        field,
+        // The act's examiner (EXAM): a boss segment is the duel arena.
+        boss: preset.type === 'boss' ? bossForAct(actIndex).id : undefined,
     };
 }
 
@@ -162,12 +177,11 @@ function buildNode(
         type,
         edgesUp: [],
         modifierIds,
-        segment: buildSegment(runSeed, id, rng, preset, modifierIds, rewards.coinsMul),
+        segment: buildSegment(runSeed, actIndex, id, rng, preset, modifierIds, rewards.coinsMul),
         rewards,
         lineProfile: preset.lineProfile,
         mysteryEventId: type === 'mystery' ? pick(mysteryRng, MYSTERY_EVENTS).id : null,
         mysteryRoll: type === 'mystery' ? mysteryRng() : null,
-        bossStub: type === 'boss',
     };
 }
 

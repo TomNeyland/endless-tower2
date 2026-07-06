@@ -77,6 +77,15 @@ export function runPhase(ctx: StepCtx): void {
         }
     }
 
+    if (!state.grounded) {
+        // The wind (EXAM's gust attack, and any future weather modifier): a
+        // WORLD force on airborne bodies — it bends arcs, never touches the
+        // input, and grounded runners are braced against it. Ships 0; gusts
+        // push it via owner-tagged `boss:<attackId>` tuning layers, so it is
+        // recorded, replayable, and relic-repriceable like everything else.
+        ctx.vx += t.value('wind.accelX') * dt;
+    }
+
     // Manual ceiling clamp — body.maxVelocity is never a gameplay clamp.
     const maxEff = t.value('MAX_RUN_SPEED');
     if (Math.abs(ctx.vx) > maxEff) {

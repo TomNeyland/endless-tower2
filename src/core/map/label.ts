@@ -4,6 +4,7 @@
  * authority builds it; the card renders it, `map/node_previewed` carries it,
  * and the debug bridge dumps it.
  */
+import { bossById } from '../boss/defs';
 import { modifierById } from './modifiers';
 import { LINE_PROFILES, NODE_PRESETS } from './presets';
 import type { NodeSpec } from './types';
@@ -46,7 +47,14 @@ export function modifierBreath(id: string): ModifierLabelLine {
 export function buildNodeLabel(node: NodeSpec, pendingGiftIds: readonly string[] = []): NodeLabel {
     const preset = NODE_PRESETS[node.type];
     const lineFace = LINE_PROFILES[node.lineProfile].face;
-    const shape = node.segment === null ? null : `${node.segment.floors} floors · ${lineFace}`;
+    // A boss arena's floors are a generation budget, not a door altitude —
+    // printing them would be a lie on the label. The boss's name is the truth.
+    const shape =
+        node.segment === null
+            ? null
+            : node.segment.boss !== undefined
+              ? `${bossById(node.segment.boss).name} · endless arena · ${lineFace}`
+              : `${node.segment.floors} floors · ${lineFace}`;
 
     const modifierIds = [...node.modifierIds];
     for (const gift of pendingGiftIds) {

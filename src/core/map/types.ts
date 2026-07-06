@@ -91,7 +91,7 @@ export interface NodeRewards {
     relicOddsAdd: number;
 }
 
-export type LineProfileName = 'standard' | 'gentle' | 'hot' | 'none';
+export type LineProfileName = 'standard' | 'gentle' | 'hot' | 'boss' | 'none';
 
 export interface NodeSpec {
     id: string;
@@ -114,9 +114,6 @@ export interface NodeSpec {
      *  seeded outcomes, never meta-RNG. */
     mysteryEventId: string | null;
     mysteryRoll: number | null;
-    /** True on the boss node while it commits to the EXAM-phase placeholder
-     *  segment (a hardened climb). EXAM replaces the stub with the duel. */
-    bossStub: boolean;
 }
 
 export interface ActGraph {

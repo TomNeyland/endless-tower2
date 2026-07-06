@@ -12,6 +12,7 @@
  */
 import { DEFAULT_COMBO_TUNING } from './combo/tuning';
 import { DEFAULT_IDENTITY_TUNING } from './economy/tuning';
+import { DEFAULT_EXAM_TUNING } from './exam/tuning';
 
 export const DEFAULT_TUNING = {
     // --- Jump: the exchange (speed spent on height along a convex curve) ---
@@ -127,6 +128,10 @@ export const DEFAULT_TUNING = {
     // --- Coins, shop, powerups (IDENTITY): defaults live in
     //     src/core/economy/tuning.ts, merged by the same rule ---
     ...DEFAULT_IDENTITY_TUNING,
+
+    // --- Bosses, land classifications, wind, swarm (EXAM): defaults live in
+    //     src/core/exam/tuning.ts, merged by the same rule ---
+    ...DEFAULT_EXAM_TUNING,
 } satisfies Record<string, number>;
 
 export type TuningTable = { -readonly [K in keyof typeof DEFAULT_TUNING]: number };

@@ -31,7 +31,11 @@ import type { PressureSnapshot, SegmentSpec } from '../../core/pressure/segment'
 import { buildReadout } from '../../core/relics/roster';
 import type { RunSnapshot, RunState } from '../../core/run/state';
 import type { RelicSource } from '../../core/events';
+import { msToTicks } from '../../core/movement/state';
+import type { PlatformFieldEntry } from '../../core/exam/field';
+import type { BossSystem } from '../boss/BossSystem';
 import type { PlayerSystem } from '../player/PlayerSystem';
+import type { ExamFieldSystem } from '../systems/ExamFieldSystem';
 import type { PressureSystem } from '../systems/PressureSystem';
 import type { RelicEffects } from '../systems/RelicEffects';
 import {
@@ -118,6 +122,19 @@ export interface Et2Bridge {
         /** Pause play and open the shop overlay (seeded by nodeId). */
         enterShop(nodeId?: string): void;
     };
+    /** EXAM: the duel harness (docs/design/bosses.md). spawn restarts the
+     *  scene into a real arena — re-read window.__ET2__. */
+    boss: {
+        spawn(bossId?: string): SegmentSpec;
+        /** Live duel numbers, or null outside an arena. */
+        state(): { bossId: string; hp: number; hpMax: number; phase: number; open: boolean } | null;
+        setHp(hp: number): void;
+        forceAttack(attackId: string): void;
+        /** Hold the openness window for ms (default one window). */
+        forceOpenness(ms?: number): void;
+        /** The platform field's diagnostics (crumble/sticky/gone per id). */
+        field(): PlatformFieldEntry[] | null;
+    };
     combo: {
         schemaVersion: number;
         recent(count?: number, type?: AnyComboEventType): AnyComboEvent[];
@@ -176,6 +193,11 @@ interface BridgeDeps {
         run: RunState;
         relics: RelicEffects;
         enterShop: (nodeId?: string) => void;
+    };
+    exam: {
+        spawnArena: (bossId: string) => SegmentSpec;
+        boss: () => BossSystem | null;
+        field: () => ExamFieldSystem | null;
     };
 }
 
@@ -281,6 +303,29 @@ export class DebugBridge {
                 forceCatch: () => pressure.system.debugForceCatch(),
                 forceExit: () => pressure.system.debugForceExit(),
             },
+            boss: {
+                spawn: (bossId = 'slime-sovereign') => this.deps.exam.spawnArena(bossId),
+                state: () => {
+                    const boss = this.deps.exam.boss();
+                    if (!boss) {
+                        return null;
+                    }
+                    return {
+                        bossId: boss.def.id,
+                        hp: boss.health.hpRemaining(),
+                        hpMax: boss.health.hpMax,
+                        phase: boss.health.phase(),
+                        open: boss.brain.isOpen(player.currentTick),
+                    };
+                },
+                setHp: (hp: number) => this.requireBoss().debugSetHp(hp),
+                forceAttack: (attackId: string) => this.requireBoss().debugForceAttack(attackId),
+                forceOpenness: (ms?: number) =>
+                    this.requireBoss().debugForceOpenness(
+                        msToTicks(ms ?? tuning.value('boss.opennessMs')),
+                    ),
+                field: () => this.deps.exam.field()?.field.snapshot() ?? null,
+            },
             run: {
                 grantRelic: (id: string, source: RelicSource = 'debug') =>
                     identity.relics.grantRelic(id, source),
@@ -331,6 +376,15 @@ export class DebugBridge {
             },
             reset: resetSandbox,
         };
+    }
+
+    /** Duel handles outside an arena are a caller bug — fail loud. */
+    private requireBoss(): BossSystem {
+        const boss = this.deps.exam.boss();
+        if (!boss) {
+            throw new Error('bridge: no duel is running — __ET2__.boss.spawn(bossId) first');
+        }
+        return boss;
     }
 
     /**

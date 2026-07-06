@@ -129,34 +129,43 @@ export class PressureView {
 
         const door = pressure.door();
         if (door) {
-            // Lit and unmissable: a warm halo behind the open doorway.
-            this.doorGlow = scene.add
-                .image(door.xCenter, door.topY - TILE, Gen.dust)
-                .setScale(30, 22)
-                .setTint(0xffe9a0)
-                .setAlpha(0.4)
-                .setBlendMode(BlendModes.ADD)
-                .setDepth(1.4);
-            scene.tweens.add({
-                targets: this.doorGlow,
-                alpha: 0.62,
-                duration: 900,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut',
-            });
-            this.door = [
-                scene.add
-                    .image(door.xCenter, door.topY - TILE / 2, Atlas.tiles, TileFrame.doorBottom)
-                    .setDepth(1.5),
-                scene.add
-                    .image(door.xCenter, door.topY - TILE * 1.5, Atlas.tiles, TileFrame.doorTop)
-                    .setDepth(1.5),
-            ];
+            this.buildDoor(door);
         }
 
         bus.on('line/state', this.onLineState);
         bus.on('run/heart_lost', this.onHeartLost);
+    }
+
+    /**
+     * The lit exit. Built at scene create for ordinary climbs; in a boss
+     * arena the door does not exist until the boss falls — update() watches
+     * for its materialization (bosses.md: "then the door lights").
+     */
+    private buildDoor(door: { xCenter: number; topY: number }): void {
+        // Lit and unmissable: a warm halo behind the open doorway.
+        this.doorGlow = this.scene.add
+            .image(door.xCenter, door.topY - TILE, Gen.dust)
+            .setScale(30, 22)
+            .setTint(0xffe9a0)
+            .setAlpha(0.4)
+            .setBlendMode(BlendModes.ADD)
+            .setDepth(1.4);
+        this.scene.tweens.add({
+            targets: this.doorGlow,
+            alpha: 0.62,
+            duration: 900,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+        });
+        this.door = [
+            this.scene.add
+                .image(door.xCenter, door.topY - TILE / 2, Atlas.tiles, TileFrame.doorBottom)
+                .setDepth(1.5),
+            this.scene.add
+                .image(door.xCenter, door.topY - TILE * 1.5, Atlas.tiles, TileFrame.doorTop)
+                .setDepth(1.5),
+        ];
     }
 
     /** Created at ignition — before that the line does not exist, visibly. */
@@ -216,6 +225,13 @@ export class PressureView {
     }
 
     update(scrollY: number): void {
+        // A boss arena's door materializes mid-scene, on defeat.
+        if (this.door.length === 0) {
+            const door = this.pressure.door();
+            if (door) {
+                this.buildDoor(door);
+            }
+        }
         const lineY = this.pressure.lineY();
         if (lineY === null || this.edges.length === 0 || !this.consumed || !this.fireGlow) {
             return;

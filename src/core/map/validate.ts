@@ -164,6 +164,12 @@ function contentViolations(node: NodeSpec, out: string[]): void {
     if (node.type === 'mystery' && (node.mysteryEventId === null || node.mysteryRoll === null)) {
         out.push(`${node.id} mystery has no seeded event/roll`);
     }
+    if (node.type === 'boss' && node.segment !== null && node.segment.boss === undefined) {
+        out.push(`${node.id} boss node has no duel arena (segment.boss missing)`);
+    }
+    if (node.type !== 'boss' && node.segment?.boss !== undefined) {
+        out.push(`${node.id} (${node.type}) carries a boss arena`);
+    }
     const nonGift = node.modifierIds.map(modifierById).filter((m) => !m.gift);
     if (node.type === 'challenge' && (nonGift.length !== 1 || !nonGift[0].nasty)) {
         out.push(`${node.id} challenge must carry exactly one nasty modifier`);

@@ -72,8 +72,9 @@ export const MODIFIER_ROSTER: readonly ModifierSpec[] = [
         tuningLayers: [],
         genPatch: { crumbleFraction: 0.15 },
         lootPatch: { relicOddsAdd: 0.15 },
-        // Awaits movement.md Amendment 1c's crumble land classification.
-        rollable: false,
+        // Rollable since EXAM landed Amendment 1c's crumble classification
+        // (DEVIATIONS entry 10's flip condition, met).
+        rollable: true,
         nasty: true,
     },
     {
@@ -125,11 +126,15 @@ export const MODIFIER_ROSTER: readonly ModifierSpec[] = [
         blurb: 'Goo-splatted ledges drink your speed.',
         price: '10% of platforms drain 30% speed on land',
         pay: 'a bigger bounty',
-        tuningLayers: [],
+        // The drain rides the tuning table like every price: the set layer
+        // pins the printed 30% even if a future base retune moves the
+        // default (the label may never drift from the physics).
+        tuningLayers: [{ key: 'land.stickyKeep', op: 'set', value: 0.7 }],
         genPatch: { stickyFraction: 0.1, stickySpeedKeep: 0.7 },
         lootPatch: { bountyCoinsAdd: 40 },
-        // Awaits movement.md Amendment 1c's sticky land classification.
-        rollable: false,
+        // Rollable since EXAM landed Amendment 1c's sticky classification
+        // (DEVIATIONS entry 10's flip condition, met).
+        rollable: true,
         nasty: true,
         incompatibleWith: ['narrow_ledges'],
     },

@@ -27,6 +27,7 @@
  * zeroed velocity fails the process gate for the rest of the array, exactly
  * as in the engine.
  */
+import type { PlatformField } from '../exam/field';
 import {
     type Actions,
     type BodySnapshot,
@@ -62,6 +63,10 @@ function clamp(value: number, min: number, max: number): number {
 
 export class HeadlessWorld {
     private readonly statics: StaticRect[];
+    /** The platform field (EXAM): removed ledges stop colliding; landings
+     *  carry the ledge's classification. Null = fieldless session — the
+     *  exact mirror of PlayerSystem without a field lookup. */
+    private field: PlatformField | null = null;
     private x: number;
     private y: number;
     private prevY: number;
@@ -110,6 +115,11 @@ export class HeadlessWorld {
 
         let landing: LandingContact | null = null;
         for (const s of this.statics) {
+            if (this.field?.isRemoved(s.id)) {
+                // A crumbled ledge's body is disabled in the engine — the
+                // collider never reaches the process callback. Mirrored.
+                continue;
+            }
             if (!this.intersects(s)) {
                 continue;
             }
@@ -134,7 +144,11 @@ export class HeadlessWorld {
             const impactVy = this.vy;
             this.y = this.y + -overlap;
             this.vy = 0;
-            landing = { platformId: s.id, impactVy };
+            landing = {
+                platformId: s.id,
+                impactVy,
+                classification: this.field?.classification(s.id),
+            };
             // World.separate then re-tests intersection and, when the
             // separated bottom still sits a ULP inside the platform, runs
             // SeparateX on the same pair. Mirrored exactly.
@@ -184,6 +198,17 @@ export class HeadlessWorld {
             Math.abs(this.x + PLAYER_BODY.width - s.left) <= Math.abs(s.right - this.x);
         this.x = body1OnLeft ? this.x + -overlap : this.x + overlap;
         this.vx = 0;
+    }
+
+    /** Arm the platform field — PlayerSystem.setPlatformField's mirror. */
+    setPlatformField(field: PlatformField): void {
+        this.field = field;
+    }
+
+    /** The swarm drain / external writes mirror: velocity only, after this
+     *  tick's Actions — exactly PlayerSystem's sanctioned body surface. */
+    applySpeedKeep(keep: number): void {
+        this.vx *= keep;
     }
 
     /** What PlayerSystem hands the core: post-integration, post-collision. */
