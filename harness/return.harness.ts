@@ -482,7 +482,13 @@ ok('16 of 24 relics initial; unlocks grow the pool one grant at a time', () => {
 
 ok('the locked modifier trio stays out of the roll pool until earned', () => {
     const initialIds = modifierPool([]).map((m) => m.id);
-    assert.deepEqual(initialIds.sort(), ['greedy_line', 'icy_floors', 'low_gravity'].sort());
+    // EXAM flipped brittle_rows and sticky_patches rollable (the boss
+    // toolkit's hazards graduating to map modifiers); RETURN's locked trio
+    // is orthogonal to that flip. The initial pool is the merged truth.
+    assert.deepEqual(
+        initialIds.sort(),
+        ['brittle_rows', 'greedy_line', 'icy_floors', 'low_gravity', 'sticky_patches'].sort(),
+    );
     for (const id of UNLOCKABLE_MODIFIERS) {
         assert.ok(!initialIds.includes(id));
     }
