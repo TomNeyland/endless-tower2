@@ -61,9 +61,11 @@ export const DEFAULT_COMBO_TUNING = {
     // --- Score (sibling consumer) ---
     'score.heightPointsPerFloor': 10, // segment high-water only — deliberately small
     // --- Presentation constants (data like everything else) ---
-    'juice.comboShakeMinTier': 2, // BLAZING: first tier crossing that spends shake
+    'juice.comboShakeMinTier': 2, // BLAZING: first tier crossing that spends shake (and the warm grading push)
     'juice.comboShakeAmpPx': 3,
     'juice.comboShakeMs': 120,
+    'juice.bankShakeAmpPx': 2, // roar-class banks: graft #6 gives bank shakes first-class standing
+    'juice.bankShakeMs': 100,
     'audio.glorySustainMs': 4000, // glory-layer gate at sustained tier >= SOARING
     'hud.bankWhisper': 500, // payout below this whispers
     'hud.bankVoice': 5000, // payout below this speaks; at-or-above roars

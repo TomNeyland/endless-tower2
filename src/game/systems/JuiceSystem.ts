@@ -43,15 +43,21 @@ export class JuiceSystem {
 
     private wind: GameObjects.Particles.ParticleEmitter;
     private glow: GameObjects.Image;
+    private warmOverlay: GameObjects.Rectangle;
     private windAt = 0;
     private afterimageAt = 0;
     private comboTier = -1;
+    /** Chain that already spent its BLAZING warm grading push. */
+    private warmPushChainId = -1;
     private activeShake: { until: number; priority: ShakePriority; ampPx: number } | null = null;
 
     private readonly onLand = (e: LandEvent): void => {
         if (e.impactVy >= this.t.value('SHAKE_MIN_IMPACT')) {
-            // 2px, 90ms — the whole shake budget of FEEL, now one contender.
-            this.requestShake(SHAKE_PRIORITY.land, 2, 90);
+            this.requestShake(
+                SHAKE_PRIORITY.land,
+                this.t.value('juice.landShakeAmpPx'),
+                this.t.value('juice.landShakeMs'),
+            );
         }
     };
 
@@ -71,6 +77,12 @@ export class JuiceSystem {
                 this.t.value('juice.comboShakeAmpPx'),
                 this.t.value('juice.comboShakeMs'),
             );
+            if (e.chainId !== this.warmPushChainId) {
+                // BLAZING's ladder promise: first shake + a brief warm
+                // grading push — the world grades warmer, once per chain.
+                this.warmPushChainId = e.chainId;
+                this.warmGradingPush();
+            }
         }
         if (e.tierIndex === SUPERNOVA_TIER && this.t.value('JUICE_SCALE') > 0) {
             // The one full-frame warm pulse — the milestone allowance, spent.
@@ -81,7 +93,11 @@ export class JuiceSystem {
     private readonly onComboBanked = (e: ComboBankedEvent): void => {
         // Only a roar-class bank earns shake — a fizzle bank stays quiet.
         if (e.payout >= this.t.value('hud.bankVoice')) {
-            this.requestShake(SHAKE_PRIORITY.bank, 2, 100);
+            this.requestShake(
+                SHAKE_PRIORITY.bank,
+                this.t.value('juice.bankShakeAmpPx'),
+                this.t.value('juice.bankShakeMs'),
+            );
         }
         this.douseGlow();
     };
@@ -121,6 +137,18 @@ export class JuiceSystem {
             .setBlendMode('ADD')
             .setAlpha(0);
 
+        // The BLAZING grading push's canvas: a full-frame warm wash, additive
+        // and screen-fixed, invisible until the ladder spends it. A cheap
+        // stand-in for a real grading rack — but the sentence "the world
+        // grades warmer" gets an implementation, not an IOU.
+        this.warmOverlay = scene.add
+            .rectangle(0, 0, scene.scale.width, scene.scale.height, 0xff9a3d)
+            .setOrigin(0, 0)
+            .setScrollFactor(0)
+            .setBlendMode('ADD')
+            .setDepth(90)
+            .setAlpha(0);
+
         bus.on('movement/land', this.onLand);
         comboBus.on('combo/tier', this.onComboTier);
         comboBus.on('combo/banked', this.onComboBanked);
@@ -154,6 +182,22 @@ export class JuiceSystem {
         const duration = Math.min(ms, SHAKE_MAX_MS);
         this.activeShake = { until: now + duration, priority, ampPx: amp };
         this.camera.shake(duration, amp * SHAKE_INTENSITY_PER_PX * juice, true);
+    }
+
+    /** Brief warm grading push (combo-scoring.md's visual ladder, BLAZING). */
+    private warmGradingPush(): void {
+        const juice = this.t.value('JUICE_SCALE');
+        if (juice <= 0) {
+            return;
+        }
+        this.scene.tweens.add({
+            targets: this.warmOverlay,
+            alpha: { from: 0, to: 0.09 * juice },
+            duration: 220,
+            hold: 140,
+            yoyo: true,
+            ease: 'Sine.easeOut',
+        });
     }
 
     private douseGlow(): void {
@@ -216,5 +260,6 @@ export class JuiceSystem {
         this.comboBus.off('combo/reset', this.onComboEnded);
         this.wind.destroy();
         this.glow.destroy();
+        this.warmOverlay.destroy();
     }
 }

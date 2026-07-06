@@ -83,6 +83,8 @@ export const DEFAULT_TUNING = {
     WIND_FRAC: 0.71, // of the effective ceiling
     AFTERIMAGE_FRAC: 0.86, // the master's crown
     SHAKE_MIN_IMPACT: 1100, // px/s: the ONE shake trigger
+    'juice.landShakeAmpPx': 2, // FEEL's whole shake budget, now one scheduler contender
+    'juice.landShakeMs': 90,
     MASTER_VOLUME: 0.7, // audio ships audible — the level is audio.md's ruling, one authority
 
     // --- Player presentation ---
