@@ -10,6 +10,7 @@
  * {key, op, value} layers, tick-stamped, so future systems mutate physics as
  * data instead of code.
  */
+import { DEFAULT_COMBO_TUNING, validateComboTuning } from './combo/tuning';
 
 export const DEFAULT_TUNING = {
     // --- Jump: the exchange (speed spent on height along a convex curve) ---
@@ -82,6 +83,10 @@ export const DEFAULT_TUNING = {
 
     // --- Player presentation ---
     PLAYER_SCALE: 0.5, // one tile tall; the physics body never reads this
+
+    // --- Combo & score (MASTERY): defaults live in src/core/combo/tuning.ts;
+    //     merged here so relics/modifiers need zero combo-specific plumbing ---
+    ...DEFAULT_COMBO_TUNING,
 } satisfies Record<string, number>;
 
 export type TuningTable = { -readonly [K in keyof typeof DEFAULT_TUNING]: number };
@@ -175,6 +180,17 @@ export class TuningStack {
     pushLayer(layer: TuningLayer): void {
         this.layers.push(layer);
         this.dirty = true;
+        // Combo validation THROWS on degenerate effective values at layer-push
+        // time (combo-scoring.md graft #3): a modifier typo fails loud, never
+        // perma-chains silently. The bad layer is rolled back before throwing
+        // so the stack is never left poisoned.
+        try {
+            validateComboTuning(this.snapshot());
+        } catch (error) {
+            this.layers.pop();
+            this.dirty = true;
+            throw error;
+        }
         this.notify({ op: 'pushLayer', layer: { ...layer } });
     }
 
