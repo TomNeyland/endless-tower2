@@ -42,6 +42,9 @@ export const Gen = {
     glowBand: 'gen-glow-band',
     /** Soft radial glow — the combo ladder's earned character light. */
     glow: 'gen-glow',
+    /** Opaque white-to-near-black vertical falloff — tinted per act, it is
+     *  the consumed zone: the world ending from below (pressure.md). */
+    consumeGradient: 'gen-consume-gradient',
 } as const;
 
 /** Frame names inside the character atlas — swappable with the art. */
@@ -66,7 +69,6 @@ export const TileFrame = {
     doorBottom: 'door_open',
     doorTop: 'door_open_top',
     fireEdge: 'lava_top',
-    fireFill: 'lava',
     fireball: 'fireball',
 } as const;
 
@@ -139,6 +141,22 @@ export function ensureGeneratedTextures(scene: Scene): void {
             g.fillCircle(32, 32, r);
         }
         g.generateTexture(Gen.glow, 64, 64);
+        g.destroy();
+    }
+    if (!scene.textures.exists(Gen.consumeGradient)) {
+        // Opaque brightness falloff, white at the top to near-black at the
+        // bottom: tint multiplies, so per-act consumption palettes are one
+        // setTint away (grass-fire orange now; sandstorm/void later).
+        const g = scene.add.graphics();
+        const bands = 64;
+        for (let i = 0; i < bands; i += 1) {
+            // Steep falloff: the consumption reads within half a screen —
+            // edge-bright at the front, near-black by the time it matters.
+            const v = Math.round(Math.max(0.04, (1 - i / bands) ** 2.6) * 255);
+            g.fillStyle((v << 16) | (v << 8) | v, 1);
+            g.fillRect(0, i * 4, 32, 4);
+        }
+        g.generateTexture(Gen.consumeGradient, 32, bands * 4);
         g.destroy();
     }
 }
