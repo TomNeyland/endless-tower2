@@ -64,9 +64,7 @@ export const SLIME_SOVEREIGN: BossDef = {
         },
     ],
     presentation: {
-        restFrame: 'slime_normal_rest',
-        moveFrames: ['slime_normal_walk_a', 'slime_normal_walk_b'],
-        flatFrame: 'slime_normal_flat',
+        frameSet: 'slime', // manifest id — frames live in assets.ts BossFrames
         phaseTints: [0xffffff, 0xd9f0c0, 0xb8c9a0], // fresh -> dulled -> failing
         epithet: 'KEEPER OF THE MEADOW GATE',
     },

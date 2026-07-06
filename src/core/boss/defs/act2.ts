@@ -63,9 +63,7 @@ export const WHIRRING_WARDEN: BossDef = {
         },
     ],
     presentation: {
-        restFrame: 'saw_rest',
-        moveFrames: ['saw_a', 'saw_b'],
-        flatFrame: 'saw_rest', // saws do not squash; the knockdown reads via spin-down
+        frameSet: 'saw', // manifest id — saws do not squash; flat maps to rest there
         phaseTints: [0xffffff, 0xe8cfa8, 0xc9a878],
         epithet: 'WARDEN OF THE DUNE UPDRAFT',
     },

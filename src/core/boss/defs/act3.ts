@@ -89,9 +89,7 @@ export const SUMMIT_KEEPER: BossDef = {
         },
     ],
     presentation: {
-        restFrame: 'barnacle_attack_rest',
-        moveFrames: ['barnacle_attack_a', 'barnacle_attack_b'],
-        flatFrame: 'barnacle_attack_rest',
+        frameSet: 'barnacle', // manifest id — frames live in assets.ts BossFrames
         phaseTints: [0xffffff, 0xcdb8e8, 0x9a86c8],
         epithet: 'THE TOWER, AWAKE',
     },

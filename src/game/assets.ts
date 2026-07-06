@@ -111,14 +111,54 @@ export const HudFrame = {
 
 /** Swarm critter frames in the double enemy atlas, per SwarmSkin — two
  *  frames each for the wing/walk flip (verified against
- *  spritesheet-enemies-double.xml). Boss body frames live in each BossDef's
- *  presentation block; these are the shared critter roster. */
+ *  spritesheet-enemies-double.xml). BossFrames below shares these where a
+ *  family serves both roles — one source of truth per Kenney string. */
 export const CritterFrames: Record<string, [string, string]> = {
     slime: ['slime_normal_walk_a', 'slime_normal_walk_b'],
     saw: ['saw_a', 'saw_b'],
     bee: ['bee_a', 'bee_b'],
     fly: ['fly_a', 'fly_b'],
 } as const;
+
+/** Boss body frames in the double enemy atlas: rest / two move frames / a
+ *  hurt-flat frame for knockdowns (rest where the family has no flat frame
+ *  — Kenney's saws don't squash). */
+export interface BossFrameSet {
+    rest: string;
+    move: [string, string];
+    flat: string;
+}
+
+/** Per-family frame sets, keyed by BossDef `presentation.frameSet` — core
+ *  boss defs carry a manifest id, never Kenney strings (code law: assets
+ *  only via the manifest). Move frames dedupe against CritterFrames, so a
+ *  reskin touches exactly one table. */
+export const BossFrames: Record<string, BossFrameSet> = {
+    slime: {
+        rest: 'slime_normal_rest',
+        move: CritterFrames.slime,
+        flat: 'slime_normal_flat',
+    },
+    saw: {
+        rest: 'saw_rest',
+        move: CritterFrames.saw,
+        flat: 'saw_rest',
+    },
+    barnacle: {
+        rest: 'barnacle_attack_rest',
+        move: ['barnacle_attack_a', 'barnacle_attack_b'],
+        flat: 'barnacle_attack_rest',
+    },
+} as const;
+
+/** Frame-set lookup — an unknown id is a data typo, never a blank boss. */
+export function bossFrames(setId: string): BossFrameSet {
+    const set = BossFrames[setId];
+    if (!set) {
+        throw new Error(`assets: unknown boss frame set "${setId}"`);
+    }
+    return set;
+}
 
 /** CHOICE: node-type icons on the map's glowing windows (tiles atlas). The
  *  silhouette carries the shape; cards carry the detail (map-modifiers.md). */

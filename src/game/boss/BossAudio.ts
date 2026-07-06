@@ -9,6 +9,7 @@ import type { Scene } from 'phaser';
 import type {
     BossDefeatedEvent,
     BossHitEvent,
+    BossOpennessEvent,
     BossPhaseEvent,
     BossSpawnedEvent,
     BossTelegraphEvent,
@@ -48,6 +49,15 @@ export class BossAudio {
         }
     };
 
+    private readonly onOpenness = (e: BossOpennessEvent): void => {
+        if (e.state !== 'entered') {
+            return;
+        }
+        // The invitation: one high, quiet chime as the stance opens — the
+        // timing decision gets an ear as well as an eye, still a whisper.
+        this.scene.sound.play(Sfx.magic, { rate: 1.6, volume: 0.18 });
+    };
+
     private readonly onPhase = (e: BossPhaseEvent): void => {
         // The phase stinger: two falling steps — it is coming apart.
         this.scene.sound.play(Sfx.magic, { rate: 0.8 - 0.1 * e.phase, volume: 0.45 });
@@ -66,6 +76,7 @@ export class BossAudio {
         bus.on('boss/spawned', this.onSpawned);
         bus.on('boss/telegraph', this.onTelegraph);
         bus.on('boss/hit', this.onHit);
+        bus.on('boss/openness', this.onOpenness);
         bus.on('boss/phase', this.onPhase);
         bus.on('boss/defeated', this.onDefeated);
     }
@@ -74,6 +85,7 @@ export class BossAudio {
         this.bus.off('boss/spawned', this.onSpawned);
         this.bus.off('boss/telegraph', this.onTelegraph);
         this.bus.off('boss/hit', this.onHit);
+        this.bus.off('boss/openness', this.onOpenness);
         this.bus.off('boss/phase', this.onPhase);
         this.bus.off('boss/defeated', this.onDefeated);
     }

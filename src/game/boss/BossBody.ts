@@ -6,9 +6,11 @@
  * your chain reaches SOARING; damage LANDS on it scaled by loudness
  * (whisper = flinch, voice = stagger with knockback flash, roar =
  * knockdown + a helpless beat); phase turns wear it down (tint + one
- * full-frame statement); it arrives in an authored entrance and falls
- * PAST you into its own line on defeat. The spectator test governs: watch
- * the body, know the score.
+ * full-frame statement); the openness window is a visible STANCE (gold
+ * exposure aura + an exposed crawl, held exactly while the brain holds the
+ * window — the banking timing decision the doc promises); it arrives in an
+ * authored entrance and falls PAST you into its own line on defeat. The
+ * spectator test governs: watch the body, know the score.
  *
  * Presentation only, by law: its position never touches physics — the
  * boss's mechanical truth is its telegraphed attacks (the doc's own
@@ -16,20 +18,21 @@
  * has no hidden physics; the body blocks routes by LOOMING, not by
  * colliding).
  */
-import type { GameObjects, Scene, Tweens } from 'phaser';
+import { BlendModes, type GameObjects, type Scene, type Tweens } from 'phaser';
 import type { BossDef } from '../../core/boss/types';
 import type { ComboBus } from '../../core/combo/bus';
 import type { ComboTierEvent } from '../../core/combo/types';
 import type {
     BossDefeatedEvent,
     BossHitEvent,
+    BossOpennessEvent,
     BossPhaseEvent,
     BossSpawnedEvent,
     BossTelegraphEvent,
     EventBus,
 } from '../../core/events';
 import type { TuningStack } from '../../core/tuning';
-import { Atlas } from '../assets';
+import { Atlas, type BossFrameSet, bossFrames, Gen } from '../assets';
 import { GAME_HEIGHT } from '../main';
 import type { PlayerSystem } from '../player/PlayerSystem';
 import type { ExamFieldSystem } from '../systems/ExamFieldSystem';
@@ -40,6 +43,8 @@ const BOSS_SCALE = 2; // 128px frames -> 256px: four player-heights
 const BOSS_DEPTH = 3.5; // among the tower, behind the player's story
 const SOARING_TIER = 3;
 const REPOSE_MS = 2600;
+/** The openness stance: gold — the same money color a multiplied bit earns. */
+const OPEN_TINT = 0xffd75a;
 
 type Mood = 'entering' | 'roaming' | 'leaping' | 'helpless' | 'falling';
 
@@ -54,10 +59,14 @@ export class BossBody {
     private readonly comboBus: ComboBus;
     private readonly t: TuningStack;
 
+    private readonly frames: BossFrameSet;
     private sprite: GameObjects.Image;
+    private aura: GameObjects.Image;
+    private auraTween: Tweens.Tween | null = null;
     private moveTween: Tweens.Tween | null = null;
     private mood: Mood = 'entering';
     private agitated = false;
+    private open = false;
     private frameFlip = false;
     private frameAt = 0;
     private repositionAt = 0;
@@ -127,22 +136,24 @@ export class BossBody {
             return;
         }
         // Damage lands VISIBLY, scaled by loudness — the body is the real
-        // health bar.
+        // health bar. A hit inside the openness window flashes GOLD (the
+        // stance's own color): a multiplied bank READS as multiplied.
+        const flash = e.openness ? OPEN_TINT : 0xffffff;
         if (e.loudness === 'whisper') {
-            this.flashTint(0xffffff, 90);
+            this.flashTint(flash, 90);
             this.nudge(10, 70);
             return;
         }
         if (e.loudness === 'voice') {
-            this.flashTint(0xffffff, 170);
+            this.flashTint(flash, 170);
             this.nudge(34, 150);
             return;
         }
         // ROAR: knockdown + a beat of helplessness — a building fell on it.
         this.mood = 'helpless';
         this.moveTween?.stop();
-        this.sprite.setTexture(Atlas.enemiesDouble, this.def.presentation.flatFrame);
-        this.flashTint(0xffffff, 220);
+        this.sprite.setTexture(Atlas.enemiesDouble, this.frames.flat);
+        this.flashTint(flash, 220);
         this.juice.bossImpact(4, 180);
         this.scene.tweens.add({
             targets: this.sprite,
@@ -170,12 +181,45 @@ export class BossBody {
         this.nudge(24, 200);
     };
 
+    /**
+     * The openness window, VISIBLE (bosses.md: "a visible openness window
+     * (stance change...) gives banking a timing decision"): a gold exposure
+     * aura pulses around the body and its animation slumps to an exposed
+     * crawl for exactly the window the brain holds open. The brain emits no
+     * `exited` on defeat (a dead boss has no stance), so onDefeated also
+     * drops it.
+     */
+    private readonly onOpenness = (e: BossOpennessEvent): void => {
+        if (e.state === 'entered' && this.mood !== 'falling') {
+            this.open = true;
+            this.aura.setPosition(this.sprite.x, this.sprite.y).setVisible(true).setAlpha(0.2);
+            this.auraTween?.stop();
+            this.auraTween = this.scene.tweens.add({
+                targets: this.aura,
+                alpha: { from: 0.2, to: 0.55 },
+                duration: 340,
+                yoyo: true,
+                repeat: -1,
+            });
+        } else {
+            this.closeStance();
+        }
+    };
+
+    private closeStance(): void {
+        this.open = false;
+        this.auraTween?.stop();
+        this.auraTween = null;
+        this.aura.setVisible(false);
+    }
+
     private readonly onDefeated = (_e: BossDefeatedEvent): void => {
         // The authored defeat: it falls PAST you, down into its own line —
         // the tower's justice — and the door lights after the beat.
+        this.closeStance();
         this.mood = 'falling';
         this.moveTween?.stop();
-        this.sprite.setTexture(Atlas.enemiesDouble, this.def.presentation.flatFrame);
+        this.sprite.setTexture(Atlas.enemiesDouble, this.frames.flat);
         const kin = this.player.kinematics();
         this.scene.tweens.add({
             targets: this.sprite,
@@ -209,17 +253,28 @@ export class BossBody {
         this.comboBus = comboBus;
         this.t = tuning;
         this.phaseTint = def.presentation.phaseTints[0];
+        this.frames = bossFrames(def.presentation.frameSet);
 
         this.sprite = scene.add
-            .image(0, 0, Atlas.enemiesDouble, def.presentation.restFrame)
+            .image(0, 0, Atlas.enemiesDouble, this.frames.rest)
             .setScale(BOSS_SCALE)
             .setDepth(BOSS_DEPTH)
+            .setVisible(false);
+        // The exposure aura — the openness window's stance light. Behind the
+        // body, additive, gold; alive only while the brain holds it open.
+        this.aura = scene.add
+            .image(0, 0, Gen.glow)
+            .setDisplaySize(420, 420)
+            .setTint(OPEN_TINT)
+            .setBlendMode(BlendModes.ADD)
+            .setDepth(BOSS_DEPTH - 0.1)
             .setVisible(false);
 
         bus.on('boss/spawned', this.onSpawned);
         bus.on('boss/telegraph', this.onTelegraph);
         bus.on('boss/hit', this.onHit);
         bus.on('boss/phase', this.onPhase);
+        bus.on('boss/openness', this.onOpenness);
         bus.on('boss/defeated', this.onDefeated);
         comboBus.on('combo/tier', this.onTier);
         comboBus.on('combo/banked', this.onChainEnded);
@@ -233,16 +288,23 @@ export class BossBody {
         const kin = this.player.kinematics();
 
         // Two-frame animation whose TEMPO is the reaction channel: agitation
-        // at SOARING+ reads from across the room.
-        const tempo = this.mood === 'helpless' ? 900 : this.agitated ? 130 : 420;
+        // at SOARING+ reads from across the room, and the openness stance
+        // slumps to an exposed crawl — the window is visible in the body
+        // itself, not just the aura.
+        const tempo =
+            this.mood === 'helpless' ? 900 : this.open ? 680 : this.agitated ? 130 : 420;
         if (now >= this.frameAt && this.mood !== 'helpless' && this.mood !== 'falling') {
             this.frameAt = now + tempo;
             this.frameFlip = !this.frameFlip;
-            const frames = this.def.presentation.moveFrames;
+            const frames = this.frames.move;
             this.sprite.setTexture(Atlas.enemiesDouble, this.frameFlip ? frames[0] : frames[1]);
         }
         // It watches you (and glances get quicker when it is worried).
         this.sprite.setFlipX(kin.x > this.sprite.x);
+        // The exposure aura rides the body wherever its tweens carry it.
+        if (this.open) {
+            this.aura.setPosition(this.sprite.x, this.sprite.y);
+        }
 
         if (this.mood !== 'roaming' || now < this.repositionAt) {
             return;
@@ -294,7 +356,7 @@ export class BossBody {
         this.scene.time.delayedCall(ms, () => {
             this.sprite.setTint(this.phaseTint);
             if (this.mood !== 'helpless' && this.mood !== 'falling') {
-                this.sprite.setTexture(Atlas.enemiesDouble, this.def.presentation.moveFrames[0]);
+                this.sprite.setTexture(Atlas.enemiesDouble, this.frames.move[0]);
             }
         });
     }
@@ -317,12 +379,15 @@ export class BossBody {
         this.bus.off('boss/telegraph', this.onTelegraph);
         this.bus.off('boss/hit', this.onHit);
         this.bus.off('boss/phase', this.onPhase);
+        this.bus.off('boss/openness', this.onOpenness);
         this.bus.off('boss/defeated', this.onDefeated);
         this.comboBus.off('combo/tier', this.onTier);
         this.comboBus.off('combo/banked', this.onChainEnded);
         this.comboBus.off('combo/voided', this.onChainEnded);
         this.comboBus.off('combo/reset', this.onChainEnded);
+        this.auraTween?.stop();
         this.moveTween?.stop();
+        this.aura.destroy();
         this.sprite.destroy();
     }
 }

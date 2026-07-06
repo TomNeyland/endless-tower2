@@ -4,7 +4,7 @@
  * expected banks, phases at 2/3 and 1/3, attack patterns and cadences per
  * phase, presentation hints for the body. Engine-free by law.
  */
-import type { BossAttackKind } from '../events';
+import type { BossAttackKind } from './events';
 import type { SwarmPattern, SwarmSkin } from '../exam/swarm';
 
 export const EXAM_SCHEMA_VERSION = 1;
@@ -58,12 +58,11 @@ export interface BossPhaseDef {
 
 /** Presentation hints — the body view reads these; physics never does. */
 export interface BossPresentation {
-    /** Frame names in the double-res enemy atlas: rest / two move frames /
-     *  a hurt-flat frame for knockdowns (falls back to rest where the
-     *  family has no flat frame — Kenney's saws don't squash). */
-    restFrame: string;
-    moveFrames: [string, string];
-    flatFrame: string;
+    /** Manifest frame-set id (src/game/assets.ts `bossFrames`): the body's
+     *  rest/move/flat frames live in the asset manifest — core carries an
+     *  id, never a raw atlas string (code law: assets only via the
+     *  manifest; art must stay swappable). */
+    frameSet: string;
     /** Body tint per phase (wear states: fresh, cracked, failing). */
     phaseTints: [number, number, number];
     /** Name card subtitle — one breath of identity. */
