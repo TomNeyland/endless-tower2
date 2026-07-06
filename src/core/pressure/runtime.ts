@@ -126,6 +126,7 @@ export class PressureRuntime {
             {
                 feetY: kin.feetY,
                 highWaterFloors: this.highWaterFloor,
+                totalFloors: this.segment.spec.floors,
                 // The Ghost powerup holds the catch through the same shield
                 // the rescue uses — the line still rises, the world stays
                 // honest, only the bite is stayed (line.ghost is a temporary
@@ -242,9 +243,7 @@ export class PressureRuntime {
      */
     setDoor(door: DoorPlacement): void {
         if (this.segment.door !== null) {
-            throw new Error(
-                `pressure: segment ${this.segment.spec.segmentId} already has a door`,
-            );
+            throw new Error(`pressure: segment ${this.segment.spec.segmentId} already has a door`);
         }
         this.segment.door = door;
     }

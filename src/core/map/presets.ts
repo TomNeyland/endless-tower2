@@ -9,6 +9,8 @@
  * grace") — the grace multipliers below are this session's starting values
  * for those words, data like everything else.
  */
+import { DIFFICULTY_PROFILES } from '../difficulty/profiles';
+import type { DifficultyProfile } from '../difficulty/types';
 import type { SegmentTuningOverride } from '../pressure/segment';
 import type { LineProfileName, NodeType } from './types';
 
@@ -27,7 +29,7 @@ export const LINE_PROFILES: Record<LineProfileName, LineProfilePreset> = {
         overrides: [
             { key: 'line.baseSpeed', op: 'mul', value: 0.7 },
             { key: 'line.graceMs', op: 'mul', value: 1.5 },
-            { key: 'line.graceFloors', op: 'mul', value: 1.5 },
+            { key: 'line.graceFraction', op: 'mul', value: 1.5 },
         ],
     },
     hot: {
@@ -36,7 +38,7 @@ export const LINE_PROFILES: Record<LineProfileName, LineProfilePreset> = {
         overrides: [
             { key: 'line.baseSpeed', op: 'mul', value: 1.3 },
             { key: 'line.graceMs', op: 'mul', value: 0.55 },
-            { key: 'line.graceFloors', op: 'mul', value: 0.55 },
+            { key: 'line.graceFraction', op: 'mul', value: 0.55 },
         ],
     },
     boss: {
@@ -47,7 +49,7 @@ export const LINE_PROFILES: Record<LineProfileName, LineProfilePreset> = {
         // and its surges are boss:<attackId> layers pushed mid-duel.
         overrides: [
             { key: 'line.graceMs', op: 'set', value: 4500 },
-            { key: 'line.graceFloors', op: 'set', value: 999 },
+            { key: 'line.graceFraction', op: 'set', value: 2 },
         ],
     },
     none: { name: 'none', face: '', overrides: [] },
@@ -68,6 +70,7 @@ export interface NodeTypePreset {
     blurb: string;
     /** Inclusive floor range; null for non-climb nodes (shop/mystery). */
     floors: [number, number] | null;
+    difficulty: DifficultyProfile | null;
     lineProfile: LineProfileName;
     /** Generation repricing (wide/tight ledges) — same substrate as modifiers. */
     genOverrides: SegmentTuningOverride[];
@@ -75,9 +78,8 @@ export interface NodeTypePreset {
     /** Placed-loot density multiplier on `coins.perFloor` — the node type's
      *  loot identity (Coin Rush's "coins ×2.5 placement", Elite's lean walls). */
     lootCoinsMul: number;
-    /** Inclusive clear-bounty range — nonzero only where the design names a
-     *  bounty (Challenge, Boss); placed loot pays everywhere else. */
-    clearBounty: [number, number];
+    /** Clear-bounty rate per floor — nonzero only for Challenge and Boss. */
+    clearBountyPerFloor: [number, number];
     guaranteedRelic: boolean;
     relicOddsAdd: number;
     /** Chance the rare gift modifier (Double Fuse) rides along for free. */
@@ -89,12 +91,13 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         type: 'climb',
         title: 'CLIMB',
         blurb: 'A bounded tower — reach the door before the world ends below.',
-        floors: [24, 32],
+        floors: [100, 130],
+        difficulty: DIFFICULTY_PROFILES.climb,
         lineProfile: 'standard',
         genOverrides: [],
         modifierSlots: { chance: 0.3, min: 1, max: 1, nastyOnly: false },
         lootCoinsMul: 1,
-        clearBounty: [0, 0],
+        clearBountyPerFloor: [0, 0],
         guaranteedRelic: false,
         relicOddsAdd: 0,
         giftChance: 0.06,
@@ -103,12 +106,13 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         type: 'coin_rush',
         title: 'COIN RUSH',
         blurb: 'Short, loud, and paved with loot.',
-        floors: [14, 18],
+        floors: [45, 60],
+        difficulty: DIFFICULTY_PROFILES.coinRush,
         lineProfile: 'gentle',
         genOverrides: [{ key: 'tower.platformWidthMul', op: 'mul', value: 1.25 }],
         modifierSlots: { chance: 0.2, min: 1, max: 1, nastyOnly: false },
         lootCoinsMul: 2.5, // the doc's "coins ×2.5 placement", now literally placed
-        clearBounty: [0, 0],
+        clearBountyPerFloor: [0, 0],
         guaranteedRelic: false,
         relicOddsAdd: 0,
         giftChance: 0.08,
@@ -117,12 +121,13 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         type: 'challenge',
         title: 'CHALLENGE',
         blurb: 'One nasty mutator, one big reward.',
-        floors: [22, 28],
+        floors: [90, 115],
+        difficulty: DIFFICULTY_PROFILES.challenge,
         lineProfile: 'standard',
         genOverrides: [],
         modifierSlots: { chance: 1, min: 1, max: 1, nastyOnly: true },
         lootCoinsMul: 1,
-        clearBounty: [55, 70], // the design's "large fixed bounty"
+        clearBountyPerFloor: [0.55, 0.7],
         guaranteedRelic: false,
         relicOddsAdd: 0.2,
         giftChance: 0.04,
@@ -131,12 +136,13 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         type: 'elite',
         title: 'ELITE',
         blurb: 'A brutal stretch of tower guarding a relic.',
-        floors: [26, 34],
+        floors: [100, 135],
+        difficulty: DIFFICULTY_PROFILES.elite,
         lineProfile: 'hot',
         genOverrides: [{ key: 'tower.platformWidthMul', op: 'mul', value: 0.85 }],
         modifierSlots: { chance: 1, min: 1, max: 2, nastyOnly: true },
         lootCoinsMul: 0.75, // tight gen, lean walls — the relic is the pay
-        clearBounty: [0, 0],
+        clearBountyPerFloor: [0, 0],
         guaranteedRelic: true,
         relicOddsAdd: 0,
         giftChance: 0.04,
@@ -146,11 +152,12 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         title: 'SHOP',
         blurb: 'Spend coins. Catch your breath.',
         floors: null,
+        difficulty: null,
         lineProfile: 'none',
         genOverrides: [],
         modifierSlots: { chance: 0, min: 0, max: 0, nastyOnly: false },
         lootCoinsMul: 1,
-        clearBounty: [0, 0],
+        clearBountyPerFloor: [0, 0],
         guaranteedRelic: false,
         relicOddsAdd: 0,
         giftChance: 0,
@@ -160,11 +167,12 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         title: 'MYSTERY',
         blurb: 'Something waits behind this window.',
         floors: null,
+        difficulty: null,
         lineProfile: 'none',
         genOverrides: [],
         modifierSlots: { chance: 0, min: 0, max: 0, nastyOnly: false },
         lootCoinsMul: 1,
-        clearBounty: [0, 0],
+        clearBountyPerFloor: [0, 0],
         guaranteedRelic: false,
         relicOddsAdd: 0,
         giftChance: 0,
@@ -179,11 +187,12 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         // duels: docs/DEVIATIONS.md entry 20 carries the math and the
         // ruling options.
         floors: [220, 220],
+        difficulty: DIFFICULTY_PROFILES.boss,
         lineProfile: 'boss',
         genOverrides: [],
         modifierSlots: { chance: 0, min: 0, max: 0, nastyOnly: false },
         lootCoinsMul: 1,
-        clearBounty: [90, 110], // "act completion + big bounty"
+        clearBountyPerFloor: [0.42, 0.5],
         guaranteedRelic: false,
         relicOddsAdd: 0,
         giftChance: 0,

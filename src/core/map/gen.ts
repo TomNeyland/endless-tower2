@@ -11,12 +11,11 @@
  * by exact validation — generation may be as structured as it likes, but
  * violations always regenerate whole, never get patched by hand.
  */
-import { bossForAct } from '../boss/defs';
-import type { SegmentFieldSpec, SegmentSpec, SegmentTuningOverride } from '../pressure/segment';
-import { fork, forkSeed, pick, rangeInt, type Rng, weightedIndex } from '../rng';
+import { fork, pick, rangeInt, type Rng, weightedIndex } from '../rng';
 import { DEFAULT_TUNING } from '../tuning-table';
-import { compatible, modifierById, rollableModifiers } from './modifiers';
-import { LINE_PROFILES, NODE_PRESETS, type NodeTypePreset } from './presets';
+import { compatible, rollableModifiers } from './modifiers';
+import { rollNodeContent } from './node-content';
+import { NODE_PRESETS, type NodeTypePreset } from './presets';
 import { MYSTERY_EVENTS } from './mystery';
 import {
     ACT_ROWS,
@@ -24,7 +23,6 @@ import {
     BOSS_ROW,
     MAP_SCHEMA_VERSION,
     type ModifierSpec,
-    type NodeRewards,
     nodeIdOf,
     type NodeSpec,
     type NodeType,
@@ -69,7 +67,11 @@ function staircaseEdges(rng: Rng, m: number, n: number): [number, number][] {
     throw new Error(`map gen: staircase ${m}x${n} could not satisfy the edge cap`);
 }
 
-function rollModifierIds(rng: Rng, preset: NodeTypePreset, pool: readonly ModifierSpec[]): string[] {
+function rollModifierIds(
+    rng: Rng,
+    preset: NodeTypePreset,
+    pool: readonly ModifierSpec[],
+): string[] {
     const ids: string[] = [];
     const slots = preset.modifierSlots;
     if (slots.max > 0 && rng() < slots.chance) {
@@ -92,67 +94,6 @@ function rollModifierIds(rng: Rng, preset: NodeTypePreset, pool: readonly Modifi
     return ids;
 }
 
-function rollRewards(rng: Rng, preset: NodeTypePreset, modifierIds: string[]): NodeRewards {
-    let clearBounty = rangeInt(rng, preset.clearBounty[0], preset.clearBounty[1]);
-    let coinsMul = 1;
-    let relicOddsAdd = preset.relicOddsAdd;
-    for (const id of modifierIds) {
-        const loot = modifierById(id).lootPatch;
-        coinsMul *= loot?.coinsMul ?? 1;
-        clearBounty += loot?.bountyCoinsAdd ?? 0;
-        relicOddsAdd += loot?.relicOddsAdd ?? 0;
-    }
-    return { clearBounty, coinsMul, guaranteedRelic: preset.guaranteedRelic, relicOddsAdd };
-}
-
-function buildSegment(
-    runSeed: string,
-    actIndex: number,
-    nodeId: string,
-    rng: Rng,
-    preset: NodeTypePreset,
-    modifierIds: string[],
-    coinsMul: number,
-): SegmentSpec | null {
-    if (preset.floors === null) {
-        return null;
-    }
-    const modifierLayers: SegmentTuningOverride[] = [...preset.genOverrides.map((o) => ({ ...o }))];
-    // The platform-field roll (EXAM): Brittle Rows / Sticky Patches carry
-    // their fractions as genPatch data; folded here so the segment build
-    // rolls exactly what the label priced.
-    let crumbleFraction = 0;
-    let stickyFraction = 0;
-    for (const id of modifierIds) {
-        const m = modifierById(id);
-        modifierLayers.push(...m.tuningLayers.map((o) => ({ ...o })));
-        crumbleFraction += m.genPatch?.crumbleFraction ?? 0;
-        stickyFraction += m.genPatch?.stickyFraction ?? 0;
-    }
-    const field: SegmentFieldSpec | undefined =
-        crumbleFraction > 0 || stickyFraction > 0 ? { crumbleFraction, stickyFraction } : undefined;
-    return {
-        // segmentId IS the nodeId, so pressure's owner tag lands verbatim as
-        // `segment:<nodeId>` (playthrough-trace.md finding 6).
-        segmentId: nodeId,
-        floors: rangeInt(rng, preset.floors[0], preset.floors[1]),
-        seed: forkSeed(runSeed, `segment:${nodeId}`),
-        lineProfile: LINE_PROFILES[preset.lineProfile].overrides.map((o) => ({ ...o })),
-        modifiers: modifierLayers,
-        // Placed loot IS the coin economy ("coins by play"): the node type's
-        // density identity × the modifiers' folded loot repricing. Rolled
-        // from the base table — the map is generated once at run start, and
-        // the label prints what the segment will place (pillar 2).
-        loot: {
-            coinsPerFloor: DEFAULT_TUNING['coins.perFloor'] * preset.lootCoinsMul * coinsMul,
-            powerupEveryFloors: DEFAULT_TUNING['powerup.everyFloors'],
-        },
-        field,
-        // The act's examiner (EXAM): a boss segment is the duel arena.
-        boss: preset.type === 'boss' ? bossForAct(actIndex).id : undefined,
-    };
-}
-
 function buildNode(
     runSeed: string,
     actIndex: number,
@@ -168,7 +109,7 @@ function buildNode(
     // from the run seed at visit time against the live owned-relic set.)
     const rng = fork(runSeed, `node:${id}`);
     const modifierIds = rollModifierIds(rng, preset, pool);
-    const rewards = rollRewards(rng, preset, modifierIds);
+    const content = rollNodeContent(runSeed, actIndex, id, rng, preset, modifierIds);
     const mysteryRng = fork(runSeed, `mystery:${id}`);
     return {
         id,
@@ -178,8 +119,8 @@ function buildNode(
         type,
         edgesUp: [],
         modifierIds,
-        segment: buildSegment(runSeed, actIndex, id, rng, preset, modifierIds, rewards.coinsMul),
-        rewards,
+        segment: content.segment,
+        rewards: content.rewards,
         lineProfile: preset.lineProfile,
         mysteryEventId: type === 'mystery' ? pick(mysteryRng, MYSTERY_EVENTS).id : null,
         mysteryRoll: type === 'mystery' ? mysteryRng() : null,

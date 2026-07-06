@@ -23,7 +23,7 @@ export type NodeType = 'climb' | 'coin_rush' | 'challenge' | 'elite' | 'shop' | 
  *  (docs/DEVIATIONS.md entry 11 — priced into shop weighting later). */
 export interface LootPatch {
     coinsMul?: number;
-    bountyCoinsAdd?: number;
+    bountyCoinsPerFloorAdd?: number;
     relicOddsAdd?: number;
 }
 
