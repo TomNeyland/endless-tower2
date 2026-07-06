@@ -21,6 +21,7 @@ import { CameraRig } from '../systems/CameraRig';
 import { InputMap } from '../systems/InputMap';
 import { JuiceSystem } from '../systems/JuiceSystem';
 import { ParallaxBackdrop } from '../systems/ParallaxBackdrop';
+import { SessionLog } from '../systems/SessionLog';
 import { TowerView } from '../systems/TowerView';
 
 const SANDBOX_SEED = 20260705;
@@ -38,6 +39,7 @@ export class Sandbox extends Scene {
     private backdrop!: ParallaxBackdrop;
     private towerView!: TowerView;
     private stats!: MovementStats;
+    private sessionLog!: SessionLog;
     private bridge!: DebugBridge;
 
     private readonly onResetKey = (): void => this.resetRun();
@@ -73,11 +75,15 @@ export class Sandbox extends Scene {
         this.juice = new JuiceSystem(this, this.playerSystem, this.animator, this.bus, this.tuning);
         this.audio = new AudioSystem(this, this.bus, this.tuning);
         this.stats = new MovementStats(this.bus, this.playerSystem);
+        // The flight recorder: always on in dev, from scene start.
+        this.sessionLog = new SessionLog(this, this.bus, recorder, this.playerSystem, layout);
         this.bridge = new DebugBridge({
+            game: this.game,
             bus: this.bus,
             tuning: this.tuning,
             player: this.playerSystem,
             stats: this.stats,
+            session: this.sessionLog,
             resetSandbox: () => this.resetRun(),
         });
 
@@ -86,7 +92,9 @@ export class Sandbox extends Scene {
     }
 
     private resetRun(): void {
-        this.playerSystem.reset('reset');
+        // Auto-save the run that just ended, then restart from a clean spawn
+        // (the session cycle resets the player as part of re-recording).
+        this.sessionLog.cycle();
         this.cameraRig.snap();
     }
 
@@ -97,10 +105,12 @@ export class Sandbox extends Scene {
         this.towerView.update(scrollY);
         this.animator.update(delta);
         this.juice.update();
+        this.sessionLog.update();
     }
 
     private teardown(): void {
         this.input.keyboard?.off('keydown-R', this.onResetKey);
+        this.sessionLog.destroy();
         this.bridge.destroy();
         this.stats.destroy();
         this.audio.destroy();
