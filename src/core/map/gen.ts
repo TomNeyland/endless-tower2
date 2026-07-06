@@ -68,14 +68,14 @@ function staircaseEdges(rng: Rng, m: number, n: number): [number, number][] {
     throw new Error(`map gen: staircase ${m}x${n} could not satisfy the edge cap`);
 }
 
-function rollModifierIds(rng: Rng, preset: NodeTypePreset): string[] {
+function rollModifierIds(rng: Rng, preset: NodeTypePreset, pool: readonly ModifierSpec[]): string[] {
     const ids: string[] = [];
     const slots = preset.modifierSlots;
     if (slots.max > 0 && rng() < slots.chance) {
         const count = rangeInt(rng, slots.min, slots.max);
         const chosen: ModifierSpec[] = [];
         for (let k = 0; k < count; k += 1) {
-            const candidates = rollableModifiers().filter(
+            const candidates = pool.filter(
                 (m) => (!slots.nastyOnly || m.nasty) && chosen.every((c) => compatible(m, c)),
             );
             if (candidates.length === 0) {
@@ -144,6 +144,7 @@ function buildNode(
     row: number,
     col: number,
     type: NodeType,
+    pool: readonly ModifierSpec[],
 ): NodeSpec {
     const id = nodeIdOf(actIndex, row, col);
     const preset = NODE_PRESETS[type];
@@ -151,7 +152,7 @@ function buildNode(
     // (Shop stock is NOT rolled here: the real shop forks `shop:<nodeId>`
     // from the run seed at visit time against the live owned-relic set.)
     const rng = fork(runSeed, `node:${id}`);
-    const modifierIds = rollModifierIds(rng, preset);
+    const modifierIds = rollModifierIds(rng, preset, pool);
     const rewards = rollRewards(rng, preset, modifierIds);
     const mysteryRng = fork(runSeed, `mystery:${id}`);
     return {
@@ -221,12 +222,13 @@ function rollAct(
     actIndex: number,
     forkLabel: string,
     regenCount: number,
+    pool: readonly ModifierSpec[],
 ): ActGraph {
     const rng = fork(runSeed, forkLabel);
     const widths = [rangeInt(rng, 2, 3), ...[1, 2, 3, 4, 5].map(() => rangeInt(rng, 2, 4)), 1];
     const types = rollTypes(rng, widths);
     const rows: NodeSpec[][] = types.map((rowTypes, row) =>
-        rowTypes.map((type, col) => buildNode(runSeed, actIndex, row, col, type)),
+        rowTypes.map((type, col) => buildNode(runSeed, actIndex, row, col, type, pool)),
     );
     for (let row = 0; row < BOSS_ROW; row += 1) {
         const edges = staircaseEdges(rng, widths[row], widths[row + 1]);
@@ -248,11 +250,17 @@ function rollAct(
  * Generate act `actIndex` (1-based) for a run seed: roll, validate,
  * regenerate deterministically with a bumped fork counter, throw after the
  * budget. `maxRegens` is tuning data (`map.maxRegens`).
+ *
+ * `modifierPool` is the rollable pool for this save (RETURN's meta gating
+ * composes over the roster's own `rollable` state — core/meta/unlocks.ts).
+ * Same seed + same pool = same map; a smaller pool IS the simpler early map
+ * the design promises, by construction.
  */
 export function generateActGraph(
     runSeed: string,
     actIndex: number,
     maxRegens: number = DEFAULT_TUNING['map.maxRegens'],
+    modifierPool: readonly ModifierSpec[] = rollableModifiers(),
 ): ActGraph {
     if (actIndex < 1 || actIndex > 3 || !Number.isInteger(actIndex)) {
         throw new Error(`map gen: actIndex must be 1..3, got ${actIndex}`);
@@ -261,7 +269,7 @@ export function generateActGraph(
     for (let attempt = 0; attempt < maxRegens; attempt += 1) {
         const forkLabel =
             attempt === 0 ? `map:act${actIndex}` : `map:act${actIndex}:regen${attempt}`;
-        const graph = rollAct(runSeed, actIndex, forkLabel, attempt);
+        const graph = rollAct(runSeed, actIndex, forkLabel, attempt, modifierPool);
         lastViolations = validateActGraph(graph);
         if (lastViolations.length === 0) {
             return graph;

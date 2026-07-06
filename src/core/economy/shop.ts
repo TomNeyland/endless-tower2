@@ -97,7 +97,9 @@ function pickByRarity(
 
 /**
  * Roll the relic slots. Fewer than 3 means the pool genuinely ran dry
- * (24 relics; late-run shops may thin out).
+ * (24 relics; late-run shops may thin out). `unlockedPool` is the save's
+ * relic pool (RETURN's 16-plus-earned — core/meta/unlocks.ts); defaults to
+ * the full roster so pool-agnostic callers (harnesses) stay unchanged.
  */
 export function rollShopStock(
     runSeed: string,
@@ -105,11 +107,12 @@ export function rollShopStock(
     act: number,
     ownedIds: readonly string[],
     reroll: number,
+    unlockedPool: readonly RelicDef[] = RELICS,
 ): RelicDef[] {
     const rng = fork(runSeed, `shop:${nodeId}:${reroll}`);
     const weights = actRarityWeights(act);
     const owned = new Set(ownedIds);
-    const pool = RELICS.filter((r) => !owned.has(r.id));
+    const pool = unlockedPool.filter((r) => !owned.has(r.id));
 
     const stock: RelicDef[] = [];
     while (stock.length < SHOP_RELIC_SLOTS) {
@@ -134,10 +137,11 @@ export function rollRelicReward(
     nodeId: string,
     act: number,
     ownedIds: readonly string[],
+    unlockedPool: readonly RelicDef[] = RELICS,
 ): RelicDef | null {
     const rng = fork(runSeed, `relic:${nodeId}`);
     const owned = new Set(ownedIds);
-    const pool = RELICS.filter((r) => !owned.has(r.id));
+    const pool = unlockedPool.filter((r) => !owned.has(r.id));
     if (pool.length === 0) {
         return null;
     }
