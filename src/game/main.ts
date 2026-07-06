@@ -20,7 +20,9 @@ const config: Types.Core.GameConfig = {
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { x: 0, y: 800 },
+            // Gravity is applied by the movement core via Actions so relics
+            // can someday mutate it — the engine never integrates it.
+            gravity: { x: 0, y: 0 },
             // v1 removed the fixed timestep and its momentum jumps became
             // framerate-sensitive. Never turn this off.
             fixedStep: true,
