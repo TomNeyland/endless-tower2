@@ -128,6 +128,17 @@ export function validateComboTuning(t: Record<string, number>): void {
     if (v('combo.stumblesAllowed') < 0) {
         fail('combo.stumblesAllowed', v('combo.stumblesAllowed'), 'negative charges');
     }
+    if (v('combo.highWaterGate') !== 0) {
+        // The refarm contingency is pre-specified but deliberately NOT
+        // implemented until segment evidence (combo-scoring.md ruling). A
+        // relic/modifier flipping it would change nothing — a silently inert
+        // knob is a lie, so flipping it fails loud instead.
+        fail(
+            'combo.highWaterGate',
+            v('combo.highWaterGate'),
+            'reserved contingency, not implemented until refarm evidence',
+        );
+    }
     if (v('combo.hotLandingTier') < 0) {
         fail('combo.hotLandingTier', v('combo.hotLandingTier'), 'negative tier');
     }

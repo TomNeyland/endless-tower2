@@ -27,7 +27,15 @@ export interface RunSignal {
     tick: number;
 }
 
-export const RUN_SIGNAL_NAMES = ['run/heart_lost', 'run/segment_end', 'run/bank_now'] as const;
+/**
+ * The run signals recognized BY NAME on the movement bus. `run/bank_now` is
+ * deliberately NOT here: it is orchestration-only, reachable solely through
+ * the relay's direct signal() port (the bridge's forceBank) — listing it in
+ * the bus-recognition set would let any future bus emitter force a bank,
+ * quietly softening the never-wirable-to-player-input guarantee.
+ */
+export const BUS_RUN_SIGNAL_NAMES = ['run/heart_lost', 'run/segment_end'] as const;
+export type BusRunSignalName = (typeof BUS_RUN_SIGNAL_NAMES)[number];
 
 // ---------------------------------------------------------------------------
 // The spice ledger (provisional, per-air) and the chain core
@@ -94,8 +102,6 @@ export interface ChainCore {
     ceilingPending: boolean;
     /** Highest ladder tier index crossed (-1 = below SPARK). */
     tierReached: number;
-    /** BEYOND repeats already fired (0 = plain BEYOND was the last). */
-    beyondRepeats: number;
     stumblesUsed: number;
     spiceTotals: SpiceTotals;
 }

@@ -12,7 +12,12 @@
  */
 import { ComboBus } from '../../core/combo/bus';
 import { ComboEngine } from '../../core/combo/engine';
-import { type ComboEvent, RUN_SIGNAL_NAMES, type RunSignal } from '../../core/combo/types';
+import {
+    BUS_RUN_SIGNAL_NAMES,
+    type BusRunSignalName,
+    type ComboEvent,
+    type RunSignal,
+} from '../../core/combo/types';
 import type { EventBus, MovementEvent } from '../../core/events';
 import { ScoreKeeper } from '../../core/score/score';
 import type { TuningStack } from '../../core/tuning';
@@ -26,9 +31,20 @@ export class ComboRelay {
 
     private readonly onMovement = (event: MovementEvent): void => {
         // By-name run-signal recognition (see header). The envelope's tick is
-        // the only payload the port consumes.
-        if ((RUN_SIGNAL_NAMES as readonly string[]).includes(event.type)) {
-            this.signal({ type: event.type as RunSignal['type'], tick: event.tick });
+        // the only payload the port consumes. bank_now is deliberately not in
+        // the bus set — orchestration-only, forever (types.ts).
+        if ((BUS_RUN_SIGNAL_NAMES as readonly string[]).includes(event.type)) {
+            this.signal({ type: event.type as BusRunSignalName, tick: event.tick });
+            return;
+        }
+        if (event.type === 'run/ended') {
+            // combo-scoring.md: the stat block fires at "segment end + run
+            // end". The chain is already voided by this tick's preceding
+            // run/heart_lost, so only score/session_final is owed here —
+            // a death-ended run's stats must not vanish with the scene.
+            for (const scoreEvent of this.score.finalize(event.tick)) {
+                this.comboBus.emit(scoreEvent);
+            }
             return;
         }
         this.distribute(this.engine.handle(event));

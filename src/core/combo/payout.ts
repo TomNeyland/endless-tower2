@@ -41,7 +41,6 @@ export function createChain(chainId: number, e: LandEvent): ChainCore {
         ceilingUsed: false,
         ceilingPending: false,
         tierReached: -1,
-        beyondRepeats: 0,
         stumblesUsed: 0,
         spiceTotals: zeroTotals(),
     };
@@ -98,7 +97,6 @@ export function applyLinkToChain(
     const crossing = highestCrossing(prevFloors, chain.chainFloors, t);
     if (crossing) {
         chain.tierReached = Math.max(chain.tierReached, crossing.tierIndex);
-        chain.beyondRepeats = Math.max(chain.beyondRepeats, crossing.repeatIndex);
         events.push({
             type: 'combo/tier',
             tick: e.tick,
