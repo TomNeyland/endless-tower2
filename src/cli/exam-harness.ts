@@ -537,5 +537,5 @@ section('headless replay: classifications, crumbles, and the commanded door');
 // ---------------------------------------------------------------------------
 console.log(`\n${checks} checks, ${failures} failures`);
 if (failures > 0) {
-    process.exit(1);
+    throw new Error(`EXAM harness failed ${failures} of ${checks} checks`);
 }

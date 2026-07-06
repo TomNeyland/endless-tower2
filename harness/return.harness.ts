@@ -13,7 +13,6 @@ import assert from 'node:assert/strict';
 import type { ComboBankedEvent, SessionStats } from '../src/core/combo/types';
 import type {
     EventEnvelope,
-    MovementEvent,
     SegmentEndEvent,
     SegmentStartEvent,
     WallBounceEvent,
