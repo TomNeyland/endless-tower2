@@ -72,7 +72,7 @@ RETURN unlocks; names PG and physical):
 | Modifier | Price (what it costs you) | Pay (what it gives) |
 |---|---|---|
 | Icy Floors | ground drag ×0.4 (slippery holds) | coins +50% |
-| Low Gravity | gravity ×0.8 (floatier, slower rhythm) | floors count +25% to combo base |
+| Low Gravity | gravity ×0.8 (floatier, slower rhythm) | combo floorValue ×1.25 |
 | Greedy Line | line speed ×1.5 | all loot ×2 |
 | Narrow Ledges | platform widths −30% | coins +75% |
 | Brittle Rows | 15% of platforms crumble after one touch | relic-odds boost |

@@ -169,9 +169,10 @@ implement no later than MASTERY): (a) `tier` (current speed-tier index) joins
 the envelope — two consumers need tier-at-event and stateful reconstruction
 would ship known-desynced; (b) the intra-tick event order is a documented
 promise: walls → landing → jump, and specifically land-before-left_ground on
-same-tick-bhop ticks (the combo state machine depends on it); (c) EXAM-phase
-landing classifications (crumble, sticky) will extend `land` additively under
-EVENT_SCHEMA_VERSION discipline.
+same-tick-bhop ticks (the combo state machine depends on it); (c) landing
+classifications (crumble, sticky) will extend `land` additively under
+EVENT_SCHEMA_VERSION discipline — needed first by CHOICE's Brittle Rows /
+Sticky Patches modifiers, reused by EXAM's boss attacks.
 
 ## Camera
 
