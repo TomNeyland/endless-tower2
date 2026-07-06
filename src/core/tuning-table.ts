@@ -115,6 +115,10 @@ export const DEFAULT_TUNING = {
     'segment.doorBufferFloors': 6, // visual continuity above the exit — scenery, not play space
     'segment.defaultFloors': 30, // the bridge's no-argument segment length
 
+    // --- CHOICE: the map and the tower generator's repriceable knobs ---
+    'map.maxRegens': 16, // validate-or-regenerate budget; exceeding it THROWS (map-modifiers.md)
+    'tower.platformWidthMul': 1.0, // platform width multiplier — Narrow Ledges' price, Coin Rush's wide ledges
+
     // --- Combo & score (MASTERY): defaults live in src/core/combo/tuning.ts;
     //     merged here so relics/modifiers need zero combo-specific plumbing ---
     ...DEFAULT_COMBO_TUNING,

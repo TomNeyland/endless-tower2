@@ -221,3 +221,64 @@ every segment recording begins at scene create, where its header is true.
 the honest route is a scene-boot replay mode (restart into the recording's
 embedded segment, then arm the replay from tick 0) — the recording now
 carries everything that needs.
+
+## 10. Five modifiers ship as data only, outside the roll pool (map-modifiers.md, roster)
+
+**The design says:** a starting roster of 12 priced mutators; node contents
+roll from the node's forked stream.
+
+**What ships:** all 12 modifiers exist as data (`src/core/map/modifiers.ts`)
+with their tuning layers, genPatch, lootPatch, and price/pay text — but
+five carry `rollable: false` and never appear on generated nodes: Brittle
+Rows and Sticky Patches (their prices need movement.md Amendment 1c's
+crumble/sticky land classifications, not yet built), Swarm (critter
+entities), Dense Fog (the parallax-veil skin layer), and Surging Line
+(`line.surge` is EXAM's toolkit). Rolling them today would print a price
+on the label that the segment cannot charge — an unpriced pay is a lie on
+the label, and pillar 2 cuts both ways.
+
+**Path back:** each modifier flips `rollable: true` in the same commit that
+lands its machinery; the validation and label plumbing already handle them.
+
+## 11. The shop is a hearts-only overlay; bounties are placeholder economy (map-modifiers.md, node table)
+
+**The design says:** Shop is "no climb — a scene. spend coins: relics,
+hearts, rerolls"; Coin Rush pays "coins ×2.5 placement"; Climb pays "coins
+by play."
+
+**What ships:** shops sell hearts only (stock and price rolled from
+`shop:<nodeId>`), rendered as a map overlay rather than a scene — relics
+and rerolls do not exist until IDENTITY. In-segment placed loot does not
+exist yet either, so "coins by play" is approximated by a per-node
+`clearBounty` (data, rolled per type; Coin Rush's bounty carries its
+loot-dense identity) paid on exit and multiplied by the node's lootPatch
+coin multipliers — which keeps every coins-pay modifier honest today. The
+field names (`clearBounty`, `NodeRewards.coinsMul`, `relicsOwed`) are the
+reconciliation seam, and `MapRunState` is deliberately minimal and marked
+for absorption into IDENTITY's RunState.
+
+**Path back:** IDENTITY replaces the bounty with placed loot (coinsMul then
+reprices placement), stocks the shop, and redeems `relicsOwed`.
+
+## 12. The run bridge lives at `window.__ET2_MAP__` (+ a boot `__ET2_LOOP__.pump`) (map-modifiers.md, architecture)
+
+**The design says:** "Debug bridge: seed override, jump-to-node,
+reveal-map" — implying the existing bridge.
+
+**What ships:** `window.__ET2__` is constructed and destroyed with the
+Sandbox scene, but the run outlives any scene (map → segment → map), so
+the run's diagnostics live on their own handle `window.__ET2_MAP__`
+(state, graph, labels, events ring, commit, jumpToNode, revealMap,
+setSeed, pump), installed by the RunOrchestrator and removed at run end.
+A minimal `window.__ET2_LOOP__.pump` ships at game boot for the same
+reason `__ET2__.pump` exists — hidden/occluded tabs never fire rAF, and
+scripted verification needs frames before any scene bridge exists. Two
+engine facts recorded for future harness work: `SceneManager.start/stop`
+execute immediately (mid-step shear; the orchestrator hops scenes through
+the active scene's ScenePlugin, which queues), and Phaser 4's TweenManager
+computes its own delta from `Date.now()` (TweenManager.js:651), so pumped
+frames advance clocks/physics but not tweens — scripted traversals need
+real wall-clock time.
+
+**Path back:** if a later phase merges the handles, fold `__ET2_MAP__` into
+`__ET2__` once the bridge outlives scenes.

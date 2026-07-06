@@ -1,0 +1,182 @@
+/**
+ * Node types as segment-spec presets (map-modifiers.md's table) — each a
+ * distinct momentum economy, not a reskin. Floors, line profiles, generation
+ * overrides, and reward profiles are data; gen.ts rolls a NodeSpec from a
+ * preset plus the node's forked stream.
+ *
+ * Line profile numbers: the doc quantifies the speed multipliers (gentle
+ * 0.7×, hot 1.3×) and names the grace qualitatively ("long grace" / "short
+ * grace") — the grace multipliers below are this session's starting values
+ * for those words, data like everything else.
+ */
+import type { SegmentTuningOverride } from '../pressure/segment';
+import type { LineProfileName, NodeType } from './types';
+
+export interface LineProfilePreset {
+    name: LineProfileName;
+    /** Shown on the label card — the line's price in one breath. */
+    face: string;
+    overrides: SegmentTuningOverride[];
+}
+
+export const LINE_PROFILES: Record<LineProfileName, LineProfilePreset> = {
+    standard: { name: 'standard', face: 'standard line', overrides: [] },
+    gentle: {
+        name: 'gentle',
+        face: 'gentle line, long grace',
+        overrides: [
+            { key: 'line.baseSpeed', op: 'mul', value: 0.7 },
+            { key: 'line.graceMs', op: 'mul', value: 1.5 },
+            { key: 'line.graceFloors', op: 'mul', value: 1.5 },
+        ],
+    },
+    hot: {
+        name: 'hot',
+        face: 'hot line, short grace',
+        overrides: [
+            { key: 'line.baseSpeed', op: 'mul', value: 1.3 },
+            { key: 'line.graceMs', op: 'mul', value: 0.55 },
+            { key: 'line.graceFloors', op: 'mul', value: 0.55 },
+        ],
+    },
+    none: { name: 'none', face: '', overrides: [] },
+};
+
+export interface ModifierSlotPreset {
+    /** Chance the node carries modifiers at all. */
+    chance: number;
+    min: number;
+    max: number;
+    /** Challenge draws its exactly-one mutator from the nasty pool. */
+    nastyOnly: boolean;
+}
+
+export interface NodeTypePreset {
+    type: NodeType;
+    title: string;
+    blurb: string;
+    /** Inclusive floor range; null for non-climb nodes (shop/mystery). */
+    floors: [number, number] | null;
+    lineProfile: LineProfileName;
+    /** Generation repricing (wide/tight ledges) — same substrate as modifiers. */
+    genOverrides: SegmentTuningOverride[];
+    modifierSlots: ModifierSlotPreset;
+    /** Inclusive clear-bounty range (placeholder economy — see NodeRewards). */
+    clearBounty: [number, number];
+    guaranteedRelic: boolean;
+    relicOddsAdd: number;
+    /** Chance the rare gift modifier (Double Fuse) rides along for free. */
+    giftChance: number;
+}
+
+export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
+    climb: {
+        type: 'climb',
+        title: 'CLIMB',
+        blurb: 'A bounded tower — reach the door before the world ends below.',
+        floors: [24, 32],
+        lineProfile: 'standard',
+        genOverrides: [],
+        modifierSlots: { chance: 0.3, min: 1, max: 1, nastyOnly: false },
+        clearBounty: [10, 16],
+        guaranteedRelic: false,
+        relicOddsAdd: 0,
+        giftChance: 0.06,
+    },
+    coin_rush: {
+        type: 'coin_rush',
+        title: 'COIN RUSH',
+        blurb: 'Short, loud, and paved with loot.',
+        floors: [14, 18],
+        lineProfile: 'gentle',
+        genOverrides: [{ key: 'tower.platformWidthMul', op: 'mul', value: 1.25 }],
+        modifierSlots: { chance: 0.2, min: 1, max: 1, nastyOnly: false },
+        // Loot-dense placeholder: reads as coins ×2.5 against a Climb's pay
+        // until placed loot arrives (IDENTITY).
+        clearBounty: [30, 42],
+        guaranteedRelic: false,
+        relicOddsAdd: 0,
+        giftChance: 0.08,
+    },
+    challenge: {
+        type: 'challenge',
+        title: 'CHALLENGE',
+        blurb: 'One nasty mutator, one big reward.',
+        floors: [22, 28],
+        lineProfile: 'standard',
+        genOverrides: [],
+        modifierSlots: { chance: 1, min: 1, max: 1, nastyOnly: true },
+        clearBounty: [55, 70],
+        guaranteedRelic: false,
+        relicOddsAdd: 0.2,
+        giftChance: 0.04,
+    },
+    elite: {
+        type: 'elite',
+        title: 'ELITE',
+        blurb: 'A brutal stretch of tower guarding a relic.',
+        floors: [26, 34],
+        lineProfile: 'hot',
+        genOverrides: [{ key: 'tower.platformWidthMul', op: 'mul', value: 0.85 }],
+        modifierSlots: { chance: 1, min: 1, max: 2, nastyOnly: true },
+        clearBounty: [24, 34],
+        guaranteedRelic: true,
+        relicOddsAdd: 0,
+        giftChance: 0.04,
+    },
+    shop: {
+        type: 'shop',
+        title: 'SHOP',
+        blurb: 'Spend coins. Catch your breath.',
+        floors: null,
+        lineProfile: 'none',
+        genOverrides: [],
+        modifierSlots: { chance: 0, min: 0, max: 0, nastyOnly: false },
+        clearBounty: [0, 0],
+        guaranteedRelic: false,
+        relicOddsAdd: 0,
+        giftChance: 0,
+    },
+    mystery: {
+        type: 'mystery',
+        title: 'MYSTERY',
+        blurb: 'Something waits behind this window.',
+        floors: null,
+        lineProfile: 'none',
+        genOverrides: [],
+        modifierSlots: { chance: 0, min: 0, max: 0, nastyOnly: false },
+        clearBounty: [0, 0],
+        guaranteedRelic: false,
+        relicOddsAdd: 0,
+        giftChance: 0,
+    },
+    boss: {
+        type: 'boss',
+        title: 'SUMMIT GATE',
+        blurb: 'A hardened climb guards the crown of the act.',
+        // EXAM-phase placeholder: the node commits to a short, hot proving
+        // climb until the real combo-damage duel replaces it (bossStub).
+        floors: [16, 20],
+        lineProfile: 'hot',
+        genOverrides: [],
+        modifierSlots: { chance: 0, min: 0, max: 0, nastyOnly: false },
+        clearBounty: [90, 110],
+        guaranteedRelic: false,
+        relicOddsAdd: 0,
+        giftChance: 0,
+    },
+};
+
+/** Non-climb specials for the path guarantee (boss is the destination, not
+ *  a special; climb is the core verb). */
+export const SPECIAL_TYPES: readonly NodeType[] = [
+    'coin_rush',
+    'challenge',
+    'elite',
+    'shop',
+    'mystery',
+];
+
+export function isSpecial(type: NodeType): boolean {
+    return SPECIAL_TYPES.includes(type);
+}

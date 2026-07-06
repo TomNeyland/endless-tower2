@@ -1,0 +1,215 @@
+/**
+ * The map scene — composition root, nothing else (the Sandbox pattern).
+ * Renders the act's tower exterior, routes keyboard + pointer to the run
+ * orchestrator, opens the label card on focus, runs the traversal
+ * animation on commit, and hosts the overlays (mystery, shop, results
+ * toast, summit). All decisions live in RunOrchestrator and src/core/map.
+ */
+import { Scene } from 'phaser';
+import { mysteryEventById } from '../../core/map/mystery';
+import { nodeById } from '../../core/map/types';
+import { ensureGeneratedTextures } from '../assets';
+import { MapHud } from '../map/MapHud';
+import { NodeCardView } from '../map/NodeCardView';
+import { actPalette } from '../map/palettes';
+import { MysteryOverlay, ResultsToast, ShopOverlay, SummitCard } from '../map/MapOverlays';
+import { TowerExteriorView } from '../map/TowerExteriorView';
+import type { RunOrchestrator } from '../systems/RunOrchestrator';
+
+export interface MapSceneBootData {
+    run: RunOrchestrator;
+}
+
+export class MapScene extends Scene {
+    private run!: RunOrchestrator;
+    private view!: TowerExteriorView;
+    private card!: NodeCardView;
+    private hud!: MapHud;
+    private focusId: string | null = null;
+    private overlayOpen = false;
+    private traversing = false;
+
+    private readonly onKeyDown = (event: KeyboardEvent): void => this.handleKey(event);
+
+    constructor() {
+        super('MapScene');
+    }
+
+    create(data: MapSceneBootData): void {
+        if (!data.run) {
+            throw new Error('MapScene: booted without a run (MainMenu owns Start Run)');
+        }
+        ensureGeneratedTextures(this);
+        this.run = data.run;
+        this.overlayOpen = false;
+        this.traversing = false;
+
+        const palette = actPalette(this.run.state.act);
+        const graph = this.run.actGraph();
+        this.view = new TowerExteriorView(this, graph, palette, this.run.state.seed);
+        this.card = new NodeCardView(this, palette);
+        this.hud = new MapHud(this, this.run.state, palette);
+        this.syncRunPosition();
+
+        this.view.onPointerOver((nodeId) => {
+            if (!this.overlayOpen && !this.traversing) {
+                this.setFocus(nodeId);
+            }
+        });
+        this.view.onPointerDown((nodeId) => {
+            if (this.overlayOpen || this.traversing) {
+                return;
+            }
+            if (this.focusId === nodeId && this.run.reachableIds().includes(nodeId)) {
+                this.commit(nodeId);
+            } else {
+                this.setFocus(nodeId);
+            }
+        });
+        this.input.keyboard?.on('keydown', this.onKeyDown);
+
+        if (this.run.isSummit()) {
+            this.overlayOpen = true;
+            new SummitCard(this, palette, this.run.state, () => this.run.endRun());
+        } else {
+            const toast = this.run.consumeToast();
+            if (toast) {
+                new ResultsToast(this, palette, toast);
+            }
+            this.focusFirstReachable();
+        }
+
+        this.events.once('shutdown', () => this.teardown());
+    }
+
+    private syncRunPosition(): void {
+        this.view.setRunPosition(
+            this.run.actGraph(),
+            this.run.state.nodeId,
+            this.run.reachableIds(),
+            this.run.actPath(),
+        );
+    }
+
+    private focusFirstReachable(): void {
+        const reachable = this.run.reachableIds();
+        this.setFocus(reachable.length > 0 ? reachable[0] : null);
+    }
+
+    private setFocus(nodeId: string | null): void {
+        this.focusId = nodeId;
+        this.view.setFocus(nodeId);
+        if (nodeId === null) {
+            this.card.hide();
+            return;
+        }
+        const label = this.run.preview(nodeId);
+        const pos = this.view.windowPos(nodeId);
+        const reachable = this.run.reachableIds().includes(nodeId);
+        const node = nodeById(this.run.actGraph(), nodeId);
+        const verb =
+            node.type === 'shop'
+                ? 'ENTER — browse'
+                : node.type === 'mystery'
+                  ? 'ENTER — investigate'
+                  : 'ENTER — climb';
+        this.card.show(label, pos.x, pos.y, reachable ? verb : null);
+    }
+
+    private handleKey(event: KeyboardEvent): void {
+        if (this.overlayOpen || this.traversing) {
+            return;
+        }
+        const reachable = this.run.reachableIds();
+        if (reachable.length === 0) {
+            return;
+        }
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+            const current = this.focusId !== null ? reachable.indexOf(this.focusId) : -1;
+            const step = event.key === 'ArrowLeft' ? -1 : 1;
+            const next =
+                current === -1 ? 0 : (current + step + reachable.length) % reachable.length;
+            this.setFocus(reachable[next]);
+        } else if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowUp') {
+            if (this.focusId !== null && reachable.includes(this.focusId)) {
+                this.commit(this.focusId);
+            } else {
+                this.focusFirstReachable();
+            }
+        }
+    }
+
+    /** Confirm → traversal animation → map/node_committed → route. */
+    private commit(nodeId: string): void {
+        this.traversing = true;
+        this.card.hide();
+        this.view.setFocus(null);
+        this.view.traverseTo(nodeId, () => {
+            this.traversing = false;
+            const route = this.run.commit(nodeId);
+            // Segment routes swap scenes inside the orchestrator; the map
+            // routes open their overlay here.
+            if (route.kind === 'mystery') {
+                this.openMystery();
+            } else if (route.kind === 'shop') {
+                this.openShop();
+            }
+        });
+    }
+
+    private openMystery(): void {
+        const node = nodeById(this.run.actGraph(), this.run.state.nodeId as string);
+        if (node.mysteryEventId === null) {
+            throw new Error(`MapScene: ${node.id} committed as mystery without an event`);
+        }
+        this.overlayOpen = true;
+        this.syncRunPosition();
+        const palette = actPalette(this.run.state.act);
+        new MysteryOverlay(
+            this,
+            palette,
+            // Rendered from the same data the resolution reads — one authority.
+            mysteryEventById(node.mysteryEventId),
+            (choiceIndex) => this.run.resolveMysteryChoice(choiceIndex).text,
+            () => this.closeOverlay(),
+        );
+    }
+
+    private openShop(): void {
+        this.overlayOpen = true;
+        this.syncRunPosition();
+        const palette = actPalette(this.run.state.act);
+        new ShopOverlay(
+            this,
+            palette,
+            () => this.run.shopStockText(),
+            () => this.run.shopWalletText(),
+            () => {
+                const bought = this.run.buyHeart();
+                if (bought) {
+                    this.hud.refresh(this.run.state);
+                }
+                return bought;
+            },
+            () => this.closeOverlay(),
+        );
+    }
+
+    private closeOverlay(): void {
+        this.overlayOpen = false;
+        this.hud.refresh(this.run.state);
+        this.syncRunPosition();
+        this.focusFirstReachable();
+    }
+
+    update(_time: number, delta: number): void {
+        this.view.update(delta);
+    }
+
+    private teardown(): void {
+        this.input.keyboard?.off('keydown', this.onKeyDown);
+        this.card.destroy();
+        this.hud.destroy();
+        this.view.destroy();
+    }
+}

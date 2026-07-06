@@ -1,6 +1,7 @@
 import { AUTO, Game, Scale, type Types } from 'phaser';
 import { Boot } from './scenes/Boot';
 import { MainMenu } from './scenes/MainMenu';
+import { MapScene } from './scenes/MapScene';
 import { Preloader } from './scenes/Preloader';
 import { Sandbox } from './scenes/Sandbox';
 
@@ -29,11 +30,28 @@ const config: Types.Core.GameConfig = {
             fps: 60,
         },
     },
-    scene: [Boot, Preloader, MainMenu, Sandbox],
+    scene: [Boot, Preloader, MainMenu, MapScene, Sandbox],
 };
 
 const StartGame = (parent: string) => {
-    return new Game({ ...config, parent });
+    const game = new Game({ ...config, parent });
+    // The boot slice of the debug bridge: hidden/occluded tabs never fire
+    // requestAnimationFrame, so scripted verification stalls before any
+    // scene bridge exists (menus included). Same clause as __ET2__.pump.
+    window.__ET2_LOOP__ = {
+        pump: (steps = 1) => {
+            for (let i = 0; i < steps; i += 1) {
+                game.loop.step(game.loop.now + 1000 / 60);
+            }
+        },
+    };
+    return game;
 };
+
+declare global {
+    interface Window {
+        __ET2_LOOP__?: { pump(steps?: number): void };
+    }
+}
 
 export default StartGame;

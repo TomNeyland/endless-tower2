@@ -133,7 +133,13 @@ export function generateSandboxTower(
         for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
             const spacing = range(rng, 100, 160);
             const widthTiles = rangeInt(rng, 3, 7);
-            const width = widthTiles * TILE;
+            // Width is repriceable data (CHOICE: Narrow Ledges ×0.7, Coin
+            // Rush ×1.25). Applied AFTER the roll so the rng draw count —
+            // and therefore every existing recording — is unchanged at ×1,
+            // and quantized to whole tiles so the rendered ledge is exactly
+            // the physics ledge (TowerView draws tile-grain caps).
+            const widthMul = t.value('tower.platformWidthMul');
+            const width = Math.max(2, Math.round(widthTiles * widthMul)) * TILE;
             const minX = WALL_LEFT_X + width / 2;
             const maxX = WALL_RIGHT_X - width / 2;
             const candidate: PlatformSpec = {

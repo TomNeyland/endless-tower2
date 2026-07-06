@@ -5,8 +5,10 @@
  * before any system is layered on — this scene is the feel gate's venue.
  */
 import { Scene } from 'phaser';
+import type { RunEndedEvent, SegmentEndEvent } from '../../core/events';
 import { EventBus } from '../../core/events';
 import { InputRecorder } from '../../core/input/recorder';
+import type { RunSegmentHandoff, SegmentOutcome } from '../../core/map/run';
 import {
     buildSegmentTower,
     defaultSegmentSpec,
@@ -42,6 +44,9 @@ export interface SandboxBootData {
     segment?: SegmentSpec;
     /** Run-scoped hearts carried across a segment loop; null = fresh run. */
     hearts?: number | null;
+    /** CHOICE's run loop: when present, segment outcomes go to the
+     *  orchestrator instead of the sandbox's own restart loop. */
+    run?: RunSegmentHandoff;
 }
 
 export class Sandbox extends Scene {
@@ -66,13 +71,20 @@ export class Sandbox extends Scene {
     private segmentSpec: SegmentSpec | null = null;
     private comboRelay!: ComboRelay;
     private comboHud!: ComboHud;
+    private runHandoff: RunSegmentHandoff | null = null;
 
     private readonly onResetKey = (): void => this.resetRun();
 
-    /** Segment loop: exit door -> the sandbox loops the segment (CHOICE owns
-     *  the real handoff later); hearts are run-scoped and carry over. */
-    private readonly onSegmentEnd = (): void => {
+    /** Segment end: a run hands its outcome to the orchestrator (CHOICE);
+     *  the bridge-driven sandbox loops the segment as before. */
+    private readonly onSegmentEnd = (e: SegmentEndEvent): void => {
         const hearts = this.pressureSystem.heartsRemaining();
+        if (this.runHandoff) {
+            const outcome = this.segmentOutcome('exit', e, hearts);
+            const handoff = this.runHandoff;
+            this.time.delayedCall(1200, () => handoff.onOutcome(outcome));
+            return;
+        }
         this.time.delayedCall(1200, () => {
             this.scene.restart({
                 segment: this.segmentSpec ?? undefined,
@@ -81,8 +93,15 @@ export class Sandbox extends Scene {
         });
     };
 
-    /** Zero-heart catch: run over; the loop restarts with fresh hearts. */
-    private readonly onRunEnded = (): void => {
+    /** Zero-heart catch: run over. A run reports the death to the
+     *  orchestrator; the sandbox loop restarts with fresh hearts. */
+    private readonly onRunEnded = (e: RunEndedEvent): void => {
+        if (this.runHandoff) {
+            const outcome = this.segmentOutcome('death_line', e, 0);
+            const handoff = this.runHandoff;
+            this.time.delayedCall(1600, () => handoff.onOutcome(outcome));
+            return;
+        }
         this.time.delayedCall(1600, () => {
             this.scene.restart({
                 segment: this.segmentSpec ?? undefined,
@@ -90,6 +109,23 @@ export class Sandbox extends Scene {
             } satisfies SandboxBootData);
         });
     };
+
+    /** Fold the segment-end facts + the score's session stats into the
+     *  outcome the run loop consumes. */
+    private segmentOutcome(
+        kind: SegmentOutcome['kind'],
+        e: Pick<SegmentEndEvent, 'floorsClimbed' | 'timeTicks' | 'heartsLost'>,
+        heartsRemaining: number,
+    ): SegmentOutcome {
+        return {
+            kind,
+            floorsClimbed: e.floorsClimbed,
+            timeTicks: e.timeTicks,
+            heartsLost: e.heartsLost,
+            heartsRemaining,
+            stats: this.comboRelay.score.sessionStats(),
+        };
+    }
 
     constructor() {
         super('Sandbox');
@@ -106,6 +142,7 @@ export class Sandbox extends Scene {
         // Segment mode: a bounded climb with line + door. The spec's line
         // profile and modifiers are tuning layers — repricing as data.
         this.segmentSpec = data.segment ?? null;
+        this.runHandoff = data.run ?? null;
         const seed = this.segmentSpec ? this.segmentSpec.seed : SANDBOX_SEED;
         if (this.segmentSpec) {
             // Owner-tagged per the TuningStack contract (playthrough-trace.md
@@ -190,9 +227,12 @@ export class Sandbox extends Scene {
             segment,
             heartsCarried: data.hearts ?? null,
             restartSegment: () => {
+                // Preserve the run handoff and carried hearts: this path is
+                // the recorder-idle resume, never a free run retry.
                 this.scene.restart({
                     segment: this.segmentSpec ?? undefined,
-                    hearts: null,
+                    hearts: this.runHandoff ? (data.hearts ?? null) : null,
+                    run: this.runHandoff ?? undefined,
                 } satisfies SandboxBootData);
             },
         });
@@ -224,6 +264,11 @@ export class Sandbox extends Scene {
     }
 
     private resetRun(): void {
+        if (this.runHandoff) {
+            // Inside a run, R is not a free retry — the segment's price
+            // stays priced (pillar 2). Death and the door are the exits.
+            return;
+        }
         if (this.segmentSpec) {
             // A pressured climb resets whole: fresh tower state, fresh line.
             // The flight recorder saves this session from its shutdown hook.
