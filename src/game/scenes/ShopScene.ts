@@ -1,9 +1,11 @@
 /**
  * The shop — spend coins: relics, hearts, rerolls (relics-economy.md).
  * Launched as an overlay above a paused caller scene. Stock and pricing are
- * core decisions (economy/shop.ts, seeded fork(runSeed, 'shop:<nodeId>'));
- * rendering lives in ShopView; this scene keeps stock + purchase
- * orchestration only, and leaving is free — the door back is always lit.
+ * core decisions (economy/shop.ts): stock rolls at visit time from
+ * fork(runSeed, 'shop:<nodeId>:<reroll>') against the live owned set —
+ * docs/DEVIATIONS.md entry 15. Rendering lives in ShopView; this scene
+ * keeps stock + purchase orchestration only, and leaving is free — the
+ * door back is always lit.
  *
  * Two hosts, one contract: the map launches it on a committed Shop node
  * (RunOrchestrator.shopLaunchData) and the debug bridge launches it

@@ -2,11 +2,14 @@
  * Shop stock, pricing, and the elite's relic reward — pure
  * (docs/design/relics-economy.md). The scene only renders what this rolls.
  *
- * Stock is seeded from fork(runSeed, 'shop:<nodeId>:<reroll>'): 3 relics
- * rarity-weighted by act (act 1 leans common, act 3 leans rare), 1 heart
- * with a price that escalates per heart bought this run, 1 reroll whose
- * price doubles per use within the visit. Prices are tuning rows — the real
- * difficulty dial of the roguelite, tuned against full-run playtests.
+ * Stock is seeded from fork(runSeed, 'shop:<nodeId>:<reroll>') at VISIT
+ * time, against the live owned set — a declared deviation from both docs'
+ * generation-time roll and bare 'shop:<nodeId>' label (docs/DEVIATIONS.md
+ * entry 15): 3 relics rarity-weighted by act (act 1 leans common, act 3
+ * leans rare), 1 heart with a price that escalates per heart bought this
+ * run, 1 reroll whose price doubles per use within the visit. Prices are
+ * tuning rows — the real difficulty dial of the roguelite, tuned against
+ * full-run playtests.
  *
  * An Elite's guaranteed relic rolls from fork(runSeed, 'relic:<nodeId>')
  * with the same act weighting (one rarity authority) — granted on the spot

@@ -330,3 +330,33 @@ SESSION_SCHEMA_VERSION discipline; the manager session picks the ruling.
 its acquisitions honestly (a debug grant masquerading as a shop purchase
 would poison future stats/achievements). Debug never leaks into production
 surfaces; the value only exists on bridge-driven grants.
+
+## 15. Shop stock rolls at visit time, from `shop:<nodeId>:<reroll>` (map-modifiers.md / relics-economy.md)
+
+**The design says:** node contents "(which modifiers, what loot table, shop
+stock) are rolled at map generation from the node's forked stream and shown
+on the map" (map-modifiers.md); shop stock is "seeded from `fork(seed,
+'shop:<nodeId>')`" (relics-economy.md).
+
+**What ships:** stock is rolled when the shop opens, from
+`fork(runSeed, 'shop:<nodeId>:<reroll>')`, against the relics owned at that
+moment — and the map label previews the node's economy ("relics, hearts,
+rerolls — spend coins"), not a concrete inventory.
+
+**Why:** the roster has no duplicates, so stock must exclude relics the
+player owns — and ownership changes between map generation and the visit
+(elites, mysteries, earlier shops). A generation-time roll would either
+print relics the visit could no longer sell (a lie on the label, pillar 2)
+or stock duplicates the run refuses. The reroll ordinal in the fork label
+is the only deterministic reroll: each press must draw a fresh-but-seeded
+shelf, and bumping a labeled fork is this repo's canonical redraw (map
+regeneration uses the same idiom). Determinism holds at run grain: same
+seed, same path, same purchase history → same shelves. This lived only in
+shop.ts's header until the wave-2 review named it: a deviation in a code
+comment is a deviation hidden from the audit.
+
+**Path back:** amend map-modifiers.md's node-contents sentence to carve
+shop stock out of the generation-time roll (and relics-economy.md's fork
+label to carry the reroll ordinal) — it reads like the design catching up
+to a real constraint; or rule that map labels must preview concrete stock,
+which first needs a ruling on the ownership drift.
