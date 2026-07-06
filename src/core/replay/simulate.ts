@@ -1,15 +1,21 @@
 /**
  * Headless re-simulation of a session recording over the engine-free core.
- * The recording is the complete log: seed + tower + tuning timeline +
- * per-tick input frames regenerate every event and every float, bit-for-bit.
- * Divergence from the recording's own eventIndex (or its end position) is a
- * determinism alarm and fails loud — never a shrug.
+ * The recording is the complete log: seed + tower + segment + tuning
+ * timeline + per-tick input frames regenerate every event and every float,
+ * bit-for-bit. Divergence from the recording's own eventIndex (or its end
+ * position) is a determinism alarm and fails loud — never a shrug.
+ *
+ * Segment sessions replay whole: the same PressureRuntime the browser
+ * stepped runs here after each movement tick, on post-Actions kinematics —
+ * the exact WORLD_STEP handler order the scene uses — and its rescue launch
+ * lands on the headless body through the same one-write channel.
  */
 import type { MovementEvent } from '../events';
 import type { EventIndex } from '../input/recorder';
 import { recordingFromSession, type SessionRecording, shouldIndexEvent } from '../input/session';
 import { emitSpawn, stepMovement } from '../movement/logic';
 import { createMovementState, type MovementEnv } from '../movement/state';
+import { PressureRuntime } from '../pressure/runtime';
 import { applyTuningChange, TuningStack } from '../tuning';
 import { HeadlessWorld } from './world';
 
@@ -53,6 +59,12 @@ export function simulateSession(session: SessionRecording): SimulationResult {
         }
     };
 
+    // PressureSystem's construction mirror: armed before the first step.
+    const pressure =
+        session.segment !== null
+            ? new PressureRuntime(session.segment, tuning, session.heartsCarried)
+            : null;
+
     // PlayerSystem.beginRecording: reset to spawn, emit the spawn fact.
     const spawnX = (tower.wallLeftX + tower.wallRightX) / 2;
     emitSpawn(state, env, tuning, emit, spawnX, tower.groundTopY, 'reset');
@@ -74,6 +86,22 @@ export function simulateSession(session: SessionRecording): SimulationResult {
             emit,
         );
         world.applyActions(actions);
+        if (pressure) {
+            // PressureSystem.onWorldStep mirror: post-movement kinematics in,
+            // events out, the rescue launch applied after this tick's Actions.
+            const out = pressure.step({
+                ...world.bodySnapshot(),
+                grounded: state.grounded,
+                tick: state.tick,
+                tier: state.tier,
+            });
+            for (const event of out.events) {
+                emit(event);
+            }
+            if (out.launch) {
+                world.applyRescueLaunch(out.launch.vy, out.launch.vxKeep);
+            }
+        }
         endPosition = world.positionPair();
     }
 

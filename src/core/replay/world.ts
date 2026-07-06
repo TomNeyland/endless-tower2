@@ -197,6 +197,16 @@ export class HeadlessWorld {
         };
     }
 
+    /**
+     * PlayerSystem.applyExternalLaunch mirrored: the hearts rescue writes
+     * body velocity ONLY, after this tick's Actions — the launch wins the
+     * tick it fires on, and next tick's integration reads it as a fact.
+     */
+    applyRescueLaunch(vy: number, vxKeep: number): void {
+        this.vy = vy;
+        this.vx *= vxKeep;
+    }
+
     /** Apply core Actions verbatim, exactly as PlayerSystem.step does. */
     applyActions(actions: Actions): void {
         this.vx = actions.vx;

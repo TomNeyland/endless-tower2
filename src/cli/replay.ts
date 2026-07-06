@@ -55,6 +55,13 @@ function printSummary(session: SessionRecording): void {
     console.log(`seed      ${session.seed}`);
     console.log(`ticks     ${session.ticks} (${seconds}s at 60Hz)`);
     console.log(`tower     ${session.tower.platforms.length} platforms`);
+    if (session.segment !== null) {
+        const { spec } = session.segment;
+        const hearts = session.heartsCarried === null ? 'fresh run' : session.heartsCarried;
+        console.log(`segment   ${spec.segmentId} (${spec.floors} floors, hearts: ${hearts})`);
+    } else {
+        console.log('segment   none (endless sandbox)');
+    }
 
     const deltas: string[] = [];
     for (const key of Object.keys(DEFAULT_TUNING) as TuningKey[]) {

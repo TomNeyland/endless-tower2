@@ -7,7 +7,8 @@
  */
 import type { SessionRecording } from '../../core/input/session';
 
-const STORAGE_KEY = 'et2:sessions:v1';
+/** Keyed by session schema version — a ring never mixes file formats. */
+const STORAGE_KEY = 'et2:sessions:v2';
 const RING_SIZE = 5;
 /** Above this many characters the clipboard copy is skipped (file only). */
 const CLIPBOARD_MAX_CHARS = 262144;

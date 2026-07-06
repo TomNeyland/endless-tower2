@@ -18,9 +18,18 @@
 import type { TowerLayout } from '../tower';
 import type { TuningLayer, TuningTable } from '../tuning';
 import type { InputFrame } from '../movement/state';
+import type { ActiveSegment } from '../pressure/segment';
 import type { EventIndex, MarkerRecord, Recording, TuningMutationRecord } from './recorder';
 
-export const SESSION_SCHEMA_VERSION = 1;
+/**
+ * v2: PRESSURE extends the recording per the session-logs.md contract
+ * ("run-scoped state changes must flow through recorded channels") —
+ * `segment` + `heartsCarried` make a pressured session replayable, and
+ * TuningLayer gained its owner tag. The bump is honest versioning: a v1
+ * file has ownerless layers and unrepresentable pressure state, so it is
+ * refused loudly rather than replayed wrongly.
+ */
+export const SESSION_SCHEMA_VERSION = 2;
 
 /**
  * One run-length-encoded stretch of identical input:
@@ -42,6 +51,15 @@ export interface SessionRecording {
     ticks: number;
     /** The exact geometry the session played on (see module doc). */
     tower: TowerLayout;
+    /**
+     * Segment mode: the armed segment (spec + built door + arena bottom) the
+     * session played under, or null for the endless sandbox. Embedded like
+     * the tower and for the same reason — self-contained files; the replay
+     * steps the same PressureRuntime the browser ran.
+     */
+    segment: ActiveSegment | null;
+    /** Hearts carried into the segment at scene create; null = fresh run. */
+    heartsCarried: number | null;
     baseTuning: TuningTable;
     baseLayers: TuningLayer[];
     tuningTimeline: TuningMutationRecord[];
@@ -112,6 +130,8 @@ export function sessionFromRecording(
     recording: Recording,
     tower: TowerLayout,
     stamp: SessionStamp,
+    segment: ActiveSegment | null,
+    heartsCarried: number | null,
 ): SessionRecording {
     const positions = recording.positions;
     const endPosition: [number, number] | null =
@@ -127,6 +147,8 @@ export function sessionFromRecording(
         seed: recording.seed,
         ticks: recording.frames.length,
         tower,
+        segment,
+        heartsCarried,
         baseTuning: recording.baseTuning,
         baseLayers: recording.baseLayers,
         tuningTimeline: recording.mutations,
@@ -171,6 +193,12 @@ export function assertSessionShape(raw: unknown): SessionRecording {
     }
     if (typeof s.tower !== 'object' || !Array.isArray(s.tower.platforms)) {
         throw new Error('session: missing embedded tower layout');
+    }
+    if (s.segment === undefined || (s.segment !== null && typeof s.segment.spec !== 'object')) {
+        throw new Error('session: missing segment field (null for the endless sandbox)');
+    }
+    if (s.heartsCarried === undefined) {
+        throw new Error('session: missing heartsCarried field (null for a fresh run)');
     }
     if (typeof s.baseTuning !== 'object' || s.baseTuning === null) {
         throw new Error('session: missing baseTuning');

@@ -183,8 +183,19 @@ export class Sandbox extends Scene {
         this.pressureHud = new PressureHud(this, this.pressureSystem, this.tuning);
         this.pressureAudio = new PressureAudio(this, this.bus);
         this.stats = new MovementStats(this.bus, this.playerSystem);
-        // The flight recorder: always on in dev, from scene start.
-        this.sessionLog = new SessionLog(this, this.bus, recorder, this.playerSystem, layout);
+        // The flight recorder: always on in dev, from scene start. Segment +
+        // carried hearts ride the recording (session-logs.md contract: every
+        // run-scoped input to tick-0 state flows through recorded channels).
+        this.sessionLog = new SessionLog(this, this.bus, recorder, this.playerSystem, layout, {
+            segment,
+            heartsCarried: data.hearts ?? null,
+            restartSegment: () => {
+                this.scene.restart({
+                    segment: this.segmentSpec ?? undefined,
+                    hearts: null,
+                } satisfies SandboxBootData);
+            },
+        });
         this.bridge = new DebugBridge({
             game: this.game,
             bus: this.bus,

@@ -14,9 +14,18 @@ import {
     sessionFromRecording,
     shouldIndexEvent,
 } from '../../core/input/session';
+import type { ActiveSegment } from '../../core/pressure/segment';
 import type { TowerLayout } from '../../core/tower';
 import type { PlayerSystem } from '../player/PlayerSystem';
 import { SessionVault } from './SessionVault';
+
+/** The pressure context a session records, plus the one way to renew it. */
+export interface SessionPressureContext {
+    segment: ActiveSegment | null;
+    heartsCarried: number | null;
+    /** Restart the scene into a fresh segment (fresh line, fresh hearts). */
+    restartSegment: () => void;
+}
 
 export class SessionLog {
     readonly vault = new SessionVault();
@@ -26,8 +35,10 @@ export class SessionLog {
     private readonly recorder: InputRecorder;
     private readonly player: PlayerSystem;
     private readonly tower: TowerLayout;
+    private readonly pressure: SessionPressureContext;
     private startedAt = '';
     private disposed = false;
+    private restartRequested = false;
 
     private readonly onBusEvent = (event: MovementEvent): void => {
         if (this.recorder.mode === 'recording' && shouldIndexEvent(event.type)) {
@@ -44,12 +55,14 @@ export class SessionLog {
         recorder: InputRecorder,
         player: PlayerSystem,
         tower: TowerLayout,
+        pressure: SessionPressureContext,
     ) {
         this.scene = scene;
         this.bus = bus;
         this.recorder = recorder;
         this.player = player;
         this.tower = tower;
+        this.pressure = pressure;
         bus.onAny(this.onBusEvent);
         scene.input.keyboard?.on('keydown-M', this.onMarkerKey);
         scene.input.keyboard?.on('keydown-F9', this.onExportKey);
@@ -66,11 +79,27 @@ export class SessionLog {
      * Keep the flight recorder always-on: when a bridge replay or a manual
      * recorder stop leaves the harness idle, resume recording from a clean
      * spawn. Called once per render frame from the scene.
+     *
+     * In segment mode "a clean spawn" is not enough: an in-place player
+     * reset under a live, mid-arena line would start a recording whose
+     * tick-0 world state is not reconstructible from its own header (and
+     * teleport the player to spawn under an active line — an unearned
+     * catch, pillar 2's named failure). The ruling (docs/DEVIATIONS.md
+     * entry 9): resume by restarting the scene into a fresh segment, so
+     * every segment recording begins at scene create.
      */
     update(): void {
-        if (!this.disposed && this.recorder.mode === 'idle') {
-            this.beginSession();
+        if (this.disposed || this.recorder.mode !== 'idle') {
+            return;
         }
+        if (this.pressure.segment) {
+            if (!this.restartRequested) {
+                this.restartRequested = true;
+                this.pressure.restartSegment();
+            }
+            return;
+        }
+        this.beginSession();
     }
 
     /** Pin a marker to the current tick, with the HUD acknowledgment flash. */
@@ -101,11 +130,17 @@ export class SessionLog {
             return;
         }
         this.vault.push(
-            sessionFromRecording(recording, this.tower, {
-                startedAt: this.startedAt,
-                savedAt: new Date().toISOString(),
-                endReason,
-            }),
+            sessionFromRecording(
+                recording,
+                this.tower,
+                {
+                    startedAt: this.startedAt,
+                    savedAt: new Date().toISOString(),
+                    endReason,
+                },
+                this.pressure.segment,
+                this.pressure.heartsCarried,
+            ),
         );
     }
 
@@ -116,11 +151,17 @@ export class SessionLog {
     }
 
     private buildSession(endReason: SessionRecording['endReason']): SessionRecording {
-        return sessionFromRecording(this.recorder.snapshot(), this.tower, {
-            startedAt: this.startedAt,
-            savedAt: new Date().toISOString(),
-            endReason,
-        });
+        return sessionFromRecording(
+            this.recorder.snapshot(),
+            this.tower,
+            {
+                startedAt: this.startedAt,
+                savedAt: new Date().toISOString(),
+                endReason,
+            },
+            this.pressure.segment,
+            this.pressure.heartsCarried,
+        );
     }
 
     /** Minimal HUD acknowledgment — a brief fading stamp, nothing more. */
