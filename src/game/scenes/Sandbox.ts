@@ -366,6 +366,7 @@ export class Sandbox extends Scene {
                 );
                 this.bossAttackViews = new BossAttackViews(
                     this,
+                    def,
                     this.bus,
                     this.towerView,
                     this.pressureSystem,
