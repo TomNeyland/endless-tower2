@@ -3,8 +3,10 @@
 *Authored by the manager session from two user mandates: "eventually you
 should NEED some bonuses to keep playing — the benefits need to be
 meaningful" and "each room should have something about it — good, bad, or
-indifferent." Status: v1 — under panel review, binding for the run-texture
-implementation session (post-difficulty-curve, pre/within HANDS). Builds on
+indifferent." Status: v1 — SEQUENCED LAST by user decision: the adversarial review +
+cold-reader playthrough re-run after HANDS, against the shipped difficulty
+tables and polished game, then amendment, then implementation as the final
+system before 1.0 verification. Builds on
 difficulty-curve.md's band tables and map-modifiers.md's trait plumbing.*
 
 ## Part 1 — The necessity curve (#62)

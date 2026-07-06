@@ -31,21 +31,57 @@ NOT read `docs/research/` (v1 archaeology; old ideas are old).
   attack toolkit, land classifications); RETURN (save/feats/characters/
   museum/seeds); all with review→fix→gate cycles. Human feel verdict
   applied (JUMP_RETENTION 0.78, the plateau fix).
-- **IN FLIGHT / HANDED OFF (updated 2026-07-06 ~09:00)**:
-  1. *Difficulty curve + 100-floor segments* (`docs/design/difficulty-curve.md`
-     + issue #61): **deliberately handed to Codex at ZERO implementation.**
-     The prior builder was killed before its first commit; its empty branch
-     was deleted; no difficulty code exists anywhere. Whoever picks this up
-     implements the doc from scratch: engine-free curve model in core,
-     profiles in `src/core/map/presets.ts`, #61 knock-ons (floors 30→100,
-     line pacing ÷~3, per-floor economy pricing), the 500-segment sweep
-     harness, gates green, essay commits on a fresh branch, then merge.
-  2. *Run-texture design review* — critics + cold-reader on
-     `docs/design/run-texture.md` (issues #62, #63) were running in the
-     orchestrator's session. If their findings are lost, re-critique the
-     doc yourself (its own risks section lists where to press), amend, then
-     implement — AFTER the difficulty curve lands (it builds on the band
-     tables).
+- **OWNERSHIP (updated 2026-07-06 ~09:15)**: Codex is run BY THE HUMAN in
+  their own shell. The Claude orchestrator never launches Codex and stays
+  out of `src/` while a Codex task is in flight — one writer at a time.
+
+### CODEX'S FIRST TASK — the difficulty curve (zero code exists; from scratch)
+
+Implement `docs/design/difficulty-curve.md` fully, plus issue #61's
+knock-ons. Read first, in order: this file's rules, ETHOS.md,
+docs/DESIGN.md, docs/design/difficulty-curve.md (BINDING),
+docs/design/movement.md (the reachability contract is inviolable),
+docs/design/map-modifiers.md, then the code you extend:
+`src/core/tower.ts`, `src/core/map/presets.ts`, `src/core/exam/field.ts`.
+
+Checklist (the design doc is authoritative):
+1. Engine-free curve model: `value(t) = lerp(startBand, endBand, shape(t))
+   + phrase(t)`; shapes linear/easeIn/easeOut; seeded breather phrasing
+   (~every 18 floors, width ~4); ONE tuning-data table mapping difficulty
+   index 0–1 → concrete bands (gap px, width tiles, density, scatter).
+2. DifficultyProfile per node type in presets per the doc's table; act
+   multiplier +0.08/+0.16.
+3. Laws: reachability clamps the index (frontier saturation — approach,
+   never cross); everything t-based (zero absolute-floor thresholds);
+   deterministic from (spec, seed); modifiers multiply post-curve; breather
+   bands get a subtle warm platform tint in TowerView.
+4. #61 knock-ons, same session: `segment.defaultFloors` 30→100; preset
+   floors scale (Climb ~[100,130], Challenge ~[90,115], Elite ~[100,135],
+   Coin Rush ~[45,60], boss arena untouched); `line.rampPerFloor` ÷~3 with
+   grace as a length fraction; coins/clearBounty priced PER FLOOR.
+5. Harness: sweep 500 segments × profiles × {100,200} floors — assert
+   monotone-with-phrasing, reachability never violated, byte-exact
+   determinism, frontier saturation on Elite endgames. Add a
+   difficulty-trace (index per floor) to the `window.__ET2__` debug surface.
+
+Done = `npm run typecheck` AND `npm run lint` AND `npm run build` AND
+`npm run exam` AND `npx tsx harness/return.harness.ts` AND the new
+difficulty harness ALL green (run bare — pipes mask exit codes). Fresh
+branch `wave3x/difficulty`, essay commits, deviations to
+docs/DEVIATIONS.md, push or leave for the orchestrator to merge — either
+way never with red gates.
+
+### After Codex's task lands (Claude orchestrator resumes)
+
+2. **HANDS** — see the roadmap below (audio, art pass, perf at the new
+   100-floor scale, mobile, onboarding, tests+CI, README).
+3. **Run-texture — deliberately LAST** (`docs/design/run-texture.md`,
+   issues #62/#63): re-run the adversarial review + cold-reader playthrough
+   AGAINST THE SHIPPED difficulty tables and polished game (a prior
+   paper-only review was killed; reviewing against real systems is
+   strictly better), manager amends the doc, then implement: necessity
+   tuning + offer guarantee, traits/motifs/quirks, perceptibility audit.
+4. Final verification per the checklist below.
 - **REMAINING ROADMAP (in order)**:
   1. Land the difficulty curve (however far it got — see forensics).
   2. Amend + implement `run-texture.md` (necessity curve, traits/motifs,

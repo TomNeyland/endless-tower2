@@ -19,4 +19,4 @@ reviewers critique, they do not ghostwrite. Read `ETHOS.md` and
 | `playthrough-trace.md` | Epic 0 capstone — a full run walked through every doc; 7 findings, all resolved | **authored** |
 | `session-logs.md` | cross-cutting — flight recorder, markers, export, headless replay analysis | **v1 authored** |
 | `difficulty-curve.md` | intra-segment progression — t-based curves, phrasing, the reachability frontier | **v1 authored** |
-| `run-texture.md` | necessity curve + every room has a face — traits, motifs, offer guarantees | **v1 under review** |
+| `run-texture.md` | necessity curve + every room has a face — traits, motifs, offer guarantees | **v1 — sequenced last** |
