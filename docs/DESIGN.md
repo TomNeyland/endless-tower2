@@ -109,10 +109,15 @@ as moment-to-moment spice.
 
 ### Combos
 
-One combo system (v1 accidentally shipped two competing ones). Multi-floor jumps,
-wall bounces, air time, chained within a timeout window; escalating Icy Tower-style
-shoutouts with screen shake. The combo engine emits an event stream that other
-systems consume — score in normal segments, damage in boss fights.
+One combo system, **designed from scratch** — explicit mandate: v1 did combo and
+scoring badly across the board (two competing systems, conflicting events,
+unreachable branches), so nothing is inherited. This is also the game's most
+deeply-wedded system — the nervous system of the spine: movement feeds events in;
+score reads payouts out; bosses read payouts out as damage; relics hook its
+multipliers and windows; node modifiers reprice its economy. Design interfaces
+first, and draft the event taxonomy during the FEEL phase so the movement core
+emits the right vocabulary from day one. Presentation: escalating Icy Tower-style
+shoutouts with screen shake — celebration that reads as earned, not noisy.
 
 ### Bosses: combo-damage duels
 
