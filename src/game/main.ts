@@ -3,6 +3,7 @@ import { Boot } from './scenes/Boot';
 import { MainMenu } from './scenes/MainMenu';
 import { Preloader } from './scenes/Preloader';
 import { Sandbox } from './scenes/Sandbox';
+import { ShopScene } from './scenes/ShopScene';
 
 export const GAME_WIDTH = 1024;
 export const GAME_HEIGHT = 768;
@@ -29,7 +30,7 @@ const config: Types.Core.GameConfig = {
             fps: 60,
         },
     },
-    scene: [Boot, Preloader, MainMenu, Sandbox],
+    scene: [Boot, Preloader, MainMenu, Sandbox, ShopScene],
 };
 
 const StartGame = (parent: string) => {

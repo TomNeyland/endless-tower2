@@ -39,16 +39,7 @@ export class PressureHud {
             return; // Endless sandbox: no pressure, no HUD, feel gate intact.
         }
 
-        for (let i = 0; i < pressure.heartsMax(); i += 1) {
-            this.hearts.push(
-                scene.add
-                    .image(HEART_X + i * HEART_SPACING, HEART_Y, Atlas.tiles, HudFrame.heartFull)
-                    .setOrigin(0, 0)
-                    .setScale(HEART_SCALE)
-                    .setScrollFactor(0)
-                    .setDepth(30),
-            );
-        }
+        this.buildHeartsRow(pressure.heartsMax());
 
         // Gap meter: a shrinking ember bar — distance to the fire, no numbers.
         const meterY = HEART_Y + 46;
@@ -91,9 +82,31 @@ export class PressureHud {
         this.meterFill?.setVisible(visible);
     }
 
+    /** (Re)build the hearts row — Thick Skin can raise hearts.max mid-run. */
+    private buildHeartsRow(max: number): void {
+        for (const heart of this.hearts) {
+            heart.destroy();
+        }
+        this.hearts = [];
+        for (let i = 0; i < max; i += 1) {
+            this.hearts.push(
+                this.scene.add
+                    .image(HEART_X + i * HEART_SPACING, HEART_Y, Atlas.tiles, HudFrame.heartFull)
+                    .setOrigin(0, 0)
+                    .setScale(HEART_SCALE)
+                    .setScrollFactor(0)
+                    .setDepth(30),
+            );
+        }
+    }
+
     update(): void {
         if (this.hearts.length === 0) {
             return;
+        }
+        const max = this.pressure.heartsMax();
+        if (max !== this.hearts.length) {
+            this.buildHeartsRow(max);
         }
         const remaining = this.pressure.heartsRemaining();
         for (let i = 0; i < this.hearts.length; i += 1) {
