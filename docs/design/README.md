@@ -15,4 +15,4 @@ reviewers critique, they do not ghostwrite. Read `ETHOS.md` and
 | `bosses.md` | EXAM — combo-damage duels, tower-attack toolkit, act bosses | pending |
 | `meta-progression.md` | RETURN — unlocks, characters, stats, seed sharing | pending |
 | `art-direction.md` | cross-cutting — palettes, parallax, particles, filters, per-act moods | **v1 authored** |
-| `audio.md` | cross-cutting — SFX identity, music, mixing | pending |
+| `audio.md` | cross-cutting — SFX identity, music, mixing | **v1 authored** |
