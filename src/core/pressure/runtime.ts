@@ -32,10 +32,9 @@ import {
 } from './line';
 import {
     type ActiveSegment,
-    createHearts,
     type DoorPlacement,
     doorReached,
-    type HeartsState,
+    type HeartsPort,
     type PressureSnapshot,
 } from './segment';
 
@@ -65,7 +64,7 @@ export interface PressureStepResult {
 export class PressureRuntime {
     private readonly segment: ActiveSegment;
     private readonly t: TuningStack;
-    private readonly hearts: HeartsState;
+    private readonly hearts: HeartsPort;
     private readonly line: DeathLineState;
 
     private started = false;
@@ -76,10 +75,10 @@ export class PressureRuntime {
     private lastGapPx: number | null = null;
     private ended: 'exit' | 'death_line' | null = null;
 
-    constructor(segment: ActiveSegment, tuning: TuningStack, heartsCarried: number | null) {
+    constructor(segment: ActiveSegment, tuning: TuningStack, hearts: HeartsPort) {
         this.segment = segment;
         this.t = tuning;
-        this.hearts = createHearts(tuning, heartsCarried);
+        this.hearts = hearts;
         this.line = createDeathLine(segment.groundTopY);
     }
 
@@ -122,7 +121,11 @@ export class PressureRuntime {
             {
                 feetY: kin.feetY,
                 highWaterFloors: this.highWaterFloor,
-                invulnerable: this.invulnTicksLeft > 0,
+                // The Ghost powerup holds the catch through the same shield
+                // the rescue uses — the line still rises, the world stays
+                // honest, only the bite is stayed (line.ghost is a temporary
+                // `powerup:ghost` tuning layer, auto-popped on expiry).
+                invulnerable: this.invulnTicksLeft > 0 || this.t.value('line.ghost') >= 1,
             },
             this.t,
         );
@@ -157,18 +160,18 @@ export class PressureRuntime {
     }
 
     private handleCatch(kin: PressureKinematics, gapAtCatch: number): PressureStepResult {
-        this.hearts.count -= 1;
+        const remaining = this.hearts.loseHeart();
         this.heartsLostThisSegment += 1;
         const events: PressureEvent[] = [
             {
                 type: 'run/heart_lost',
                 ...this.envelope(kin),
-                heartsRemaining: this.hearts.count,
+                heartsRemaining: remaining,
                 gapAtCatch,
                 catchFloorIndex: this.floorOf(kin.feetY),
             },
         ];
-        if (this.hearts.count > 0) {
+        if (remaining > 0) {
             // Hurt, then hope: the skyward mercy with the momentum story
             // intact. The line does not pause — invulnerability is the shield.
             this.invulnTicksLeft = msToTicks(this.t.value('hearts.invulnMs'));
@@ -248,11 +251,11 @@ export class PressureRuntime {
     }
 
     heartsRemaining(): number {
-        return this.hearts.count;
+        return this.hearts.heartsRemaining();
     }
 
     heartsMax(): number {
-        return this.hearts.max;
+        return this.hearts.heartsMax();
     }
 
     snapshot(): PressureSnapshot {
@@ -262,8 +265,8 @@ export class PressureRuntime {
             lineY: this.lineY(),
             gapPx: this.lastGapPx,
             tier: this.tier(),
-            hearts: this.hearts.count,
-            heartsMax: this.hearts.max,
+            hearts: this.hearts.heartsRemaining(),
+            heartsMax: this.hearts.heartsMax(),
             invulnTicksLeft: this.invulnTicksLeft,
             floorsClimbed: this.highWaterFloor,
             doorFloorIndex: this.segment.door.floorIndex,

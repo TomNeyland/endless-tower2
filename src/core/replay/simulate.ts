@@ -16,6 +16,7 @@ import { recordingFromSession, type SessionRecording, shouldIndexEvent } from '.
 import { emitSpawn, stepMovement } from '../movement/logic';
 import { createMovementState, type MovementEnv } from '../movement/state';
 import { PressureRuntime } from '../pressure/runtime';
+import { RunState } from '../run/state';
 import { applyTuningChange, TuningStack } from '../tuning';
 import { HeadlessWorld } from './world';
 
@@ -60,9 +61,23 @@ export function simulateSession(session: SessionRecording): SimulationResult {
     };
 
     // PressureSystem's construction mirror: armed before the first step.
+    // RunState is the single heart source everywhere (IDENTITY); headless it
+    // is seeded from the recorded heartsCarried exactly like scene create.
+    // Relic-triggered heart GAINS are not in the recording yet — a session
+    // that exercised them replays with an honest divergence alarm
+    // (docs/DEVIATIONS.md entry 10).
     const pressure =
         session.segment !== null
-            ? new PressureRuntime(session.segment, tuning, session.heartsCarried)
+            ? new PressureRuntime(
+                  session.segment,
+                  tuning,
+                  new RunState(
+                      { seed: session.seed, heartsCarried: session.heartsCarried },
+                      tuning,
+                      () => state.tick,
+                      () => {},
+                  ),
+              )
             : null;
 
     // PlayerSystem.beginRecording: reset to spawn, emit the spawn fact.

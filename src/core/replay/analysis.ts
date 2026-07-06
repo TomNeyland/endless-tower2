@@ -191,6 +191,10 @@ export function formatEventLine(event: MovementEvent): string {
         payload.push(`${key}=${shown}`);
     }
     const name = event.type.replace('movement/', '');
-    const at = `x ${round(event.x)} y ${round(event.y)} vx ${round(event.vx)} vy ${round(event.vy)}`;
+    // Run-economy events carry no kinematic envelope (a shop has no velocity).
+    const at =
+        'x' in event
+            ? `x ${round(event.x)} y ${round(event.y)} vx ${round(event.vx)} vy ${round(event.vy)}`
+            : '';
     return `[${String(event.tick).padStart(6, ' ')}] ${name.padEnd(13, ' ')} ${at}  ${payload.join(' ')}`;
 }

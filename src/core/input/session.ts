@@ -114,9 +114,23 @@ export function decodeInputRle(runs: readonly RleRun[]): InputFrame[] {
  * comparison is symmetric by construction. The tick firehose is excluded
  * (it IS the session, not an index of it); spawn is excluded because it
  * fires at tick 0 before recording starts.
+ *
+ * Run-economy events (coin/relic/shop/powerup, run/heart_gained) are also
+ * excluded: they are wallet/orchestration facts the physics replay does not
+ * regenerate — indexing them would make every coin pickup a false
+ * determinism alarm. Their physics side effects (tuning layers) ride the
+ * recorded tuning timeline and DO replay; the unrecorded remainder is
+ * docs/DEVIATIONS.md entry 10.
  */
+const RUN_ECONOMY_PREFIXES = ['coin/', 'relic/', 'shop/', 'powerup/'];
+
 export function shouldIndexEvent(type: string): boolean {
-    return type !== 'movement/tick' && type !== 'movement/spawn';
+    return (
+        type !== 'movement/tick' &&
+        type !== 'movement/spawn' &&
+        type !== 'run/heart_gained' &&
+        !RUN_ECONOMY_PREFIXES.some((prefix) => type.startsWith(prefix))
+    );
 }
 
 export interface SessionStamp {

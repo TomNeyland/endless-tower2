@@ -19,6 +19,18 @@ export interface SegmentTuningOverride {
     value: number;
 }
 
+/**
+ * Loot placement parameters — the node type's loot profile arrives here
+ * (IDENTITY's coordination point with CHOICE: Coin Rush scales
+ * coinsPerFloor ×2.5, Elite tightens it, etc. — density by node type).
+ */
+export interface SegmentLoot {
+    /** Expected placed coins per floor climbed. */
+    coinsPerFloor: number;
+    /** One visible timed-powerup spawn roughly every N floors. */
+    powerupEveryFloors: number;
+}
+
 export interface SegmentSpec {
     segmentId: string;
     /** The door's floor — the climb's win condition. */
@@ -29,6 +41,8 @@ export interface SegmentSpec {
     lineProfile: SegmentTuningOverride[];
     /** CHOICE-phase mutators, applied as layers. Semantics arrive with CHOICE. */
     modifiers: SegmentTuningOverride[];
+    /** Coin/powerup placement densities (see SegmentLoot). */
+    loot: SegmentLoot;
 }
 
 export interface DoorPlacement {
@@ -45,6 +59,14 @@ export interface SegmentBuild {
     door: DoorPlacement;
 }
 
+/** The baseline loot profile — node types (CHOICE) scale these. */
+export function defaultSegmentLoot(t: TuningStack): SegmentLoot {
+    return {
+        coinsPerFloor: t.value('coins.perFloor'),
+        powerupEveryFloors: t.value('powerup.everyFloors'),
+    };
+}
+
 /** The bridge's no-argument segment: baseline floors, deterministic seed. */
 export function defaultSegmentSpec(t: TuningStack, seed: number): SegmentSpec {
     const floors = t.value('segment.defaultFloors');
@@ -54,6 +76,7 @@ export function defaultSegmentSpec(t: TuningStack, seed: number): SegmentSpec {
         seed,
         lineProfile: [],
         modifiers: [],
+        loot: defaultSegmentLoot(t),
     };
 }
 
@@ -142,16 +165,13 @@ export interface PressureSnapshot {
 }
 
 /**
- * Run-scoped hearts — the minimal holder until IDENTITY builds RunState.
- * Plain data so the future owner can absorb it without ceremony.
+ * Hearts, consumed through a narrow port — RunState (core/run/state.ts) is
+ * the single source of run truth and implements this structurally; pressure
+ * only spends and reads. `loseHeart` returns hearts remaining and throws at
+ * zero (a catch after run end is a caller bug, never a shrug).
  */
-export interface HeartsState {
-    count: number;
-    max: number;
-}
-
-export function createHearts(t: TuningStack, carried: number | null): HeartsState {
-    const max = t.value('hearts.max');
-    const start = Math.min(t.value('hearts.start'), max);
-    return { count: carried === null ? start : Math.min(carried, max), max };
+export interface HeartsPort {
+    heartsRemaining(): number;
+    heartsMax(): number;
+    loseHeart(): number;
 }
