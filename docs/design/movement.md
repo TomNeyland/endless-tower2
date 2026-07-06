@@ -159,10 +159,17 @@ floorIndex}` — tick is the canonical timebase.
 | `movement/ceiling` | `state: entered\|exited, effectiveMaxSpeed, source` | the screen-on-fire signal |
 | `movement/stall` | `state: entered\|exited, durationTicks` | grounded <80px/s >750ms — hesitation as a fact; the death line will tax it, movement never knows |
 | `movement/reversal` | `speedBefore, viaWallBounce` | vx sign flip ≥300 |
-| `movement/tick` | full kinematic frame | 60Hz firehose, debug bridge only |
+| `movement/tick` | full kinematic frame | 60Hz pulse: debug firehose AND the sanctioned step pump for time-based consumers (Amendment 3) |
 
 Reserved (do not implement, do not repurpose): a ceiling-bump event slot for
 EXAM-phase tower mutation.
+
+**Amendment 3** (ruling on DEVIATIONS entry 8, 2026-07-06): `movement/tick`
+is the canonical per-tick pulse — the debug firehose AND the sanctioned step
+pump for time-based consumers (the combo grace fuse, uptime accounting).
+"Debug only" described one consumer, not the event. It may never be gated
+behind the bridge, and its intra-tick position (after the emit phase, before
+render) is part of the ordering promise.
 
 **Amendment 2** (ruling on implementation deviation 1, 2026-07-06; see
 docs/DEVIATIONS.md): perfect-bounce detection is **anticipation-sided by

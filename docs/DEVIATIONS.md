@@ -196,6 +196,10 @@ without a manager ruling.
 pump (one line, like Amendment 1b), or rule for the first-class callback
 and re-verify the same-tick bank/void ordering.
 
+**RATIFIED** as movement.md Amendment 3 (2026-07-06): the label was wrong,
+not the code — movement/tick is the canonical pulse and may never be gated
+behind the bridge.
+
 ## 9. In-scene replay and recorder auto-resume are endless-sandbox-only (session-logs.md)
 
 **The design says:** the recorder is always on; the doc does not
