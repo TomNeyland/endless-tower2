@@ -164,6 +164,15 @@ floorIndex}` — tick is the canonical timebase.
 Reserved (do not implement, do not repurpose): a ceiling-bump event slot for
 EXAM-phase tower mutation.
 
+**Amendment 1** (accepted from the combo design, 2026-07-06; additive,
+implement no later than MASTERY): (a) `tier` (current speed-tier index) joins
+the envelope — two consumers need tier-at-event and stateful reconstruction
+would ship known-desynced; (b) the intra-tick event order is a documented
+promise: walls → landing → jump, and specifically land-before-left_ground on
+same-tick-bhop ticks (the combo state machine depends on it); (c) EXAM-phase
+landing classifications (crumble, sticky) will extend `land` additively under
+EVENT_SCHEMA_VERSION discipline.
+
 ## Camera
 
 Iron law: reads player kinematics, **nothing else, ever**. X locked at 512

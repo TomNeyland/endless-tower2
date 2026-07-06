@@ -8,7 +8,7 @@ reviewers critique, they do not ghostwrite. Read `ETHOS.md` and
 | Document | System | Status |
 |---|---|---|
 | `movement.md` | FEEL — movement, jump exchange, walls, camera, juice, event taxonomy | **v1 authored** |
-| `combo-scoring.md` | MASTERY — the from-scratch combo engine + score (the nervous system) | pending |
+| `combo-scoring.md` | MASTERY — the from-scratch combo engine + score (the nervous system) | **v1 authored** |
 | `pressure.md` | PRESSURE — death line curve, hearts, segments, exit | pending |
 | `map-modifiers.md` | CHOICE — act maps, node types, priced modifiers, seeds | pending |
 | `relics-economy.md` | IDENTITY — relic engine, roster, coins, shops, powerups | pending |
