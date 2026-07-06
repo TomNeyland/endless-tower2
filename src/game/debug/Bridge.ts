@@ -31,6 +31,10 @@ import type { PressureSnapshot, SegmentSpec } from '../../core/pressure/segment'
 import { buildReadout } from '../../core/relics/roster';
 import type { RunSnapshot, RunState } from '../../core/run/state';
 import type { RelicSource } from '../../core/events';
+import type { MetaEvent } from '../../core/meta/events';
+import type { UnlockKind } from '../../core/meta/unlocks';
+import type { SaveDocument } from '../../core/persist/save';
+import { saveStore } from '../meta/SaveStore';
 import type { PlayerSystem } from '../player/PlayerSystem';
 import type { PressureSystem } from '../systems/PressureSystem';
 import type { RelicEffects } from '../systems/RelicEffects';
@@ -139,6 +143,17 @@ export interface Et2Bridge {
      * (DESIGN.md) requires deterministic checks to run unattended.
      */
     pump(steps?: number): void;
+    /** RETURN's meta surfaces (docs/design/meta-progression.md) — dev only:
+     *  nothing in the game reads the bridge, and debug grants persist so a
+     *  harness-built save survives a reload. */
+    meta: {
+        save(): SaveDocument;
+        events(count?: number): MetaEvent[];
+        grantUnlock(kind: UnlockKind, id: string): void;
+        resetSave(): void;
+        /** The settings-change write trigger (a player UI is HANDS-phase). */
+        setMasterVolume(volume: number): void;
+    };
     /** Download the live session (same as F9): file + clipboard when small. */
     exportSession(): void;
     /** Pin a tick-stamped marker to the live session, optionally tagged. */
@@ -321,6 +336,14 @@ export class DebugBridge {
                 for (let i = 0; i < steps; i += 1) {
                     loop.step(loop.now + 1000 / 60);
                 }
+            },
+            meta: {
+                save: () => saveStore().doc,
+                events: (count = 50) => saveStore().recentEvents(count),
+                grantUnlock: (kind: UnlockKind, id: string) => saveStore().grantUnlock(kind, id),
+                resetSave: () => saveStore().resetSave(),
+                setMasterVolume: (volume: number) =>
+                    saveStore().updateSettings({ masterVolume: volume }),
             },
             exportSession: () => session.exportLive(),
             marker: (tag?: MarkerTag) => session.marker(tag ?? null),

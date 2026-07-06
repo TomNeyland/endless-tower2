@@ -57,6 +57,27 @@ export const CharFrame = {
     front: 'character_beige_front',
 } as const;
 
+/** The five Kenney character colors — RETURN's five characters. */
+export const CHARACTER_COLORS = ['beige', 'green', 'pink', 'purple', 'yellow'] as const;
+
+export type CharacterFrameSet = { [K in keyof typeof CharFrame]: string };
+
+/** Per-color frame set, same shape as CharFrame (the Beige default above).
+ *  Unknown colors fail loud — a frame typo is a bug, never a blank sprite. */
+export function characterFrames(color: string): CharacterFrameSet {
+    if (!(CHARACTER_COLORS as readonly string[]).includes(color)) {
+        throw new Error(`assets: unknown character color "${color}"`);
+    }
+    return {
+        idle: `character_${color}_idle`,
+        walkA: `character_${color}_walk_a`,
+        walkB: `character_${color}_walk_b`,
+        jump: `character_${color}_jump`,
+        duck: `character_${color}_duck`,
+        front: `character_${color}_front`,
+    };
+}
+
 /** Frame names inside the tiles atlas used by the act-1 sandbox. */
 export const TileFrame = {
     platformLeft: 'terrain_grass_horizontal_left',

@@ -9,7 +9,7 @@
 import { Scene } from 'phaser';
 import { mysteryEventById } from '../../core/map/mystery';
 import { nodeById } from '../../core/map/types';
-import { ensureGeneratedTextures } from '../assets';
+import { characterFrames, ensureGeneratedTextures } from '../assets';
 import { type HudReadout, MapHud } from '../map/MapHud';
 import { NodeCardView } from '../map/NodeCardView';
 import { actPalette } from '../map/palettes';
@@ -48,7 +48,13 @@ export class MapScene extends Scene {
         const snap = this.run.snapshot();
         const palette = actPalette(snap.actIndex);
         const graph = this.run.actGraph();
-        this.view = new TowerExteriorView(this, graph, palette, snap.seed);
+        this.view = new TowerExteriorView(
+            this,
+            graph,
+            palette,
+            snap.seed,
+            characterFrames(snap.characterId),
+        );
         this.card = new NodeCardView(this, palette);
         this.hud = new MapHud(this, palette, () => this.hudReadout());
         this.syncRunPosition();

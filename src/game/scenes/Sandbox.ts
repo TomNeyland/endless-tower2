@@ -14,12 +14,15 @@ import {
     defaultSegmentSpec,
     type SegmentSpec,
 } from '../../core/pressure/segment';
+import { applyCharacterLayers, characterById } from '../../core/meta/characters';
 import { applyOwnedRelicLayers } from '../../core/relics/effects';
 import { relicById } from '../../core/relics/roster';
 import { RunState, type RunSnapshot } from '../../core/run/state';
 import { generateSandboxTower, type TowerLayout } from '../../core/tower';
 import { TuningStack } from '../../core/tuning';
-import { ensureGeneratedTextures } from '../assets';
+import { characterFrames, ensureGeneratedTextures } from '../assets';
+import type { MetaFeed } from '../meta/MetaTracker';
+import { saveStore } from '../meta/SaveStore';
 import { DebugBridge } from '../debug/Bridge';
 import { MovementStats } from '../debug/Stats';
 import { GAME_HEIGHT } from '../main';
@@ -58,6 +61,9 @@ export interface SandboxBootData {
      *  orchestrator (with the new snapshot) instead of the sandbox's own
      *  restart loop. */
     handoff?: RunSegmentHandoff;
+    /** RETURN's feat watcher: when present (run segments only), the scene
+     *  attaches its buses so feat conditions see the existing vocabulary. */
+    meta?: MetaFeed;
 }
 
 export class Sandbox extends Scene {
@@ -89,6 +95,7 @@ export class Sandbox extends Scene {
     private coinPickups: CoinPickups | null = null;
     private powerups: PowerupSystem | null = null;
     private runHandoff: RunSegmentHandoff | null = null;
+    private metaFeed: MetaFeed | null = null;
 
     private readonly onResetKey = (): void => this.resetRun();
 
@@ -152,6 +159,9 @@ export class Sandbox extends Scene {
         ensureGeneratedTextures(this);
 
         this.tuning = new TuningStack();
+        // Persisted settings override (RETURN): audio.md still owns the
+        // level's authority — the save carries the player's choice of it.
+        this.tuning.setBase('MASTER_VOLUME', saveStore().settings().masterVolume);
         this.bus = new EventBus();
         const recorder = new InputRecorder();
         const groundTopY = GAME_HEIGHT - 64;
@@ -160,6 +170,7 @@ export class Sandbox extends Scene {
         // profile and modifiers are tuning layers — repricing as data.
         this.segmentSpec = data.segment ?? null;
         this.runHandoff = data.handoff ?? null;
+        this.metaFeed = data.meta ?? null;
         const seed = this.segmentSpec ? this.segmentSpec.seed : SANDBOX_SEED;
 
         // RunState — the single source of run truth (IDENTITY). Restored
@@ -173,6 +184,10 @@ export class Sandbox extends Scene {
               // RunState here is the standalone sandbox, whose run seed is
               // simply the scene seed as a string (streams fork from it).
               new RunState({ seed: String(seed) }, this.tuning, () => this.playerTick(), emit);
+        // The character's permanent layers fold in the base band (RETURN) —
+        // before tower generation, so reachability reads the trait-shaped
+        // jump curve exactly as it reads the relic-shaped one.
+        applyCharacterLayers(characterById(this.runState.characterId), this.tuning, 0);
         applyOwnedRelicLayers(this.runState.relicIds(), relicById, this.tuning, 0);
         if (this.segmentSpec) {
             // Owner-tagged per the TuningStack contract (playthrough-trace.md
@@ -214,7 +229,13 @@ export class Sandbox extends Scene {
             this.inputMap,
             seed,
         );
-        this.animator = new PlayerAnimator(this, this.playerSystem, this.bus, this.tuning);
+        this.animator = new PlayerAnimator(
+            this,
+            this.playerSystem,
+            this.bus,
+            this.tuning,
+            characterFrames(this.runState.characterId),
+        );
         this.cameraRig = new CameraRig(this, this.playerSystem, this.tuning);
         // The combo pipeline: relay pumps movement -> engine/score -> comboBus.
         // Pressure's run signals (run/heart_lost, run/segment_end) reach the
@@ -298,6 +319,7 @@ export class Sandbox extends Scene {
                     segment: this.segmentSpec ?? undefined,
                     run: this.runHandoff ? data.run : undefined,
                     handoff: this.runHandoff ?? undefined,
+                    meta: this.metaFeed ?? undefined,
                 } satisfies SandboxBootData);
             },
         });
@@ -328,6 +350,8 @@ export class Sandbox extends Scene {
             this.bus.on('run/segment_end', this.onSegmentEnd);
             this.bus.on('run/ended', this.onRunEnded);
         }
+        // RETURN's feat watcher rides the same buses everything else does.
+        this.metaFeed?.attachSegment(this.bus, this.comboRelay.comboBus);
 
         this.input.keyboard?.on('keydown-R', this.onResetKey);
         this.events.once('shutdown', () => this.teardown());
@@ -421,6 +445,7 @@ export class Sandbox extends Scene {
     }
 
     private teardown(): void {
+        this.metaFeed?.detachSegment();
         this.input.keyboard?.off('keydown-R', this.onResetKey);
         this.bus.off('run/segment_end', this.onSegmentEnd);
         this.bus.off('run/ended', this.onRunEnded);

@@ -22,8 +22,13 @@ import { actGraphSummary, generateActGraph } from '../../core/map/gen';
 import { buildNodeLabel, type NodeLabel } from '../../core/map/label';
 import { mysteryEventById, type MysteryEffect, resolveMystery } from '../../core/map/mystery';
 import { ACT_COUNT, type ActGraph, nodeById, type NodeSpec } from '../../core/map/types';
+import { DEFAULT_TUNING } from '../../core/tuning';
+import { modifierPool, relicPool } from '../../core/meta/unlocks';
 import type { SegmentSpec } from '../../core/pressure/segment';
 import { RunHost } from '../../core/run/host';
+import { MetaTracker } from '../meta/MetaTracker';
+import { saveStore } from '../meta/SaveStore';
+import type { ResultsBootData } from '../scenes/ResultsScene';
 import {
     applyMysteryEffect,
     committedModifierIds,
@@ -47,22 +52,27 @@ export type RunRingEvent = MapEvent | MovementEvent;
 export class RunOrchestrator {
     private host: RunHost;
     private readonly game: Game;
+    private readonly characterId: string;
+    /** RETURN's run-spanning feat/stat watcher — one per run. */
+    private readonly tracker: MetaTracker;
     private graph: ActGraph;
     private ring: RunRingEvent[] = [];
     private toast: ToastData | null = null;
     private summit = false;
     private actStartPathIndex = 0;
 
-    /** Begin a run and enter the map. The one front door (MainMenu). */
-    static begin(game: Game, seed: string): RunOrchestrator {
-        const run = new RunOrchestrator(game, seed);
+    /** Begin a run and enter the map. The one front door (character select). */
+    static begin(game: Game, seed: string, characterId = 'beige'): RunOrchestrator {
+        const run = new RunOrchestrator(game, seed, characterId);
         run.hop('MapScene', { run });
         return run;
     }
 
-    private constructor(game: Game, seed: string) {
+    private constructor(game: Game, seed: string, characterId: string) {
         this.game = game;
-        this.host = RunHost.begin(seed, (e) => this.emit(e));
+        this.characterId = characterId;
+        this.tracker = new MetaTracker(saveStore());
+        this.host = RunHost.begin(seed, (e) => this.emit(e), characterId);
         this.graph = this.generateAct(1);
         installMapBridge(this, game);
     }
@@ -155,7 +165,13 @@ export class RunOrchestrator {
             choiceIndex,
             node.mysteryRoll,
         );
+        // A mystery's heart loss is eventless (RunState module doc) — the
+        // meta layer learns it from the one truth: hearts before vs after.
+        const heartsBefore = this.host.run.hearts;
         applyMysteryEffect(this.host.run, effect);
+        if (this.host.run.hearts < heartsBefore) {
+            this.tracker.noteMysteryHeartLoss();
+        }
         return effect;
     }
 
@@ -193,6 +209,7 @@ export class RunOrchestrator {
             handoff: {
                 onOutcome: (outcome, snap) => this.onOutcome(node, outcome, snap),
             },
+            meta: this.tracker,
         } satisfies SandboxBootData);
     }
 
@@ -202,9 +219,10 @@ export class RunOrchestrator {
         this.host = RunHost.adopt(snap, (e) => this.emit(e));
         const run = this.host.run;
         run.foldSegmentStats(outcome.stats);
+        this.tracker.noteOutcome(outcome);
         if (outcome.kind === 'death_line') {
             // pressure already emitted run/ended {death_line} on its bus; the
-            // run loop just folds. A real results scene is RETURN's.
+            // run loop just folds — endRun routes to the results scene.
             this.endRun();
             return;
         }
@@ -218,7 +236,13 @@ export class RunOrchestrator {
             lines.push(`best chain ${outcome.stats.bestChainFace}`);
         }
         if (node.rewards.guaranteedRelic) {
-            const relic = rollRelicReward(run.runSeed, node.id, run.act, run.relicIds());
+            const relic = rollRelicReward(
+                run.runSeed,
+                node.id,
+                run.act,
+                run.relicIds(),
+                relicPool(saveStore().doc.unlocks.relics),
+            );
             if (relic === null) {
                 lines.push('the tower had no relic left to give');
             } else {
@@ -238,6 +262,7 @@ export class RunOrchestrator {
                 path: this.actPath(),
                 stats: outcome.stats,
             });
+            this.tracker.noteActCompleted(run.act);
             if (run.act >= ACT_COUNT) {
                 this.summit = true;
                 this.emit({
@@ -257,10 +282,19 @@ export class RunOrchestrator {
         this.hop('MapScene', { run: this });
     }
 
-    /** Leave the run (death or summit-return): back to the menu. */
+    /**
+     * The run is over (death, or the summit card's RETURN): fold the run
+     * into the meta layer — feats fired, stats, lastSeed, the ONE save
+     * write — and hand the full run-end flow to the ResultsScene.
+     */
     endRun(): void {
         removeMapBridge();
-        this.hop('MainMenu');
+        const results = this.tracker.finish(
+            this.summit ? 'summit' : 'death_line',
+            this.host.run.snapshot(),
+        );
+        saveStore().commitRunEnd(results.record, this.tracker.relicsUnlockedThisRun());
+        this.hop('Results', { results } satisfies ResultsBootData);
     }
 
     /**
@@ -294,7 +328,14 @@ export class RunOrchestrator {
     }
 
     private generateAct(actIndex: number): ActGraph {
-        const graph = generateActGraph(this.host.run.runSeed, actIndex);
+        // The modifier roll pool is the save's (RETURN): the meta-locked
+        // three stay out until their act-completion feats land.
+        const graph = generateActGraph(
+            this.host.run.runSeed,
+            actIndex,
+            DEFAULT_TUNING['map.maxRegens'],
+            modifierPool(saveStore().doc.unlocks.modifiers),
+        );
         this.emit({
             type: 'map/generated',
             actIndex,
@@ -331,7 +372,8 @@ export class RunOrchestrator {
 
     debugSetSeed(seed: string): void {
         // A fresh run on the given seed — the shareable-seed harness path.
+        // Same seed + same character = same run offer (meta-progression.md).
         removeMapBridge();
-        RunOrchestrator.begin(this.game, seed);
+        RunOrchestrator.begin(this.game, seed, this.characterId);
     }
 }

@@ -19,10 +19,12 @@
 import { Scene } from 'phaser';
 import { heartPrice, relicPrice, rerollPrice, rollShopStock } from '../../core/economy/shop';
 import type { RelicSource } from '../../core/events';
+import { relicPool } from '../../core/meta/unlocks';
 import type { RelicDef } from '../../core/relics/types';
 import type { RunEmit, RunState } from '../../core/run/state';
 import type { TuningStack } from '../../core/tuning';
-import { Sfx } from '../assets';
+import { characterFrames, Sfx } from '../assets';
+import { saveStore } from '../meta/SaveStore';
 import { ShopView } from '../shop/ShopView';
 
 export interface ShopLaunchData {
@@ -59,7 +61,7 @@ export class ShopScene extends Scene {
         this.purchases = [];
         this.rerolls = 0;
 
-        this.view = new ShopView(this);
+        this.view = new ShopView(this, characterFrames(data.run.characterId));
         this.view.buildChrome(data.run.coins);
         this.rollStock();
         this.renderBottomRow();
@@ -83,17 +85,20 @@ export class ShopScene extends Scene {
     // --- Stock ---
 
     private rollStock(): void {
+        // The save's unlocked pool (RETURN): 16 initials + earned unlockables.
         this.stock = rollShopStock(
             this.ctx.run.runSeed,
             this.ctx.nodeId,
             this.ctx.act,
             this.ctx.run.relicIds(),
             this.rerolls,
+            relicPool(saveStore().doc.unlocks.relics),
         );
         this.renderCards();
     }
 
     private renderCards(): void {
+        const newRelics = saveStore().doc.unlocks.newRelics;
         this.view.renderCards(
             this.stock.map((relic, i) => {
                 const price = relicPrice(this.ctx.tuning, relic.rarity);
@@ -102,6 +107,7 @@ export class ShopScene extends Scene {
                     price,
                     soldOut: this.sold.has(relic.id),
                     affordable: this.ctx.run.coins >= price,
+                    isNew: newRelics.includes(relic.id),
                     onBuy: () => this.buyRelic(i),
                 };
             }),

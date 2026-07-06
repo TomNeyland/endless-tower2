@@ -10,7 +10,7 @@
 import type { GameObjects, Scene } from 'phaser';
 import type { RelicRarity } from '../../core/events';
 import type { RelicDef } from '../../core/relics/types';
-import { Atlas, CharFrame, Gen, HudFrame } from '../assets';
+import { Atlas, CharFrame, type CharacterFrameSet, Gen, HudFrame } from '../assets';
 import { GAME_HEIGHT, GAME_WIDTH } from '../main';
 
 const RARITY_COLOR: Record<RelicRarity, number> = {
@@ -31,6 +31,8 @@ export interface ShopCardData {
     price: number;
     soldOut: boolean;
     affordable: boolean;
+    /** Freshly unlocked into the pool (RETURN) — stamped NEW on the card. */
+    isNew: boolean;
     onBuy: () => void;
 }
 
@@ -42,13 +44,15 @@ export interface ShopButtonData {
 
 export class ShopView {
     private readonly scene: Scene;
+    private readonly charFrames: CharacterFrameSet;
     private cardObjs: GameObjects.GameObject[] = [];
     private rowObjs: GameObjects.GameObject[] = [];
     private coinText!: GameObjects.Text;
     private previewAura!: GameObjects.Image;
 
-    constructor(scene: Scene) {
+    constructor(scene: Scene, charFrames: CharacterFrameSet = CharFrame) {
         this.scene = scene;
+        this.charFrames = charFrames;
     }
 
     /** Scrim, panel, title, wallet readout, and the tell-preview character. */
@@ -86,7 +90,7 @@ export class ShopView {
             .setScale(2.4)
             .setBlendMode('ADD')
             .setAlpha(0);
-        s.add.sprite(px, ROW_Y, Atlas.characters, CharFrame.front).setScale(0.42);
+        s.add.sprite(px, ROW_Y, Atlas.characters, this.charFrames.front).setScale(0.42);
         s.add
             .text(px, ROW_Y + 46, 'tell preview', {
                 fontFamily: 'Arial',
@@ -167,6 +171,20 @@ export class ShopView {
             .setOrigin(0.5);
 
         const objs = [card, stone, name, rarity, blurb, priceText];
+        if (data.isNew && !soldOut) {
+            // The NEW stamp: a fresh unlock announces itself on the shelf.
+            objs.push(
+                this.scene.add
+                    .text(x - CARD_W / 2 + 10, CARD_Y - CARD_H / 2 + 10, 'NEW', {
+                        fontFamily: 'Arial Black',
+                        fontSize: 12,
+                        color: '#10131a',
+                        backgroundColor: '#ffd24a',
+                        padding: { x: 6, y: 2 },
+                    })
+                    .setOrigin(0, 0),
+            );
+        }
         if (soldOut) {
             for (const obj of objs) {
                 (obj as unknown as { setAlpha(a: number): void }).setAlpha(0.45);
