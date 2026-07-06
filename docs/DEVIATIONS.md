@@ -330,3 +330,24 @@ SESSION_SCHEMA_VERSION discipline; the manager session picks the ruling.
 its acquisitions honestly (a debug grant masquerading as a shop purchase
 would poison future stats/achievements). Debug never leaks into production
 surfaces; the value only exists on bridge-driven grants.
+
+## 15. Meta writes: dev-bridge grants persist immediately; the settings surface is bridge-only until HANDS (meta-progression.md, persistence)
+
+**The design says:** the save document is "written on run end and settings
+change (never mid-segment — no IO in the hot path)".
+
+**What ships:** both sanctioned triggers exist (the run-end commit in
+`RunOrchestrator.endRun`, the settings write in `SaveStore.updateSettings`),
+plus one dev-only third: `__ET2__.meta.grantUnlock` / `resetSave` write
+immediately — a harness-built save must survive a page reload, and a debug
+grant that silently evaporated would make bridge-driven verification lie.
+None of these run in the hot path (the bridge is not a gameplay surface —
+the entry-14 precedent). Separately: the only *settings* mutator today is
+`__ET2__.meta.setMasterVolume` — the design's settings-change trigger is
+fully wired (write + save + the tuning override at scene boot), but a
+player-facing settings UI is HANDS-phase polish, so until then the trigger
+is reachable from the bridge alone.
+
+**Path back:** HANDS builds the settings surface on top of the same
+`updateSettings` call; the dev-write clause stands under the debug-honesty
+precedent unless the manager session rules otherwise.
