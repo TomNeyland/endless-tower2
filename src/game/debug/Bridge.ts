@@ -20,6 +20,12 @@ import {
     type TuningTable,
 } from '../../core/tuning';
 import type { PlayerSystem } from '../player/PlayerSystem';
+import {
+    EngineFactChecker,
+    type EngineFactReport,
+    syntheticFactScript,
+    waitUntil,
+} from './EngineFacts';
 import type { MovementStats, StatsSnapshot } from './Stats';
 
 const RING_SIZE = 1024;
@@ -50,6 +56,11 @@ export interface Et2Bridge {
     stats: {
         snapshot(): StatsSnapshot;
         reset(): void;
+    };
+    verify: {
+        /** Instrumentation gate #1, re-runnable: drives a synthetic scripted
+         *  replay and checks the three engine facts. Drift = stop the line. */
+        engineFacts(): Promise<EngineFactReport>;
     };
     reset(): void;
 }
@@ -142,8 +153,30 @@ export class DebugBridge {
                 snapshot: () => stats.snapshot(),
                 reset: () => stats.reset(),
             },
+            verify: {
+                engineFacts: () => this.runEngineFacts(),
+            },
             reset: resetSandbox,
         };
+    }
+
+    /** Drive the synthetic fact script through the real replay harness. */
+    private async runEngineFacts(): Promise<EngineFactReport> {
+        const { bus, tuning, player } = this.deps;
+        const script = syntheticFactScript(
+            player.seed,
+            tuning.baseSnapshot(),
+            tuning.layersSnapshot(),
+        );
+        const checker = new EngineFactChecker(bus, tuning);
+        checker.start();
+        try {
+            player.beginReplay(script);
+            await waitUntil(() => player.lastReplayReport() !== null, 20000);
+        } finally {
+            checker.stop();
+        }
+        return checker.report();
     }
 
     destroy(): void {
