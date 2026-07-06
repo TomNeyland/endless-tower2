@@ -91,9 +91,13 @@ patch per art-direction.md).
 
 ## The map scene (the tower is the map)
 
-Per art-direction.md: the act's tower exterior at night, **nodes as lit
-windows** climbing the silhouette — the map IS the place you're climbing,
-not a flowchart in a void. Current node pulses; reachable nodes glow;
+Per art-direction.md: the act's tower exterior in the act's own palette,
+**nodes as glowing windows** climbing the silhouette — the map IS the place
+you're climbing, not a flowchart in a void. Hazard-bearing modifiers
+(Sticky Patches, Brittle Rows) also render **per-instance inside the
+segment** with the same visual language as their boss-attack twins (goo
+visibly splatted, crumble-glow) — pillar 2 holds at platform grain, not
+just node grain. Current node pulses; reachable nodes glow;
 taken path stays warm-lit behind you. Selecting a node opens its label
 card: type, modifiers (price/pay), rewards, line profile. Confirm →
 traversal animation (the character climbs the exterior to that window) →

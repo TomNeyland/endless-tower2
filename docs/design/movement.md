@@ -196,7 +196,7 @@ run dust (≥0.5×ceiling) → the spin (captured-launch-speed drive, v1's one
 good visual instinct: `((launch−500)/900)^1.5 · 24 rad/s`, upright in 90ms) →
 pitch-scaled audio (jump pitch 1.0→1.2 by conversionFraction; `sfx_gem`
 reserved exclusively for perfect-flag bounces — the skill sound; ±3% jitter;
-**master volume ships at 0.8**) → speed wind at 0.71×ceiling → afterimage
+**master volume ships audible — the level is audio.md's call, one authority**) → speed wind at 0.71×ceiling → afterimage
 trail at 0.86×ceiling (the master's crown) → ONE shake trigger (land impact
 ≥1100: 2px, 90ms). Combo shoutouts and celebration audio are deliberately
 absent — they arrive in MASTERY as an *escalation*, not an inflation. The

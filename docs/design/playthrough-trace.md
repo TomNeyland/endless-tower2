@@ -90,3 +90,48 @@ port, the map prices what the TuningStack reprices, relics ride surfaces
 that were frozen before they existed, and meta renders memory without
 minting instrumentation. Seven findings, all resolved on paper before a
 single downstream line of code — which is the entire argument for Epic 0.
+
+## Second playthrough — independent cold reader (addendum)
+
+A second mental playthrough was run by a fresh-eyes agent, firewalled from
+this trace until its own round was written. Convergence was strong (it
+independently hit findings 1, 4, and 7), and it found four seams the
+author's pass walked past — including one this trace's own narration
+stepped in. Rulings, all applied to the docs:
+
+8. **Master volume stated twice, differently** (movement 0.8 vs audio ~0.7).
+   → One authority: audio.md owns the level; movement.md now defers.
+9. **The map's time of day contradicted the act mood table** ("always
+   night" vs morning/dusk/night acts — and this trace said "morning
+   palette" without noticing). → The map renders in the act's own palette;
+   window lights are a UI glow layer that reads at any hour.
+10. **`movement/stall` had no consumer anywhere** — the one nerve that
+    dead-ended (and the Iron Lungs relic silently depended on it meaning
+    something). → Stall's consumers are session stats (RETURN feat
+    vocabulary: zero-stall segments) and a subtle audio hesitation cue
+    under an active line; Iron Lungs re-keyed to line slack (+400px),
+    which is real.
+11. **Character colors camouflage in matching acts** (green/grass,
+    beige/sand, purple/violet vs. readability rule #1). → Player contrast
+    is guaranteed by treatment (permanent outline/rim pass), not hue;
+    per-character-per-act contrast is a HANDS audit item.
+12. **Hazard visibility at platform grain** (Sticky Patches vs pillar 2).
+    → Modifier hazards render per-instance with the same visual language
+    as their boss-attack twins.
+13. **Exploit sweep rulings:** uncapped leap-streak multiplier is now an
+    explicit design choice, stated in combo-scoring.md (glory may run
+    away; engine safety and boss balance live elsewhere).
+    Openness-window fizzle-farming is refused by the quadratic itself
+    (forty 2-floor banks < one COMET bank) — noted, no change needed.
+    Fireproof's heart engine and Coin Rush as the refarm habitat are
+    named tuning watches: Coin Rush is the designated venue for the
+    `refarmedFloorShare` alarm, and Fireproof is re-judged during
+    IDENTITY's full-stack recipe tests.
+14. **Unlock pacing** (three feats poppable in one strong run): thresholds
+    are data; the RETURN session tunes against the acceptance target of
+    roughly one character unlock per run across a player's first runs.
+
+The cold reader's verdict stands as the epic's external sign-off: the
+documents build the game, and the fizzle-strike is the idea worth building
+it for. Two independent playthroughs beat one author's — permanently
+adopted for future design phases.

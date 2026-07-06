@@ -48,7 +48,7 @@ stacked build is *readable on the body*. The build is part of the spectacle.
 - Long Glide (common): ground drag ×0.6 — the ice gets icier
 - Momentum Lock (rare): drag = 0 while at tier ≥2 — the classic, now priced
 - Featherfall (uncommon): fall gravity ×0.88 — arcs hang longer
-- Iron Lungs (uncommon): stall threshold ×2 — hesitation forgiven longer
+- Iron Lungs (uncommon): line slack +400px — breathing room before catch-up
 
 **ROUTE** *(what walls give)*
 - Flip Coach (common): stick-flip grace ×1.5

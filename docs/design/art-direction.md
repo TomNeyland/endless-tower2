@@ -45,7 +45,12 @@ Parallax is the single cheapest "this is a real place" signal we can buy.
 
 ## Readability hierarchy (non-negotiable)
 
-1. **The player is always the highest-contrast object on screen.**
+1. **The player is always the highest-contrast object on screen** — and this
+   is guaranteed by *treatment*, not hue: the character carries a permanent
+   outline/rim-light pass, because three of the five character colors
+   (green, beige, purple) color-match a terrain family and would otherwise
+   camouflage in their own act. Contrast per character-per-act is a HANDS
+   audit item.
 2. Hazards are saturated and warm; safe geometry is cooler and calmer.
 3. The death line is unmissable at any grading — it carries its own light.
 4. UI whispers: small, consistent corner HUD; the tower is the show.
@@ -85,8 +90,11 @@ rack, with hard rules so celebration stays earned:
 
 - Title screen: the game playing behind the logo (attract-mode sandbox), one
   input hint. No documentation dumps.
-- Map scene: the tower exterior at night — nodes as lit windows climbing the
-  silhouette. The map should *be* the tower, not a flowchart floating in void.
+- Map scene: the tower exterior **in the act's own palette** (morning, dusk,
+  night — the mood table governs everywhere), with nodes as *glowing* windows
+  climbing the silhouette — the glow is a UI light layer that reads at any
+  hour (warm lamps at morning, beacons at night). The map should *be* the
+  tower, not a flowchart floating in void.
 - Consistent 4px-grid spacing; pack UI sprites (`hud_*`) before custom art.
 - Fonts: one display face for shoutouts/titles, one clean face for numbers.
   (Web-safe stack first; a bundled font is a HANDS-phase decision.)

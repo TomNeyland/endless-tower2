@@ -134,7 +134,11 @@ Two orthogonal axes, spectator-readable as **"23 FLOORS ×3.25"**:
   movement's TIER_FRACS) +0.25; `ceiling` entered during a chain +1.0,
   once per chain.
 
-**PAYOUT = round(base × mult)**, integers always. Continuous accrual,
+**PAYOUT = round(base × mult)**, integers always. The multiplier has **no
+ceiling, by explicit choice**: glory numbers are allowed to run away in
+god-runs — engine safety lives in movement's absolute exchange cap, and boss
+balance lives in EXAM's own damage conversion, so an unbounded scoreboard
+endangers nothing but modesty. Continuous accrual,
 discrete payment: HUD and boss telegraphs read live `chainFloors/mult/
 provisionalPayout` from `combo/link`; score and boss damage are paid **only
 at `combo/banked`**. Fizzle, grace, and exit bank 100% — breaking a chain is
