@@ -132,6 +132,37 @@ ls harness/ scratchpad/ 2>/dev/null   # other harnesses waves left behind
   LOOK like bossing (embodied, reactive); no text-banner urgency; keyboard
   is first-class everywhere; audio ships ON.
 
+## You are not here to land the plane — you are here to finish the flight
+
+Safe resumption is the floor. The mandate is the **fully delivered vision**,
+and it is done only when every box below ticks:
+
+- [ ] Difficulty curve + 100-floor segments merged, harness-proven
+      (monotone-with-phrasing, reachability frontier holds at 100 AND 200)
+- [ ] Run-texture implemented: necessity curve tuned (baseline-bot vs
+      built-bot margins order correctly per act), every node rolls ≥1 trait,
+      ≥8 geometry motifs shipping, offer guarantee validated in map gen,
+      perceptibility audit passing for all 24 relics
+- [ ] HANDS complete: audio identity ON (SFX mapped, music stems or
+      compliant fallback, mixing/ducking), per-act filter grading + acts 2–3
+      parallax, perf clean at 100+ floors (no GC hitches in a full act),
+      mobile thumb-zones playable, onboarding teaches momentum in 30s,
+      vitest suite green over src/core + CI test job added, README with
+      real screenshots and how-to-play
+- [ ] A full 3-act run completes in a real browser: menu → character select
+      → map → segments (traits visible, difficulty felt) → all three bosses
+      → summit → results → feats/unlocks → museum. Console clean throughout.
+- [ ] A death run and a seeded run both behave (seed reproduces the offer).
+- [ ] An exported session replays divergence-free via `npm run replay`.
+- [ ] All GitHub issues closed except human-gated ones (feel gate #8);
+      DEVIATIONS ledger reconciled; CI build job green on the final push.
+- [ ] `main` pushed. The only remaining human act: playtests and the Pages
+      flip.
+
+If you complete all of this, write the final commit essay as the project's
+closing statement — the log has been the design narrative all along; give
+it an ending.
+
 ## The human's role when they return
 
 They playtest with the flight recorder: `M` drops tick-pinned markers,
