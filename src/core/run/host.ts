@@ -55,9 +55,7 @@ export class RunHost {
         };
         this.run = make(this.tuning, () => 0, emit);
         this.runtime = new RelicEffectsRuntime(this.tuning, {
-            gainHeart: (source) => {
-                this.run.gainHeart(source);
-            },
+            gainHeart: (source) => this.run.gainHeart(source),
             impulse: () => {
                 throw new Error('relics: an impulse fired on the map — no body to push');
             },

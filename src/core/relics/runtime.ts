@@ -19,8 +19,10 @@ import type { RelicDef, RelicLayerSpec } from './types';
 
 /** What the runtime asks its host to do beyond tuning layers. */
 export interface EffectHost {
-    /** Grant one heart (clamped at hearts.max by RunState). */
-    gainHeart(source: string): void;
+    /** Grant one heart (clamped at hearts.max by RunState). Returns whether
+     *  the heart actually landed — RunState.gainHeart's boolean, forwarded:
+     *  full hearts refuse, and limiters must not spend on a refusal. */
+    gainHeart(source: string): boolean;
     /** One-shot horizontal impulse through the sanctioned body channel. */
     impulse(vxAdd: number): void;
 }
@@ -184,8 +186,13 @@ export class RelicEffectsRuntime {
                     if (ht.oncePerSegment && ht.usedThisSegment) {
                         continue; // Fireproof's limiter (boss arenas chain forever)
                     }
-                    ht.usedThisSegment = true;
-                    this.host.gainHeart(ht.relicId);
+                    // Once per segment means once per GAIN: a bank at full
+                    // hearts refuses the heart and must not burn the charge
+                    // (pillar 1 errs generous — the boolean is the truth).
+                    const gained = this.host.gainHeart(ht.relicId);
+                    if (gained && ht.oncePerSegment) {
+                        ht.usedThisSegment = true;
+                    }
                 }
                 return;
             default:

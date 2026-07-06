@@ -54,9 +54,7 @@ export class RelicEffects {
         this.run = run;
         this.player = player;
         this.runtime = new RelicEffectsRuntime(tuning, {
-            gainHeart: (source) => {
-                this.run.gainHeart(source);
-            },
+            gainHeart: (source) => this.run.gainHeart(source),
             impulse: (vxAdd) => this.player.applyExternalImpulse(vxAdd),
         });
         // Restore path: the build's layers were re-applied before the tower
