@@ -9,7 +9,10 @@
  *   Momentum Lock + Echo Walls + Slow Fuse  = the perma-combo comet
  *   High Voltage + Skyhook + Launch Pad     = the sky-castle build
  *   Compounder + Safety Net                 = the gambler
- * IDENTITY's acceptance harness asserts all three at full stack.
+ * relics-economy.md pre-registers these three as IDENTITY's power-fantasy
+ * acceptance test — a FEEL-GATE playtest at full stack (grantRelic through
+ * the debug bridge, human hands judging the grin), not an automated
+ * harness: no test suites exist before HANDS, by explicit law.
  *
  * "+X% jump velocity" effects multiply BOTH exchange terms (JUMP_BASE and
  * EXCHANGE_K), which scales the raw pre-knee vy exactly — the soft knee and
