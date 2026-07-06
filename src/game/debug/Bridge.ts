@@ -55,6 +55,9 @@ export interface Et2Bridge {
         layers(): readonly TuningLayer[];
         pushLayer(layer: TuningLayer): void;
         removeLayer(id: string): boolean;
+        /** Pop-by-owner (the finding-6 contract): removes every layer the
+         *  owner holds, returns how many. */
+        removeByOwner(owner: string): number;
     };
     events: {
         recent(count?: number, type?: MovementEventType): MovementEvent[];
@@ -194,6 +197,7 @@ export class DebugBridge {
                 layers: () => tuning.layerList(),
                 pushLayer: (layer: TuningLayer) => tuning.pushLayer(layer),
                 removeLayer: (id: string) => tuning.removeLayer(id),
+                removeByOwner: (owner: string) => tuning.removeByOwner(owner),
             },
             events: {
                 recent: (count = 50, type?: MovementEventType) => {

@@ -108,10 +108,15 @@ export class Sandbox extends Scene {
         this.segmentSpec = data.segment ?? null;
         const seed = this.segmentSpec ? this.segmentSpec.seed : SANDBOX_SEED;
         if (this.segmentSpec) {
+            // Owner-tagged per the TuningStack contract (playthrough-trace.md
+            // finding 6): a future segment pop is removeByOwner and can never
+            // eat a relic's layers.
+            const owner = `segment:${this.segmentSpec.segmentId}`;
             const overrides = [...this.segmentSpec.lineProfile, ...this.segmentSpec.modifiers];
             overrides.forEach((o, i) => {
                 this.tuning.pushLayer({
-                    id: `segment:${this.segmentSpec?.segmentId}:${i}`,
+                    id: `${owner}:${i}`,
+                    owner,
                     key: o.key,
                     op: o.op,
                     value: o.value,
