@@ -217,6 +217,7 @@ export class DebugBridge {
                     return this.lastRecording;
                 },
                 replay: (recording?: Recording) => {
+                    this.assertEndlessSandbox('recorder.replay');
                     const source = recording ?? this.lastRecording;
                     if (!source) {
                         throw new Error('bridge: no recording to replay');
@@ -280,8 +281,26 @@ export class DebugBridge {
         };
     }
 
+    /**
+     * The in-scene replay harness resets the player but cannot reset a live
+     * segment's line/hearts — replaying against mid-arena pressure state
+     * would read as false divergence (docs/DEVIATIONS.md entry 9). Segment
+     * sessions replay headless (`npm run replay`); in-scene replay is the
+     * endless sandbox's tool.
+     */
+    private assertEndlessSandbox(surface: string): void {
+        if (this.deps.pressure.system.inSegmentMode()) {
+            throw new Error(
+                `bridge: ${surface} requires the endless sandbox — call ` +
+                    '__ET2__.pressure.stopSegment() first (segment sessions replay ' +
+                    'headless via npm run replay)',
+            );
+        }
+    }
+
     /** Drive the synthetic fact script through the real replay harness. */
     private async runEngineFacts(): Promise<EngineFactReport> {
+        this.assertEndlessSandbox('verify.engineFacts');
         const { bus, tuning, player } = this.deps;
         const script = syntheticFactScript(
             player.seed,

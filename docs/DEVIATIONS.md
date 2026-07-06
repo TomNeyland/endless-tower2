@@ -100,6 +100,11 @@ complement).
 **Path back:** none needed unless a future system wants non-numeric tuning
 values, which would be a TuningStack design amendment first.
 
+*(Extended, wave-1 fix session: the same ruling covers pressure.md's
+`line.proximityTiers | [800, 400, 200, 80]` row, which ships as four scalar
+keys `line.proximitySafePx/AwarePx/DangerPx/CriticalPx` plus
+`line.proximityHysteresisPx` — identical in kind and rationale.)*
+
 ## 5. `SessionRecording` embeds the tower layout (session-logs.md, schema)
 
 **The design says:** `SessionRecording = { version, startedAt, seed,
@@ -126,6 +131,13 @@ recording instead needs to capture the tuning table at *scene create* (a
 second table alongside `baseTuning`) and pin the generator's version; the
 schema is versioned, so either ruling lands as an additive change.
 
+*(Wave-1 fix session: the schema is now v2 — PRESSURE extended it with
+`segment` (the armed segment, embedded like the tower and for the same
+reason) and `heartsCarried`, per the doc's own "later phases extend the
+recording with their signals" scope note. The bump is deliberate:
+`TuningLayer` also gained its owner tag, so v1 files are refused loudly
+rather than replayed wrongly.)*
+
 ## 6. `line/proximity` carries `zone`, not `tier` (pressure.md, events table)
 
 **The design says:** pressure.md's event table lists `line/proximity` with
@@ -141,3 +153,67 @@ global law; the event-local field renamed at integration (wave-1 merge).
 **Path back:** if the manager session prefers the envelope field renamed
 (e.g. `speedTier`), the proximity payload can reclaim `tier`; either way
 is one mechanical rename — no consumer decides anything on the name.
+
+## 7. Ignition starts one floor below the arena bottom (pressure.md, death line)
+
+**The design says:** "the line ignites at the bottom of the arena", and the
+constants table has no offset key.
+
+**What ships:** ignition places the line at `arenaBottomY +
+line.igniteOffsetPx` (128 — one floor below the arena bottom), and the key
+sits in the tuning table like every other line constant.
+
+**Why:** a line igniting exactly at the arena bottom is an instant catch on
+a player standing at the base — activation would be an ambush on the
+laziest possible frame, which pillar 2 forbids by name. The offset makes
+ignition an announced moment with a visible approach. This lived only in a
+code comment until the wave-1 review called it what it was: a deviation
+hidden from the audit.
+
+**Path back:** ratify by amending pressure.md's constants table with
+`line.igniteOffsetPx` (manager session — it reads like a genuine design
+improvement), or zero the key and accept the base-camper ambush.
+
+## 8. `movement/tick` is the production step pump (movement.md, taxonomy)
+
+**The design says:** the event table's `movement/tick` row reads "60Hz
+firehose, debug bridge only".
+
+**What ships:** ComboRelay pumps the combo engine's grace fuse
+(`engine.step`) and score's `comboUptime` accounting from `movement/tick` —
+a production-critical mechanism riding an event documented as debug-only. A
+future optimization that gates the firehose behind the bridge would
+silently kill grace banking.
+
+**Why it stands for now:** the alternative (a first-class per-tick callback
+into the relay from the world-step hook) would change the intra-tick
+ordering between the fuse step and PRESSURE's same-tick run signals — an
+ordering the review's behavioral harness verified as shipped. Reordering
+production semantics to fix a documentation label is the wrong trade
+without a manager ruling.
+
+**Path back:** amend movement.md's tick row to acknowledge the production
+pump (one line, like Amendment 1b), or rule for the first-class callback
+and re-verify the same-tick bank/void ordering.
+
+## 9. In-scene replay and recorder auto-resume are endless-sandbox-only (session-logs.md)
+
+**The design says:** the recorder is always on; the doc does not
+distinguish scene modes for the in-browser replay harness.
+
+**What ships:** two gates, ruled in the wave-1 fix session. (1) The bridge's
+`recorder.replay` and `verify.engineFacts` throw while a segment is active:
+the in-scene harness resets the player but cannot reset a live line's
+state, so a replay against mid-arena pressure would read as false
+divergence — and the resumed recording after it would teleport the player
+under an active line (an unearned catch, pillar 2's named failure) with a
+tick-0 state not reconstructible from its own header. Segment sessions
+replay headless (`npm run replay`), which now steps pressure fully.
+(2) `SessionLog.update()`'s always-on auto-resume, in segment mode,
+restarts the scene into a fresh segment instead of re-recording in place —
+every segment recording begins at scene create, where its header is true.
+
+**Path back:** if a future phase wants in-scene replay of segment sessions,
+the honest route is a scene-boot replay mode (restart into the recording's
+embedded segment, then arm the replay from tick 0) — the recording now
+carries everything that needs.
