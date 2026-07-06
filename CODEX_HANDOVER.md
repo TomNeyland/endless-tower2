@@ -31,15 +31,21 @@ NOT read `docs/research/` (v1 archaeology; old ideas are old).
   attack toolkit, land classifications); RETURN (save/feats/characters/
   museum/seeds); all with review→fix→gate cycles. Human feel verdict
   applied (JUMP_RETENTION 0.78, the plateau fix).
-- **IN FLIGHT (may have died mid-run)**:
-  1. *Difficulty curve + 100-floor segments* — branch `wave3x/difficulty`
-     per `docs/design/difficulty-curve.md` + issue #61. Pipeline: build in
-     worktree → merge to main → 2 reviews → fix → gate.
+- **IN FLIGHT / HANDED OFF (updated 2026-07-06 ~09:00)**:
+  1. *Difficulty curve + 100-floor segments* (`docs/design/difficulty-curve.md`
+     + issue #61): **deliberately handed to Codex at ZERO implementation.**
+     The prior builder was killed before its first commit; its empty branch
+     was deleted; no difficulty code exists anywhere. Whoever picks this up
+     implements the doc from scratch: engine-free curve model in core,
+     profiles in `src/core/map/presets.ts`, #61 knock-ons (floors 30→100,
+     line pacing ÷~3, per-floor economy pricing), the 500-segment sweep
+     harness, gates green, essay commits on a fresh branch, then merge.
   2. *Run-texture design review* — critics + cold-reader on
-     `docs/design/run-texture.md` (issues #62, #63). Output was going to
-     amend that doc BEFORE implementation. If the review results are lost,
-     re-run your own critique of the doc (or proceed with v1 + your own
-     adversarial read — the doc lists its own risks section to check).
+     `docs/design/run-texture.md` (issues #62, #63) were running in the
+     orchestrator's session. If their findings are lost, re-critique the
+     doc yourself (its own risks section lists where to press), amend, then
+     implement — AFTER the difficulty curve lands (it builds on the band
+     tables).
 - **REMAINING ROADMAP (in order)**:
   1. Land the difficulty curve (however far it got — see forensics).
   2. Amend + implement `run-texture.md` (necessity curve, traits/motifs,
