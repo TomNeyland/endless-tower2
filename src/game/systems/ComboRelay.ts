@@ -10,13 +10,9 @@
  * them. Until they fire, chains never void — strictly generous, safe
  * (combo-scoring.md's own contingency for the sandbox era).
  */
+import { ComboBus } from '../../core/combo/bus';
 import { ComboEngine } from '../../core/combo/engine';
-import {
-    ComboBus,
-    type ComboEvent,
-    RUN_SIGNAL_NAMES,
-    type RunSignal,
-} from '../../core/combo/types';
+import { type ComboEvent, RUN_SIGNAL_NAMES, type RunSignal } from '../../core/combo/types';
 import type { EventBus, MovementEvent } from '../../core/events';
 import { ScoreKeeper } from '../../core/score/score';
 import type { TuningStack } from '../../core/tuning';

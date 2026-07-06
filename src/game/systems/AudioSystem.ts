@@ -14,7 +14,8 @@
  * glory-music gate opens after GLORY_SUSTAIN at tier >= SOARING.
  */
 import type { Scene, Time } from 'phaser';
-import type { ComboBankedEvent, ComboBus, ComboTierEvent } from '../../core/combo/types';
+import type { ComboBus } from '../../core/combo/bus';
+import type { ComboBankedEvent, ComboTierEvent } from '../../core/combo/types';
 import type { EventBus, JumpEvent, WallBounceEvent } from '../../core/events';
 import type { TuningStack } from '../../core/tuning';
 import { Sfx } from '../assets';

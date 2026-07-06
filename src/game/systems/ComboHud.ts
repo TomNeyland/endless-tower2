@@ -4,15 +4,15 @@
  * (the xmult), and jeopardy (the draining fuse at every touchdown) must
  * read with zero numbers studied.
  *
- * Shoutout cards appear near the player, never center-screen; one at a
- * time; rise-and-fade 600ms. SPARK ignites the counter. Banks flash the
- * payout in their loudness class; a VOID shatters the counter visually
- * only — the sound of that moment belongs to the heart loss.
+ * SPARK ignites the counter. Banks flash the payout in their loudness
+ * class; a VOID shatters the counter visually only — the sound of that
+ * moment belongs to the heart loss. The world-space shoutout cards live in
+ * ComboCards.ts, constructed and owned here.
  */
 import type { GameObjects, Scene } from 'phaser';
+import type { ComboBus } from '../../core/combo/bus';
 import type {
     ComboBankedEvent,
-    ComboBus,
     ComboLinkEvent,
     ComboSpiceEvent,
     ComboStumbleEvent,
@@ -22,22 +22,16 @@ import type {
 import type { EventBus, TickEvent } from '../../core/events';
 import type { TuningStack } from '../../core/tuning';
 import { GAME_WIDTH } from '../main';
+import { ComboCards, tierColor } from './ComboCards';
 
 const HUD_DEPTH = 20;
-const CARD_DEPTH = 15;
 const FUSE_W = 220;
 const FUSE_H = 7;
-/** Warm ramp per tier — light is the theme; a god-run is a comet. */
-const TIER_COLORS = [
-    '#fff3c4',
-    '#ffe28a',
-    '#ffc95e',
-    '#ffb03a',
-    '#ff9526',
-    '#ff7b1c',
-    '#ff5e14',
-    '#ff3d0f',
-];
+
+/** Deterministic thousands grouping for the HUD faces. */
+function groupDigits(n: number): string {
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 
 export class ComboHud {
     private readonly scene: Scene;
@@ -51,7 +45,7 @@ export class ComboHud {
     private fuseBack!: GameObjects.Rectangle;
     private fuseFill!: GameObjects.Rectangle;
     private scoreText!: GameObjects.Text;
-    private card: GameObjects.Text | null = null;
+    private cards!: ComboCards;
 
     private chainActive = false;
     private ignited = false;
@@ -93,9 +87,7 @@ export class ComboHud {
             this.counter.setAlpha(1);
             this.multText.setAlpha(1);
         }
-        const color = TIER_COLORS[Math.min(e.tierIndex, TIER_COLORS.length - 1)];
-        this.counter.setColor(color);
-        this.showCard(e);
+        this.counter.setColor(tierColor(e.tierIndex));
     };
 
     private readonly onStumble = (e: ComboStumbleEvent): void => {
@@ -112,18 +104,13 @@ export class ComboHud {
         const whisper = e.payout < this.t.value('hud.bankWhisper');
         const roar = e.payout >= this.t.value('hud.bankVoice');
         const flash = this.scene.add
-            .text(
-                GAME_WIDTH / 2,
-                150,
-                `+${e.payout.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`,
-                {
-                    fontFamily: 'Arial Black',
-                    fontSize: whisper ? 16 : roar ? 34 : 24,
-                    color: whisper ? '#9fb4c8' : roar ? '#ffd24a' : '#ffffff',
-                    stroke: '#1a2733',
-                    strokeThickness: whisper ? 2 : 5,
-                },
-            )
+            .text(GAME_WIDTH / 2, 150, `+${groupDigits(e.payout)}`, {
+                fontFamily: 'Arial Black',
+                fontSize: whisper ? 16 : roar ? 34 : 24,
+                color: whisper ? '#9fb4c8' : roar ? '#ffd24a' : '#ffffff',
+                stroke: '#1a2733',
+                strokeThickness: whisper ? 2 : 5,
+            })
             .setOrigin(0.5)
             .setScrollFactor(0)
             .setDepth(HUD_DEPTH)
@@ -164,14 +151,10 @@ export class ComboHud {
 
     private readonly onReset = (): void => {
         this.clearChain();
-        this.card?.destroy();
-        this.card = null;
     };
 
     private readonly onScore = (e: ScoreUpdatedEvent): void => {
-        this.scoreText.setText(
-            `SCORE ${e.totalScore.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`,
-        );
+        this.scoreText.setText(`SCORE ${groupDigits(e.totalScore)}`);
     };
 
     /** The fuse drains against the absolute deadline, in ticks — the one
@@ -199,6 +182,7 @@ export class ComboHud {
         this.bus = bus;
         this.comboBus = comboBus;
         this.t = tuning;
+        this.cards = new ComboCards(scene, comboBus);
         this.build();
 
         comboBus.on('combo/started', this.onStarted);
@@ -269,37 +253,6 @@ export class ComboHud {
             .setDepth(HUD_DEPTH);
     }
 
-    /** One card at a time, near the player, rise-and-fade 600ms. */
-    private showCard(e: ComboTierEvent): void {
-        this.card?.destroy();
-        const face = e.repeatIndex > 0 ? `${e.tierName} ×${e.repeatIndex + 1}` : e.tierName;
-        const card = this.scene.add
-            .text(e.x, e.y - 90, face, {
-                fontFamily: 'Arial Black',
-                fontSize: 30,
-                color: TIER_COLORS[Math.min(e.tierIndex, TIER_COLORS.length - 1)],
-                stroke: '#241205',
-                strokeThickness: 6,
-            })
-            .setOrigin(0.5)
-            .setDepth(CARD_DEPTH);
-        this.card = card;
-        this.scene.tweens.add({
-            targets: card,
-            y: e.y - 136,
-            alpha: { from: 1, to: 0 },
-            scale: { from: 1.15, to: 1 },
-            duration: 600,
-            ease: 'Cubic.easeOut',
-            onComplete: () => {
-                card.destroy();
-                if (this.card === card) {
-                    this.card = null;
-                }
-            },
-        });
-    }
-
     private clearChain(): void {
         this.chainActive = false;
         this.counter.setVisible(false);
@@ -320,7 +273,7 @@ export class ComboHud {
         this.comboBus.off('combo/reset', this.onReset);
         this.comboBus.off('score/updated', this.onScore);
         this.bus.off('movement/tick', this.onTick);
-        this.card?.destroy();
+        this.cards.destroy();
         this.counter.destroy();
         this.multText.destroy();
         this.spiceText.destroy();

@@ -8,23 +8,18 @@
  * landing proves the climb. While airborne, nothing can break a chain —
  * air is sacred. The one window is grounded time: the visible fuse.
  *
+ * This file is grammar with ZERO point math (the economist's pre-approved
+ * seam): pricing lives in spice.ts, event minting in payout.ts.
+ *
  * Tripwires (must read 0 forever): comboAltDrift (grounded-belief
- * alternation drift vs movement's events), negativePayout (pricing
- * produced a negative integer), floorGridDrift (land.floorsGained !==
+ * alternation drift vs movement's events), negativePayout (pricing minted
+ * a negative integer), floorGridDrift (land.floorsGained !==
  * land.floorIndex - left_ground.floorIndex — graft #4's invariant).
  */
 import type { CeilingEvent, LandEvent, MovementEvent, WallBounceEvent } from '../events';
 import type { TuningStack } from '../tuning';
-import { highestCrossing, ladderFloors, tierName } from './ladder';
-import {
-    basePoints,
-    bounceProvisionalDelta,
-    confirmLink,
-    isComboPerfect,
-    ledgerProvisionalTotal,
-    payoutOf,
-    zeroTotals,
-} from './spice';
+import { applyLinkToChain, createChain, mintBanked, mintSpice, mintVoided } from './payout';
+import { isComboPerfect } from './spice';
 import {
     type BankReason,
     type ChainCore,
@@ -33,6 +28,7 @@ import {
     emptyLedger,
     type RunSignal,
     type SpiceLedger,
+    type VoidReason,
 } from './types';
 
 export interface ComboTripwires {
@@ -64,12 +60,7 @@ export class ComboEngine {
         this.t = tuning;
         // Spawn is airborne (envelope grounded: false); the first landing is
         // floor 0 — a fizzle that settles into IDLE_GROUND silently.
-        this.state = {
-            kind: 'IDLE_AIR',
-            ledger: emptyLedger(),
-            inert: false,
-            takeoffFloorIndex: 0,
-        };
+        this.state = this.idleAir(false, 0);
     }
 
     handle(event: MovementEvent | RunSignal): ComboEvent[] {
@@ -100,11 +91,8 @@ export class ComboEngine {
     step(tick: number): ComboEvent[] {
         if (this.state.kind === 'CHAIN_GROUND' && tick >= this.state.graceDeadlineTick) {
             const chain = this.state.chain;
-            const events = [
-                this.bankEvent(chain, 'grace', tick, chain.startFloorIndex + chain.chainFloors),
-            ];
             this.state = { kind: 'IDLE_GROUND' };
-            return events;
+            return [this.bank(chain, 'grace', tick, chain.startFloorIndex + chain.chainFloors)];
         }
         return [];
     }
@@ -135,14 +123,9 @@ export class ComboEngine {
         const events: ComboEvent[] = [];
         const chain = this.liveChain();
         if (chain) {
-            events.push(this.voidEvent(chain, 'reset', tick, 0));
+            events.push(this.void_(chain, 'reset', tick, 0));
         }
-        this.state = {
-            kind: 'IDLE_AIR',
-            ledger: emptyLedger(),
-            inert: false,
-            takeoffFloorIndex: floorIndex,
-        };
+        this.state = this.idleAir(false, floorIndex);
         this.pendingInert = false;
         this.nextChainId = 1;
         events.push({ type: 'combo/reset', tick, reason: 'spawn' });
@@ -167,12 +150,7 @@ export class ComboEngine {
             chain.ceilingPending = false;
             return [];
         }
-        this.state = {
-            kind: 'IDLE_AIR',
-            ledger: emptyLedger(),
-            inert: this.pendingInert,
-            takeoffFloorIndex: floorIndex,
-        };
+        this.state = this.idleAir(this.pendingInert, floorIndex);
         this.pendingInert = false;
         return [];
     }
@@ -195,13 +173,26 @@ export class ComboEngine {
                 this.state = { kind: 'IDLE_GROUND' };
                 return [];
             }
-            return this.openChain(e, this.state.ledger);
+            // Open a chain: the opener is link 0, confirmed same-tick.
+            const chain = createChain(this.nextChainId, e);
+            this.nextChainId += 1;
+            const started: ComboEvent = {
+                type: 'combo/started',
+                tick: e.tick,
+                chainId: chain.chainId,
+                startTick: chain.startTick,
+                startFloorIndex: chain.startFloorIndex,
+                entryFloorsGained: e.floorsGained,
+                chainFloors: e.floorsGained,
+                mult: 1,
+            };
+            return [started, ...this.link(chain, this.state.ledger, e)];
         }
 
         // CHAIN_AIR
         const { chain, ledger } = this.state;
         if (isLink) {
-            return this.applyLink(chain, ledger, e);
+            return this.link(chain, ledger, e);
         }
         if (chain.stumblesUsed < this.t.value('combo.stumblesAllowed')) {
             // A stumble charge absorbs the fizzle: no bank, chain preserved,
@@ -220,9 +211,8 @@ export class ComboEngine {
             ];
         }
         // Fizzle banks 100%: cashing out, disappointment without punishment.
-        const events = [this.bankEvent(chain, 'fizzle', e.tick, e.floorIndex)];
         this.state = { kind: 'IDLE_GROUND' };
-        return events;
+        return [this.bank(chain, 'fizzle', e.tick, e.floorIndex)];
     }
 
     private onBounce(e: WallBounceEvent): ComboEvent[] {
@@ -241,15 +231,13 @@ export class ComboEngine {
         }
         this.state.ledger.bounces.push({ perfect });
         return [
-            {
-                type: 'combo/spice',
-                tick: e.tick,
-                chainId: this.state.chain.chainId,
-                kind: perfect ? 'perfect' : 'bounce',
-                provisionalMultDelta: bounceProvisionalDelta(perfect, this.t),
-                provisionalMultTotal:
-                    this.state.chain.mult + ledgerProvisionalTotal(this.state.ledger, this.t),
-            },
+            mintSpice(
+                perfect ? 'perfect' : 'bounce',
+                e,
+                this.state.chain,
+                this.state.ledger,
+                this.t,
+            ),
         ];
     }
 
@@ -263,16 +251,7 @@ export class ComboEngine {
                 return []; // once per chain — oscillation refuses itself
             }
             ledger.ceiling = true;
-            return [
-                {
-                    type: 'combo/spice',
-                    tick: e.tick,
-                    chainId: chain.chainId,
-                    kind: 'ceiling',
-                    provisionalMultDelta: this.t.value('combo.multCeiling'),
-                    provisionalMultTotal: chain.mult + ledgerProvisionalTotal(ledger, this.t),
-                },
-            ];
+            return [mintSpice('ceiling', e, chain, ledger, this.t)];
         }
         if (this.state.kind === 'CHAIN_GROUND') {
             const chain = this.state.chain;
@@ -280,16 +259,7 @@ export class ComboEngine {
                 return [];
             }
             chain.ceilingPending = true; // escrowed into the next air's ledger
-            return [
-                {
-                    type: 'combo/spice',
-                    tick: e.tick,
-                    chainId: chain.chainId,
-                    kind: 'ceiling',
-                    provisionalMultDelta: this.t.value('combo.multCeiling'),
-                    provisionalMultTotal: chain.mult + this.t.value('combo.multCeiling'),
-                },
-            ];
+            return [mintSpice('ceiling', e, chain, null, this.t)];
         }
         return []; // ceiling outside a chain is movement's glory, not spice
     }
@@ -300,17 +270,12 @@ export class ComboEngine {
         const events: ComboEvent[] = [];
         const chain = this.liveChain();
         if (chain) {
-            const refundFraction = this.t.value('combo.voidRefundFraction');
-            events.push(this.voidEvent(chain, 'heart_lost', tick, refundFraction));
+            events.push(
+                this.void_(chain, 'heart_lost', tick, this.t.value('combo.voidRefundFraction')),
+            );
         }
         if (this.state.kind === 'CHAIN_AIR' || this.state.kind === 'IDLE_AIR') {
-            const takeoffFloorIndex = this.state.takeoffFloorIndex;
-            this.state = {
-                kind: 'IDLE_AIR',
-                ledger: emptyLedger(),
-                inert: true,
-                takeoffFloorIndex,
-            };
+            this.state = this.idleAir(true, this.state.takeoffFloorIndex);
         } else {
             this.state = { kind: 'IDLE_GROUND' };
             this.pendingInert = true;
@@ -324,174 +289,47 @@ export class ComboEngine {
             return [];
         }
         // Unconfirmed air spice evaporates: only a landing proves a climb.
-        const events = [
-            this.bankEvent(chain, reason, tick, chain.startFloorIndex + chain.chainFloors),
-        ];
-        if (this.state.kind === 'CHAIN_AIR') {
-            const takeoffFloorIndex = this.state.takeoffFloorIndex;
-            this.state = {
-                kind: 'IDLE_AIR',
-                ledger: emptyLedger(),
-                inert: false,
-                takeoffFloorIndex,
-            };
-        } else {
-            this.state = { kind: 'IDLE_GROUND' };
-        }
-        return events;
+        const airborne = this.state.kind === 'CHAIN_AIR';
+        const takeoffFloorIndex = airborne
+            ? (this.state as Extract<ChainState, { kind: 'CHAIN_AIR' }>).takeoffFloorIndex
+            : 0;
+        this.state = airborne ? this.idleAir(false, takeoffFloorIndex) : { kind: 'IDLE_GROUND' };
+        return [this.bank(chain, reason, tick, chain.startFloorIndex + chain.chainFloors)];
     }
 
     // -----------------------------------------------------------------------
-    // Chain construction and confirmation
+    // Minting delegates (payout.ts prices; the engine only counts tripwires)
     // -----------------------------------------------------------------------
 
-    private openChain(e: LandEvent, ledger: SpiceLedger): ComboEvent[] {
-        const chain: ChainCore = {
-            chainId: this.nextChainId,
-            startTick: e.tick,
-            startFloorIndex: e.floorIndex - e.floorsGained,
-            entryFloorsGained: e.floorsGained,
-            chainFloors: 0,
-            links: 0,
-            mult: 1,
-            leapStreak: 0,
-            ceilingUsed: false,
-            ceilingPending: false,
-            tierReached: -1,
-            beyondRepeats: 0,
-            stumblesUsed: 0,
-            spiceTotals: zeroTotals(),
-        };
-        this.nextChainId += 1;
-        const started: ComboEvent = {
-            type: 'combo/started',
-            tick: e.tick,
-            chainId: chain.chainId,
-            startTick: chain.startTick,
-            startFloorIndex: chain.startFloorIndex,
-            entryFloorsGained: e.floorsGained,
-            chainFloors: e.floorsGained,
-            mult: 1,
-        };
-        return [started, ...this.applyLink(chain, ledger, e)];
-    }
-
-    /** Confirm a link: spice with caps, floors, tier crossings, fuse restart. */
-    private applyLink(chain: ChainCore, ledger: SpiceLedger, e: LandEvent): ComboEvent[] {
-        const spice = confirmLink(chain, ledger, e.floorsGained, e.tier, this.t);
-        const linkIndex = chain.links;
-        const prevFloors = chain.chainFloors;
-        chain.links += 1;
-        chain.chainFloors += e.floorsGained;
-        chain.mult += spice.multDelta;
-        chain.leapStreak = spice.leapStreak;
-        if (spice.ceiling) {
-            chain.ceilingUsed = true;
-        }
-        chain.spiceTotals.bounces += spice.bounces;
-        chain.spiceTotals.perfects += spice.perfects;
-        chain.spiceTotals.leaps += spice.leap ? 1 : 0;
-        chain.spiceTotals.hotLandings += spice.hotLanding ? 1 : 0;
-        chain.spiceTotals.ceiling ||= spice.ceiling;
-        chain.spiceTotals.multFromSpice += spice.multDelta;
-
-        const graceDeadlineTick = e.tick + this.t.value('combo.groundGraceTicks');
+    private link(chain: ChainCore, ledger: SpiceLedger, e: LandEvent): ComboEvent[] {
+        const { events, graceDeadlineTick } = applyLinkToChain(chain, ledger, e, this.t);
         this.state = { kind: 'CHAIN_GROUND', chain, graceDeadlineTick };
-
-        const events: ComboEvent[] = [
-            {
-                type: 'combo/link',
-                tick: e.tick,
-                chainId: chain.chainId,
-                linkIndex,
-                floorsGained: e.floorsGained,
-                chainFloors: chain.chainFloors,
-                mult: chain.mult,
-                multDelta: spice.multDelta,
-                spiceConfirmed: spice,
-                graceDeadlineTick,
-                provisionalPayout: payoutOf(basePoints(chain.chainFloors, this.t), chain.mult),
-                x: e.x,
-                y: e.y,
-            },
-        ];
-
-        const crossing = highestCrossing(prevFloors, chain.chainFloors, this.t);
-        if (crossing) {
-            chain.tierReached = Math.max(chain.tierReached, crossing.tierIndex);
-            chain.beyondRepeats = Math.max(chain.beyondRepeats, crossing.repeatIndex);
-            events.push({
-                type: 'combo/tier',
-                tick: e.tick,
-                chainId: chain.chainId,
-                tierIndex: crossing.tierIndex,
-                tierName: crossing.tierName,
-                isRepeat: crossing.isRepeat,
-                repeatIndex: crossing.repeatIndex,
-                chainFloors: chain.chainFloors,
-                thresholds: ladderFloors(this.t),
-                x: e.x,
-                y: e.y,
-            });
-        }
         return events;
     }
 
-    // -----------------------------------------------------------------------
-    // Pricing exits (the only places payout integers are minted)
-    // -----------------------------------------------------------------------
-
-    private bankEvent(
-        chain: ChainCore,
-        reason: BankReason,
-        tick: number,
-        endFloorIndex: number,
-    ): ComboEvent {
-        const base = basePoints(chain.chainFloors, this.t);
-        const payout = payoutOf(base, chain.mult);
-        if (payout < 0) {
+    private bank(chain: ChainCore, reason: BankReason, tick: number, endFloor: number): ComboEvent {
+        const event = mintBanked(chain, reason, tick, endFloor, this.t);
+        if (event.payout < 0) {
             this.counters.negativePayout += 1;
         }
-        return {
-            type: 'combo/banked',
-            tick,
-            chainId: chain.chainId,
-            reason,
-            chainFloors: chain.chainFloors,
-            links: chain.links,
-            mult: chain.mult,
-            basePoints: base,
-            payout,
-            tierReached: chain.tierReached,
-            tierReachedName: chain.tierReached >= 0 ? tierName(chain.tierReached) : null,
-            spiceTotals: { ...chain.spiceTotals },
-            startFloorIndex: chain.startFloorIndex,
-            endFloorIndex,
-            startTick: chain.startTick,
-            endTick: tick,
-        };
+        return event;
     }
 
-    private voidEvent(
+    private void_(
         chain: ChainCore,
-        reason: 'heart_lost' | 'reset',
+        reason: VoidReason,
         tick: number,
         refundFraction: number,
     ): ComboEvent {
-        const unpaid = payoutOf(basePoints(chain.chainFloors, this.t), chain.mult);
-        if (unpaid < 0) {
+        const event = mintVoided(chain, reason, tick, refundFraction, this.t);
+        if (event.unpaidPayout < 0) {
             this.counters.negativePayout += 1;
         }
-        return {
-            type: 'combo/voided',
-            tick,
-            chainId: chain.chainId,
-            reason,
-            chainFloorsLost: chain.chainFloors,
-            multLost: chain.mult,
-            unpaidPayout: unpaid,
-            refundPaid: Math.round(unpaid * refundFraction),
-        };
+        return event;
+    }
+
+    private idleAir(inert: boolean, takeoffFloorIndex: number): ChainState {
+        return { kind: 'IDLE_AIR', ledger: emptyLedger(), inert, takeoffFloorIndex };
     }
 
     private liveChain(): ChainCore | null {

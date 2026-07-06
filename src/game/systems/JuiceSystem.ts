@@ -12,7 +12,8 @@
  * SUPERNOVA spends the one full-frame warm pulse (the milestone allowance).
  */
 import type { Cameras, GameObjects, Scene } from 'phaser';
-import type { ComboBankedEvent, ComboBus, ComboTierEvent } from '../../core/combo/types';
+import type { ComboBus } from '../../core/combo/bus';
+import type { ComboBankedEvent, ComboTierEvent } from '../../core/combo/types';
 import type { EventBus, LandEvent } from '../../core/events';
 import type { TuningStack } from '../../core/tuning';
 import { Gen } from '../assets';
