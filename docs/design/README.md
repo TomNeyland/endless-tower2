@@ -17,3 +17,4 @@ reviewers critique, they do not ghostwrite. Read `ETHOS.md` and
 | `art-direction.md` | cross-cutting — palettes, parallax, particles, filters, per-act moods | **v1 authored** |
 | `audio.md` | cross-cutting — SFX identity, music, mixing | **v1 authored** |
 | `playthrough-trace.md` | Epic 0 capstone — a full run walked through every doc; 7 findings, all resolved | **authored** |
+| `session-logs.md` | cross-cutting — flight recorder, markers, export, headless replay analysis | **v1 authored** |
