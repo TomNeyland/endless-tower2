@@ -67,13 +67,9 @@ export function validateIdentityTuning(t: Record<string, number>): void {
     if (v('powerup.everyFloors') < 1) {
         fail('powerup.everyFloors', v('powerup.everyFloors'), 'powerup spam per floor');
     }
-    // hearts.max lives in the movement/pressure table, but IDENTITY is the
-    // wave that made it relic substrate (Thick Skin stacks an add layer on
-    // it), so IDENTITY's validator holds the floor pre-registered in
-    // playthrough-trace.md finding 7: a degenerate layer must fail loud at
-    // push time, not surface later as gainHeart never granting.
-    const heartsMax = t['hearts.max'];
-    if (heartsMax < 1) {
-        fail('hearts.max', heartsMax, 'a build can never stack hearts.max below 1');
-    }
+    // hearts.max's finding-7 floor (playthrough-trace.md) lived here when
+    // IDENTITY was the only wave stacking layers on it; RETURN moved the
+    // rule to its natural table — validatePressureTuning (pressure/tuning.ts)
+    // now holds the floor, called by the same pushLayer validation chain.
+    // One rule, one authority: no duplicate check here.
 }

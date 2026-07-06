@@ -8,7 +8,7 @@
 import { BlendModes, type GameObjects, type Scene } from 'phaser';
 import type { ActGraph, NodeSpec, NodeType } from '../../core/map/types';
 import { fork } from '../../core/rng';
-import { Atlas, CharFrame, Gen, MapIconFrame } from '../assets';
+import { Atlas, CharFrame, type CharacterFrameSet, Gen, MapIconFrame } from '../assets';
 import { GAME_HEIGHT, GAME_WIDTH } from '../main';
 import type { ActPalette } from './palettes';
 
@@ -59,7 +59,13 @@ export class TowerExteriorView {
     private currentId: string | null = null;
     private pulsePhase = 0;
 
-    constructor(scene: Scene, graph: ActGraph, palette: ActPalette, seedForSkin: string) {
+    constructor(
+        scene: Scene,
+        graph: ActGraph,
+        palette: ActPalette,
+        seedForSkin: string,
+        charFrames: CharacterFrameSet = CharFrame,
+    ) {
         this.scene = scene;
         this.palette = palette;
 
@@ -75,7 +81,7 @@ export class TowerExteriorView {
         this.drawEdges(graph);
 
         this.marker = scene.add
-            .image(GAME_WIDTH / 2, TOWER_BOTTOM_Y - 24, Atlas.characters, CharFrame.front)
+            .image(GAME_WIDTH / 2, TOWER_BOTTOM_Y - 24, Atlas.characters, charFrames.front)
             .setScale(0.34)
             .setDepth(8);
     }

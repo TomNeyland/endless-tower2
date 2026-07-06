@@ -16,6 +16,7 @@
  * one firing here is a wiring bug, never a shrug.
  */
 import type { RelicSource } from '../events';
+import { applyCharacterLayers, characterById } from '../meta/characters';
 import { applyOwnedRelicLayers, applyRelicLayers } from '../relics/effects';
 import { relicById } from '../relics/roster';
 import { RelicEffectsRuntime } from '../relics/runtime';
@@ -28,11 +29,12 @@ export class RunHost {
     readonly run: RunState;
     private readonly runtime: RelicEffectsRuntime;
 
-    /** A fresh run on a shareable seed string. */
-    static begin(seed: string, sink: RunEmit): RunHost {
+    /** A fresh run on a shareable seed string, as a character (RETURN). */
+    static begin(seed: string, sink: RunEmit, characterId = 'beige'): RunHost {
         return new RunHost(
-            (tuning, clock, emit) => new RunState({ seed }, tuning, clock, emit),
+            (tuning, clock, emit) => new RunState({ seed, characterId }, tuning, clock, emit),
             sink,
+            characterId,
         );
     }
 
@@ -41,14 +43,20 @@ export class RunHost {
         return new RunHost(
             (tuning, clock, emit) => RunState.restore(snap, tuning, clock, emit),
             sink,
+            snap.characterId,
         );
     }
 
     private constructor(
         make: (tuning: TuningStack, clock: () => number, emit: RunEmit) => RunState,
         sink: RunEmit,
+        characterId: string,
     ) {
         this.tuning = new TuningStack();
+        // The character's permanent layers apply BEFORE the RunState exists:
+        // a fresh Purple run must clamp its starting hearts against the
+        // trait-resolved maximum, not the baseline's.
+        applyCharacterLayers(characterById(characterId), this.tuning, 0);
         const emit: RunEmit = (event) => {
             sink(event);
             this.runtime.handleGame(event);

@@ -7,7 +7,7 @@
 import type { GameObjects, Scene, Tweens } from 'phaser';
 import type { EventBus, JumpEvent, LandEvent, WallBounceEvent } from '../../core/events';
 import type { TuningStack } from '../../core/tuning';
-import { Atlas, CharFrame, Gen } from '../assets';
+import { Atlas, CharFrame, type CharacterFrameSet, Gen } from '../assets';
 import type { PlayerSystem } from '../player/PlayerSystem';
 
 const CHAR_FRAME_PX = 128;
@@ -18,6 +18,8 @@ export class PlayerAnimator {
     private readonly player: PlayerSystem;
     private readonly bus: EventBus;
     private readonly t: TuningStack;
+    /** The run character's frame set (RETURN); Beige is the baseline. */
+    private readonly frames: CharacterFrameSet;
 
     private sprite: GameObjects.Sprite;
     private dust: GameObjects.Particles.ParticleEmitter;
@@ -80,15 +82,22 @@ export class PlayerAnimator {
         this.duckUntil = 0;
     };
 
-    constructor(scene: Scene, player: PlayerSystem, bus: EventBus, tuning: TuningStack) {
+    constructor(
+        scene: Scene,
+        player: PlayerSystem,
+        bus: EventBus,
+        tuning: TuningStack,
+        frames: CharacterFrameSet = CharFrame,
+    ) {
         this.scene = scene;
         this.player = player;
         this.bus = bus;
         this.t = tuning;
+        this.frames = frames;
 
         const k = player.kinematics();
         this.sprite = scene.add
-            .sprite(k.x, k.y, Atlas.characters, CharFrame.idle)
+            .sprite(k.x, k.y, Atlas.characters, frames.idle)
             .setOrigin(0.5, 0.5)
             .setDepth(10);
 
@@ -148,18 +157,18 @@ export class PlayerAnimator {
 
         // Frame selection
         if (now < this.duckUntil) {
-            this.sprite.setFrame(CharFrame.duck);
+            this.sprite.setFrame(this.frames.duck);
         } else if (!k.grounded) {
-            this.sprite.setFrame(CharFrame.jump);
+            this.sprite.setFrame(this.frames.jump);
         } else if (speed >= 50) {
             const interval = Math.max(70, 220 - speed * 0.12);
             if (now >= this.walkToggleAt) {
                 this.walkFrameA = !this.walkFrameA;
                 this.walkToggleAt = now + interval;
             }
-            this.sprite.setFrame(this.walkFrameA ? CharFrame.walkA : CharFrame.walkB);
+            this.sprite.setFrame(this.walkFrameA ? this.frames.walkA : this.frames.walkB);
         } else {
-            this.sprite.setFrame(CharFrame.idle);
+            this.sprite.setFrame(this.frames.idle);
         }
 
         // Run dust: speed made visible on the ground.

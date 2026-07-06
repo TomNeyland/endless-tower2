@@ -34,13 +34,19 @@ import type { MovementEvent, RelicSource } from '../events';
 import type { RelicDef } from '../relics/types';
 import type { TuningStack } from '../tuning';
 
-export const RUN_SCHEMA_VERSION = 1;
+/** v2 (RETURN): the snapshot learned its character — same seed + same
+ *  character = same run offer, so the character is run truth, not scenery. */
+export const RUN_SCHEMA_VERSION = 2;
 
 /** The serializable face — plain data, JSON round-trippable. */
 export interface RunSnapshot {
     version: number;
     /** The shareable run seed — every stream forks from it by label. */
     seed: string;
+    /** The character this run is played as (RETURN); default 'beige'. The
+     *  character's tuning layers are re-applied by whoever restores the
+     *  snapshot, exactly like relic layers. */
+    characterId: string;
     /** 1-based act index. */
     actIndex: number;
     /** Current committed node; null before the act's first commit. */
@@ -75,6 +81,10 @@ export interface RunInit {
      * carry the full RunSnapshot instead and never pass it.
      */
     heartsCarried?: number | null;
+    /** The run's character (RETURN); absent = the Beige baseline. The
+     *  CALLER pushes the character's layers (before construction, so a
+     *  trait like Purple's hearts.max −1 shapes the starting clamp). */
+    characterId?: string;
 }
 
 export class RunState {
@@ -83,6 +93,7 @@ export class RunState {
     private readonly clock: () => number;
 
     private readonly seed: string;
+    private readonly _characterId: string;
     private actIndex = 1;
     private _nodeId: string | null = null;
     private path: string[] = [];
@@ -101,6 +112,7 @@ export class RunState {
         this.emit = emit;
         this.clock = clock;
         this.seed = init.seed;
+        this._characterId = init.characterId ?? 'beige';
         const max = tuning.value('hearts.max');
         const carried = init.heartsCarried ?? null;
         this._hearts =
@@ -124,7 +136,12 @@ export class RunState {
                 `run: snapshot schema ${snap.version} != supported ${RUN_SCHEMA_VERSION}`,
             );
         }
-        const run = new RunState({ seed: snap.seed }, tuning, clock, emit);
+        const run = new RunState(
+            { seed: snap.seed, characterId: snap.characterId },
+            tuning,
+            clock,
+            emit,
+        );
         run.actIndex = snap.actIndex;
         run._nodeId = snap.nodeId;
         run.path = [...snap.path];
@@ -144,6 +161,7 @@ export class RunState {
         return {
             version: RUN_SCHEMA_VERSION,
             seed: this.seed,
+            characterId: this._characterId,
             actIndex: this.actIndex,
             nodeId: this._nodeId,
             path: [...this.path],
@@ -163,6 +181,10 @@ export class RunState {
 
     get runSeed(): string {
         return this.seed;
+    }
+
+    get characterId(): string {
+        return this._characterId;
     }
 
     get act(): number {

@@ -1,8 +1,11 @@
 import { AUTO, Game, Scale, type Types } from 'phaser';
 import { Boot } from './scenes/Boot';
+import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { MainMenu } from './scenes/MainMenu';
 import { MapScene } from './scenes/MapScene';
+import { MuseumScene } from './scenes/MuseumScene';
 import { Preloader } from './scenes/Preloader';
+import { ResultsScene } from './scenes/ResultsScene';
 import { Sandbox } from './scenes/Sandbox';
 import { ShopScene } from './scenes/ShopScene';
 
@@ -31,7 +34,17 @@ const config: Types.Core.GameConfig = {
             fps: 60,
         },
     },
-    scene: [Boot, Preloader, MainMenu, MapScene, Sandbox, ShopScene],
+    scene: [
+        Boot,
+        Preloader,
+        MainMenu,
+        CharacterSelectScene,
+        MapScene,
+        Sandbox,
+        ShopScene,
+        ResultsScene,
+        MuseumScene,
+    ],
 };
 
 const StartGame = (parent: string) => {

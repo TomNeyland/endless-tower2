@@ -12,19 +12,27 @@
  * order: base -> relics (acquisition order) -> segment modifiers ->
  * powerups -> boss layers. Without ownership, a segment pop could eat a
  * relic; without the canonical order, push timing would reprice a build.
- * An owner outside the four classes throws — a mistagged layer fails loud
+ * An owner outside the known classes throws — a mistagged layer fails loud
  * at push time, never folds in a surprising place.
+ *
+ * RETURN extension (docs/design/meta-progression.md): a fifth class,
+ * `character:<id>` — the five characters are permanent personal tuning
+ * layers. Character layers fold in the base band, WITH the run-persistent
+ * relic band and before every transient band: base -> character -> relics
+ * (acquisition order) -> segment modifiers -> powerups -> boss layers. The
+ * character is the physique the build is assembled onto.
  */
 import { validateComboTuning } from './combo/tuning';
 import { validateIdentityTuning } from './economy/tuning';
 import { validateExamTuning } from './exam/tuning';
+import { validatePressureTuning } from './pressure/tuning';
 import { DEFAULT_TUNING, type TuningKey, type TuningTable } from './tuning-table';
 
 export { DEFAULT_TUNING } from './tuning-table';
 export type { TuningKey, TuningTable } from './tuning-table';
 
 /** Canonical fold rank per owner class (base is implicit rank 0). */
-const OWNER_CLASS_RANK = { relic: 1, segment: 2, powerup: 3, boss: 4 } as const;
+const OWNER_CLASS_RANK = { character: 1, relic: 2, segment: 3, powerup: 4, boss: 5 } as const;
 export type TuningOwnerClass = keyof typeof OWNER_CLASS_RANK;
 
 function ownerRank(owner: string): number {
@@ -32,7 +40,7 @@ function ownerRank(owner: string): number {
     const rank = OWNER_CLASS_RANK[cls];
     if (rank === undefined) {
         throw new Error(
-            `tuning: layer owner "${owner}" is not relic:/segment:/powerup:/boss: ` +
+            `tuning: layer owner "${owner}" is not character:/relic:/segment:/powerup:/boss: ` +
                 '(playthrough-trace.md finding 6 — the owner-tag contract)',
         );
     }
@@ -45,8 +53,9 @@ export interface TuningLayer {
     /** Unique handle so a single layer can be removed surgically. */
     id: string;
     /**
-     * Owning system: `relic:<id>` / `segment:<nodeId>` / `powerup:<id>` /
-     * `boss:<attackId>`. Drives the canonical fold order and pop-by-owner.
+     * Owning system: `character:<id>` / `relic:<id>` / `segment:<nodeId>` /
+     * `powerup:<id>` / `boss:<attackId>`. Drives the canonical fold order
+     * and pop-by-owner.
      */
     owner: string;
     key: TuningKey;
@@ -143,6 +152,7 @@ export class TuningStack {
             validateComboTuning(resolved);
             validateIdentityTuning(resolved);
             validateExamTuning(resolved);
+            validatePressureTuning(resolved);
         } catch (error) {
             this.layers.pop();
             this.dirty = true;
