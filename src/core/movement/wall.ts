@@ -74,7 +74,9 @@ export function wallPhase(ctx: StepCtx): void {
     ctx.vx = -ctx.vx * efficiency;
 
     // Perfect-timing detection (zero physics effect): ticks since the most
-    // recent input edge toward the wall — the kick. See WallBounceEvent docs.
+    // recent input edge toward the wall — the kick. Post-impact presses are
+    // structurally unobservable at impact-tick emission; see WallBounceEvent
+    // docs and docs/DEVIATIONS.md entry 1.
     const edgeTick = state.lastAxisEdgeTick[contact.towardDir === -1 ? 0 : 1];
     const lead = edgeTick <= -10000 ? INPUT_LEAD_NEVER : state.tick - edgeTick;
     const perfect = lead <= t.value('WALL_PERFECT_WINDOW_TICKS');

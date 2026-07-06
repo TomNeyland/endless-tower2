@@ -84,7 +84,8 @@ export interface WallBounceEvent extends EventEnvelope {
      * immediate (audio/juice need the impact tick), so post-impact presses
      * are not observable here; INPUT_LEAD_NEVER means no recent kick press.
      * Signed by contract so a future consumer may re-window without a
-     * schema change.
+     * schema change. Known divergence from movement.md's ±window — see
+     * docs/DEVIATIONS.md entry 1.
      */
     inputLeadTicks: number;
     perfect: boolean;

@@ -94,12 +94,17 @@ function executeJump(ctx: StepCtx, wasBuffered: boolean, wasCoyote: boolean): vo
         wasCoyote,
         takeoffPlatformId: state.takeoffPlatformId,
     });
-    emit({
-        type: 'movement/left_ground',
-        ...envelopeOf(ctx),
-        reason: 'jump',
-        takeoffSpeed: state.takeoffSpeed,
-    });
+    if (!wasCoyote) {
+        // left_ground is the grounded->air transition. A coyote jump is
+        // already airborne — its transition was the walk-off, which emitted
+        // left_ground (reason 'walkoff'). One air episode, one left_ground.
+        emit({
+            type: 'movement/left_ground',
+            ...envelopeOf(ctx),
+            reason: 'jump',
+            takeoffSpeed: state.takeoffSpeed,
+        });
+    }
 }
 
 /**

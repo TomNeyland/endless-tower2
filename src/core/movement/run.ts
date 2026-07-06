@@ -66,8 +66,15 @@ export function runPhase(ctx: StepCtx): void {
             ctx.vx += axis * accel * dt;
         }
     } else if (axis !== 0) {
-        // Air is spent, not earned; AIR_DRAG 0 — airborne momentum is sacred.
+        // Air is spent, not earned.
         ctx.vx += axis * t.value('AIR_ACCEL') * dt;
+    } else {
+        // AIR_DRAG ships 0 — airborne momentum is sacred — but the knob is
+        // live: a sticky-air modifier raises it as data, mirroring GROUND_DRAG.
+        const drop = t.value('AIR_DRAG') * dt;
+        if (drop > 0) {
+            ctx.vx = Math.abs(ctx.vx) <= drop ? 0 : ctx.vx - Math.sign(ctx.vx) * drop;
+        }
     }
 
     // Manual ceiling clamp — body.maxVelocity is never a gameplay clamp.

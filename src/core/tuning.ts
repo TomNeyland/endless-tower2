@@ -78,7 +78,7 @@ export const DEFAULT_TUNING = {
     WIND_FRAC: 0.71, // of the effective ceiling
     AFTERIMAGE_FRAC: 0.86, // the master's crown
     SHAKE_MIN_IMPACT: 1100, // px/s: the ONE shake trigger
-    MASTER_VOLUME: 0.8, // audio ships audible
+    MASTER_VOLUME: 0.7, // audio ships audible — the level is audio.md's ruling, one authority
 
     // --- Player presentation ---
     PLAYER_SCALE: 0.5, // one tile tall; the physics body never reads this

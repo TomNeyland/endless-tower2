@@ -14,6 +14,7 @@ import {
     type MovementEnv,
     type MovementState,
     msToTicks,
+    PLAYER_BODY,
     type StepCtx,
     type StepIo,
 } from './state';
@@ -194,7 +195,8 @@ export function emitSpawn(
         type: 'movement/spawn',
         tick: state.tick,
         x,
-        y: feetY,
+        // Envelope y is the body center on every event — spawn included.
+        y: feetY - PLAYER_BODY.height / 2,
         vx: 0,
         vy: 0,
         speed: 0,

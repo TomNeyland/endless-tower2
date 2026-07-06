@@ -65,12 +65,10 @@ export class PlayerAnimator {
         }
     };
 
-    private readonly onWallBounce = (e: WallBounceEvent): void => {
+    // Wall squash only — movement.md's juice list prices squash for walls;
+    // dust is priced for landings and runs, not bounces. Restraint doctrine.
+    private readonly onWallBounce = (_e: WallBounceEvent): void => {
         this.applySquash(0.7, 1.15, 70);
-        const juice = this.t.value('JUICE_SCALE');
-        if (juice > 0 && e.impactSpeedX >= this.t.value('WALL_MIN_BOUNCE_SPEED')) {
-            this.dust.explode(3, e.x, e.y - 20);
-        }
     };
 
     private readonly onSpawn = (): void => {
