@@ -1,23 +1,26 @@
 /**
  * Per-tick input recorder and replay driver. Determinism is sacred: a
- * recording captures the seed, the base tuning table, every InputFrame, and
- * every live tuning mutation — replaying it must reproduce identical per-tick
- * positions, and the report says exactly where it didn't.
+ * recording captures the seed, the full tuning state at start (base table +
+ * layer stack), every InputFrame, and every live tuning change — base
+ * mutations AND layer ops, THE relic/modifier substrate — replaying it must
+ * reproduce identical per-tick positions, and the report says exactly where
+ * it didn't.
  */
 import type { InputFrame } from '../movement/state';
-import type { TuningKey, TuningTable } from '../tuning';
+import type { TuningChange, TuningLayer, TuningTable } from '../tuning';
 
 export interface TuningMutationRecord {
-    /** Frame index the mutation precedes — applied before that frame replays. */
-    tick: number;
-    key: TuningKey;
-    value: number;
+    /** Frame index the change precedes — applied before that frame replays. */
+    frameIndex: number;
+    change: TuningChange;
 }
 
 export interface Recording {
     schemaVersion: number;
     seed: number;
     baseTuning: TuningTable;
+    /** Layer stack active when the recording started. */
+    baseLayers: TuningLayer[];
     frames: InputFrame[];
     mutations: TuningMutationRecord[];
     /**
@@ -46,16 +49,23 @@ export class InputRecorder {
     private positions: number[] = [];
     private seed = 0;
     private baseTuning: TuningTable | null = null;
+    private baseLayers: TuningLayer[] = [];
 
     private replaySource: Recording | null = null;
     private replayIndex = 0;
     private replayPositions: number[] = [];
     private schemaVersion = 1;
 
-    startRecording(seed: number, baseTuning: TuningTable, schemaVersion: number): void {
+    startRecording(
+        seed: number,
+        baseTuning: TuningTable,
+        baseLayers: TuningLayer[],
+        schemaVersion: number,
+    ): void {
         this.mode = 'recording';
         this.seed = seed;
         this.baseTuning = baseTuning;
+        this.baseLayers = baseLayers;
         this.schemaVersion = schemaVersion;
         this.frames = [];
         this.mutations = [];
@@ -67,9 +77,9 @@ export class InputRecorder {
         this.positions.push(x, y);
     }
 
-    recordMutation(key: TuningKey, value: number): void {
+    recordChange(change: TuningChange): void {
         if (this.mode === 'recording') {
-            this.mutations.push({ tick: this.frames.length, key, value });
+            this.mutations.push({ frameIndex: this.frames.length, change });
         }
     }
 
@@ -82,6 +92,7 @@ export class InputRecorder {
             schemaVersion: this.schemaVersion,
             seed: this.seed,
             baseTuning: this.baseTuning,
+            baseLayers: this.baseLayers,
             frames: this.frames,
             mutations: this.mutations,
             positions: this.positions,
@@ -104,8 +115,8 @@ export class InputRecorder {
     }
 
     /**
-     * Next frame of the replay, plus any tuning mutations stamped for this
-     * tick offset. Returns null when the replay is exhausted.
+     * Next frame of the replay, plus any tuning changes stamped for this
+     * frame index. Returns null when the replay is exhausted.
      */
     nextReplayFrame(): { frame: InputFrame; mutations: TuningMutationRecord[] } | null {
         const src = this.replaySource;
@@ -116,7 +127,7 @@ export class InputRecorder {
         this.replayIndex += 1;
         return {
             frame: src.frames[index],
-            mutations: src.mutations.filter((m) => m.tick === index),
+            mutations: src.mutations.filter((m) => m.frameIndex === index),
         };
     }
 

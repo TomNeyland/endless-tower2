@@ -101,7 +101,7 @@ export class DebugBridge {
             tuning: {
                 get: (key?: TuningKey) => (key ? tuning.value(key) : tuning.snapshot()),
                 set: (key: TuningKey, value: number) => {
-                    tuning.setBase(key, value, player.currentTick);
+                    tuning.setBase(key, value);
                 },
                 defaults: () => ({ ...DEFAULT_TUNING }),
                 layers: () => tuning.layerList(),

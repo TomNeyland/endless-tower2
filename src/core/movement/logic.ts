@@ -32,23 +32,20 @@ interface StepCtxWithIo extends StepCtx {
 
 function landingPhase(ctx: StepCtxWithIo): void {
     const { state, input, emit } = ctx;
-    const { contact } = ctx.io;
 
-    let grounded = contact.grounded;
-    if (grounded && state.lockoutTicksLeft > 0) {
+    // Per-step collider evidence — grounded exactly when a one-way
+    // separation held the body on a platform top this step.
+    let landing = ctx.io.contact.landing;
+    if (landing !== null && state.lockoutTicksLeft > 0) {
         // Engineering guard against separation jitter. This firing means the
         // input path is broken — diagnose loudly, never widen the window.
-        grounded = false;
+        landing = null;
         state.lockoutBlocked += 1;
     }
 
-    if (!state.grounded && grounded) {
-        if (contact.landedPlatformId === null) {
-            throw new Error('movement: grounded without a landing report — contact path broken');
-        }
+    if (!state.grounded && landing !== null) {
         state.grounded = true;
-        state.groundedPlatformId = contact.landedPlatformId;
-        const impactVy = contact.impactVy ?? 0;
+        state.groundedPlatformId = landing.platformId;
         // Exact floors gained: feet are separated onto the platform top by
         // the time core sees the contact, so derive from feet directly.
         const landFloor = Math.floor(
@@ -57,10 +54,10 @@ function landingPhase(ctx: StepCtxWithIo): void {
         emit({
             type: 'movement/land',
             ...envelopeOf(ctx),
-            impactVy,
+            impactVy: landing.impactVy,
             airTicks: state.airTicks,
             floorsGained: landFloor - state.takeoffFloorIndex,
-            platformId: contact.landedPlatformId,
+            platformId: landing.platformId,
             momentumRetained:
                 state.takeoffSpeed > 0 ? Math.abs(ctx.vx) / state.takeoffSpeed : 1,
             bouncesDuringAir: state.bounceIndexInAir,
@@ -77,7 +74,7 @@ function landingPhase(ctx: StepCtxWithIo): void {
         return;
     }
 
-    if (state.grounded && !grounded) {
+    if (state.grounded && landing === null) {
         // Walk-off (jump departures leave ground inside the jump phase).
         state.grounded = false;
         state.departedByJump = false;

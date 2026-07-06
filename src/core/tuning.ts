@@ -99,14 +99,25 @@ export interface TuningLayer {
     tick: number;
 }
 
-export type TuningMutationListener = (key: TuningKey, value: number, tick: number) => void;
+/**
+ * Every way the stack can change, as one closed union. The recorder captures
+ * ALL of these: layer ops are part of the tuning timeline — a session that
+ * pushes a mul layer mid-recording must replay identically (determinism law).
+ */
+export type TuningChange =
+    | { op: 'setBase'; key: TuningKey; value: number }
+    | { op: 'pushLayer'; layer: TuningLayer }
+    | { op: 'removeLayer'; id: string }
+    | { op: 'clearLayers' };
+
+export type TuningChangeListener = (change: TuningChange) => void;
 
 export class TuningStack {
     private readonly base: TuningTable;
     private layers: TuningLayer[] = [];
     private cache: TuningTable;
     private dirty = false;
-    private listeners: TuningMutationListener[] = [];
+    private listeners: TuningChangeListener[] = [];
 
     constructor(defaults: TuningTable = { ...DEFAULT_TUNING }) {
         this.base = { ...defaults };
@@ -139,14 +150,12 @@ export class TuningStack {
 
     /**
      * Mutate the base table — the FeelTuner path. Listeners (the recorder)
-     * see every mutation so replays reproduce live tuning sessions.
+     * see every change so replays reproduce live tuning sessions.
      */
-    setBase(key: TuningKey, value: number, tick: number): void {
+    setBase(key: TuningKey, value: number): void {
         this.base[key] = value;
         this.dirty = true;
-        for (const fn of this.listeners) {
-            fn(key, value, tick);
-        }
+        this.notify({ op: 'setBase', key, value });
     }
 
     /** Restore a full base table (replay setup). Does not notify listeners. */
@@ -157,33 +166,58 @@ export class TuningStack {
         this.dirty = true;
     }
 
+    /** Restore a full layer list (replay setup). Does not notify listeners. */
+    restoreLayers(layers: readonly TuningLayer[]): void {
+        this.layers = layers.map((l) => ({ ...l }));
+        this.dirty = true;
+    }
+
     pushLayer(layer: TuningLayer): void {
         this.layers.push(layer);
         this.dirty = true;
+        this.notify({ op: 'pushLayer', layer: { ...layer } });
     }
 
     removeLayer(id: string): boolean {
         const before = this.layers.length;
         this.layers = this.layers.filter((l) => l.id !== id);
-        this.dirty = this.dirty || this.layers.length !== before;
-        return this.layers.length !== before;
+        const removed = this.layers.length !== before;
+        if (removed) {
+            this.dirty = true;
+            this.notify({ op: 'removeLayer', id });
+        }
+        return removed;
     }
 
     clearLayers(): void {
+        if (this.layers.length === 0) {
+            return;
+        }
         this.layers = [];
         this.dirty = true;
+        this.notify({ op: 'clearLayers' });
     }
 
     layerList(): readonly TuningLayer[] {
         return this.layers;
     }
 
-    onMutation(fn: TuningMutationListener): void {
+    layersSnapshot(): TuningLayer[] {
+        return this.layers.map((l) => ({ ...l }));
+    }
+
+    onChange(fn: TuningChangeListener): void {
         this.listeners.push(fn);
     }
 
-    offMutation(fn: TuningMutationListener): void {
+    offChange(fn: TuningChangeListener): void {
         this.listeners = this.listeners.filter((l) => l !== fn);
+    }
+
+    private notify(change: TuningChange): void {
+        for (const fn of this.listeners) {
+            fn(change);
+        }
     }
 
     private recompute(): void {

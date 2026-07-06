@@ -81,10 +81,6 @@ function executeJump(ctx: StepCtx, wasBuffered: boolean, wasCoyote: boolean): vo
     state.takeoffFeetY = ctx.feetY;
     state.takeoffFloorIndex = state.floorIndex;
     state.takeoffPlatformId = state.groundedPlatformId ?? -1;
-    state.totalJumps += 1;
-    if (wasCoyote) {
-        state.coyoteJumps += 1;
-    }
 
     emit({
         type: 'movement/jump',

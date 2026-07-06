@@ -15,6 +15,7 @@ import { MovementStats } from '../debug/Stats';
 import { GAME_HEIGHT } from '../main';
 import { PlayerAnimator } from '../player/PlayerAnimator';
 import { PlayerSystem } from '../player/PlayerSystem';
+import { ReplayDriver } from '../player/ReplayDriver';
 import { AudioSystem } from '../systems/AudioSystem';
 import { CameraRig } from '../systems/CameraRig';
 import { InputMap } from '../systems/InputMap';
@@ -27,6 +28,7 @@ const SANDBOX_SEED = 20260705;
 export class Sandbox extends Scene {
     private tuning!: TuningStack;
     private bus!: EventBus;
+    private replayDriver!: ReplayDriver;
     private playerSystem!: PlayerSystem;
     private animator!: PlayerAnimator;
     private cameraRig!: CameraRig;
@@ -56,12 +58,13 @@ export class Sandbox extends Scene {
         this.backdrop = new ParallaxBackdrop(this);
         this.towerView = new TowerView(this, layout);
         this.inputMap = new InputMap(this);
+        this.replayDriver = new ReplayDriver(recorder, this.tuning, SANDBOX_SEED);
         this.playerSystem = new PlayerSystem(
             this,
             layout,
             this.tuning,
             this.bus,
-            recorder,
+            this.replayDriver,
             this.inputMap,
             SANDBOX_SEED,
         );
@@ -104,6 +107,7 @@ export class Sandbox extends Scene {
         this.juice.destroy();
         this.animator.destroy();
         this.playerSystem.destroy();
+        this.replayDriver.destroy();
         this.inputMap.destroy();
         this.towerView.destroy();
         this.backdrop.destroy();

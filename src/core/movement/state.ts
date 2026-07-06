@@ -31,12 +31,28 @@ export interface BodySnapshot {
     vy: number;
 }
 
-/** What the engine detected this step (one-way platform contacts). */
+/** A one-way platform separation the engine performed this step. */
+export interface LandingContact {
+    platformId: number;
+    /** Captured in the collider's processCallback, pre-separation — the only
+     *  honest impact velocity (Phaser zeroes velocity during separation). */
+    impactVy: number;
+}
+
+/**
+ * What the engine detected this step. `landing` is per-step collider
+ * evidence: non-null exactly when a one-way separation held the body on a
+ * platform top during THIS physics step (the grounded engagement trickle
+ * re-fires the collider every grounded step). Grounding is never derived
+ * from `body.touching` — Phaser 4.2 resets touching flags once per render
+ * frame (Body.preUpdate, willStep), not per physics step, so on multi-step
+ * frames the flags go stale and tick state stops being a pure function of
+ * inputs (the determinism law). The single nullable record also makes a
+ * half-populated landing unrepresentable: grounded implies a platform id
+ * AND an impact velocity, by type.
+ */
 export interface ContactReport {
-    grounded: boolean;
-    landedPlatformId: number | null;
-    impactVy: number | null;
-    prevFeetY: number;
+    landing: LandingContact | null;
 }
 
 /** What core decided this step. The game layer applies it verbatim. */
@@ -121,10 +137,6 @@ export interface MovementState {
     lockoutBlocked: number;
     wallDedupHits: number;
 
-    // Assist accounting
-    totalJumps: number;
-    coyoteJumps: number;
-
     // Jump arc bookkeeping
     riseTicks: number;
     jumpCutUsed: boolean;
@@ -173,8 +185,6 @@ export function createMovementState(): MovementState {
         lockoutTicksLeft: 0,
         lockoutBlocked: 0,
         wallDedupHits: 0,
-        totalJumps: 0,
-        coyoteJumps: 0,
         riseTicks: 0,
         jumpCutUsed: false,
         takeoffSpeed: 0,

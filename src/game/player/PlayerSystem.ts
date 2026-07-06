@@ -9,21 +9,28 @@
  * when falling and previous-tick feet were above the top — verified against
  * Phaser 4.2 source: processCallback runs pre-separation, so impact velocity
  * is captured there, never in the collide callback).
+ *
+ * Grounding is per-step collider evidence (pendingLanding), NEVER
+ * body.touching: Phaser 4.2 resets touching flags once per render frame
+ * (Body.preUpdate, willStep), not per physics step, so on multi-step frames
+ * the flags go stale and the sim stops being a pure function of per-tick
+ * inputs — replay divergence under frame jitter, false lockout tripwires.
  */
-import { type GameObjects, Physics, type Scene } from 'phaser';
-import { EVENT_SCHEMA_VERSION, type EventBus } from '../../core/events';
-import type { InputRecorder, Recording, ReplayReport } from '../../core/input/recorder';
+import { type GameObjects, Physics, type Scene, Scenes } from 'phaser';
+import type { EventBus } from '../../core/events';
+import type { Recording, ReplayReport } from '../../core/input/recorder';
 import { emitSpawn, stepMovement } from '../../core/movement/logic';
 import {
     createMovementState,
-    type InputFrame,
+    type LandingContact,
     type MovementEnv,
     type MovementState,
     PLAYER_BODY,
 } from '../../core/movement/state';
 import type { TowerLayout } from '../../core/tower';
-import type { TuningKey, TuningStack } from '../../core/tuning';
+import type { TuningStack } from '../../core/tuning';
 import type { InputMap } from '../systems/InputMap';
+import type { ReplayDriver } from './ReplayDriver';
 
 /** Never a gameplay clamp (v1's silent symmetric-clamp bug, refused). */
 const BODY_MAX_VELOCITY = 4000;
@@ -39,18 +46,13 @@ export interface PlayerKinematics {
     tick: number;
 }
 
-interface PendingLanding {
-    platformId: number;
-    impactVy: number;
-}
-
 export class PlayerSystem {
     readonly seed: number;
 
     private readonly scene: Scene;
     private readonly tuning: TuningStack;
     private readonly bus: EventBus;
-    private readonly recorder: InputRecorder;
+    private readonly replay: ReplayDriver;
     private readonly inputMap: InputMap;
     private readonly env: MovementEnv;
     private readonly spawnX: number;
@@ -60,12 +62,23 @@ export class PlayerSystem {
     private carrier!: GameObjects.Rectangle;
     private body!: Physics.Arcade.Body;
     private state: MovementState = createMovementState();
-    private pendingLanding: PendingLanding | null = null;
-    private replayReport: ReplayReport | null = null;
+    private pendingLanding: LandingContact | null = null;
 
     private readonly onWorldStep = (): void => this.step();
-    private readonly onTuningMutation = (key: TuningKey, value: number): void => {
-        this.recorder.recordMutation(key, value);
+
+    /**
+     * Exact transform re-sync, after the world's own postUpdate. Phaser's
+     * Body.postUpdate nudges the gameObject by the frame delta (a lossy float
+     * increment, once per RENDER frame) and Body.preUpdate re-derives
+     * body.position from that transform — so the round-trip count would
+     * depend on frame grouping, an ULP-level determinism leak (measured:
+     * replays diverged under forced multi-step frames). With origin (0,0),
+     * offset 0, scale 1, the derivation `position = transform` is the exact
+     * identity, so overwriting the transform with the body's exact position
+     * keeps tick state a pure function of per-tick inputs.
+     */
+    private readonly onPostUpdate = (): void => {
+        this.carrier.setPosition(this.body.position.x, this.body.position.y);
     };
 
     constructor(
@@ -73,14 +86,14 @@ export class PlayerSystem {
         layout: TowerLayout,
         tuning: TuningStack,
         bus: EventBus,
-        recorder: InputRecorder,
+        replay: ReplayDriver,
         inputMap: InputMap,
         seed: number,
     ) {
         this.scene = scene;
         this.tuning = tuning;
         this.bus = bus;
-        this.recorder = recorder;
+        this.replay = replay;
         this.inputMap = inputMap;
         this.seed = seed;
         this.env = {
@@ -97,7 +110,7 @@ export class PlayerSystem {
         // during scene shutdown before our teardown runs.
         this.world = scene.physics.world;
         this.world.on(Physics.Arcade.Events.WORLD_STEP, this.onWorldStep);
-        tuning.onMutation(this.onTuningMutation);
+        scene.events.on(Scenes.Events.POST_UPDATE, this.onPostUpdate);
 
         this.state.floorIndex = 0;
         emitSpawn(this.state, this.env, tuning, this.emit, this.spawnX, this.spawnFeetY, 'initial');
@@ -108,9 +121,17 @@ export class PlayerSystem {
     };
 
     private createCarrier(): void {
-        const centerY = this.spawnFeetY - PLAYER_BODY.height / 2;
+        // Origin (0,0): the body's position derivation from the transform is
+        // then the exact identity (see onPostUpdate) — no float constants in
+        // the loop.
         this.carrier = this.scene.add
-            .rectangle(this.spawnX, centerY, PLAYER_BODY.width, PLAYER_BODY.height)
+            .rectangle(
+                this.spawnX - PLAYER_BODY.width / 2,
+                this.spawnFeetY - PLAYER_BODY.height,
+                PLAYER_BODY.width,
+                PLAYER_BODY.height,
+            )
+            .setOrigin(0, 0)
             .setVisible(false);
         this.scene.physics.add.existing(this.carrier);
         const body = this.carrier.body as Physics.Arcade.Body;
@@ -142,6 +163,8 @@ export class PlayerSystem {
     /**
      * One-way platform idiom: pass through unless falling onto the top.
      * Runs pre-separation, so velocity here is the true impact velocity.
+     * While grounded, the core's engagement trickle re-fires this every
+     * physics step — pendingLanding is the per-step grounded evidence.
      */
     private processOneWay(_playerObj: unknown, platformObj: unknown): boolean {
         const body = this.body;
@@ -163,20 +186,7 @@ export class PlayerSystem {
 
     /** One fixed step: latch input, run the core, apply Actions verbatim. */
     private step(): void {
-        const live = this.inputMap.sample();
-        let frame: InputFrame = live;
-
-        if (this.recorder.mode === 'replaying') {
-            const next = this.recorder.nextReplayFrame();
-            if (next === null) {
-                this.replayReport = this.recorder.finishReplay();
-            } else {
-                for (const m of next.mutations) {
-                    this.tuning.setBase(m.key, m.value, this.state.tick);
-                }
-                frame = next.frame;
-            }
-        }
+        const frame = this.replay.frameFor(this.inputMap.sample());
 
         const body = this.body;
         const io = {
@@ -188,12 +198,7 @@ export class PlayerSystem {
                 vx: body.velocity.x,
                 vy: body.velocity.y,
             },
-            contact: {
-                grounded: body.touching.down,
-                landedPlatformId: this.pendingLanding?.platformId ?? null,
-                impactVy: this.pendingLanding?.impactVy ?? null,
-                prevFeetY: body.prev.y + body.height,
-            },
+            contact: { landing: this.pendingLanding },
         };
         this.pendingLanding = null;
 
@@ -206,11 +211,7 @@ export class PlayerSystem {
             body.updateCenter();
         }
 
-        if (this.recorder.mode === 'recording') {
-            this.recorder.recordFrame(frame, body.center.x, body.bottom);
-        } else if (this.recorder.mode === 'replaying') {
-            this.recorder.recordReplayPosition(body.center.x, body.bottom);
-        }
+        this.replay.afterStep(frame, body.center.x, body.bottom);
     }
 
     kinematics(): PlayerKinematics {
@@ -226,17 +227,11 @@ export class PlayerSystem {
         };
     }
 
-    counters(): {
-        lockoutBlocked: number;
-        wallDedupHits: number;
-        totalJumps: number;
-        coyoteJumps: number;
-    } {
+    /** The live tripwires — these must read 0 forever. */
+    counters(): { lockoutBlocked: number; wallDedupHits: number } {
         return {
             lockoutBlocked: this.state.lockoutBlocked,
             wallDedupHits: this.state.wallDedupHits,
-            totalJumps: this.state.totalJumps,
-            coyoteJumps: this.state.coyoteJumps,
         };
     }
 
@@ -245,7 +240,8 @@ export class PlayerSystem {
     }
 
     reset(reason: 'initial' | 'reset'): void {
-        this.body.reset(this.spawnX, this.spawnFeetY - PLAYER_BODY.height / 2);
+        // Top-left coords: Body.reset positions the origin-(0,0) gameObject.
+        this.body.reset(this.spawnX - PLAYER_BODY.width / 2, this.spawnFeetY - PLAYER_BODY.height);
         this.pendingLanding = null;
         this.state = createMovementState();
         emitSpawn(this.state, this.env, this.tuning, this.emit, this.spawnX, this.spawnFeetY, reason);
@@ -254,27 +250,25 @@ export class PlayerSystem {
     /** Start recording live play from a clean spawn. */
     beginRecording(): void {
         this.reset('reset');
-        this.recorder.startRecording(this.seed, this.tuning.baseSnapshot(), EVENT_SCHEMA_VERSION);
+        this.replay.beginRecording();
     }
 
     stopRecording(): Recording {
-        return this.recorder.stopRecording();
+        return this.replay.stopRecording();
     }
 
-    /** Replay a recording from a clean spawn with its exact base tuning. */
+    /** Replay a recording from a clean spawn with its exact tuning state. */
     beginReplay(recording: Recording): void {
-        this.tuning.restoreBase(recording.baseTuning);
+        this.replay.beginReplay(recording);
         this.reset('reset');
-        this.replayReport = null;
-        this.recorder.startReplay(recording);
     }
 
     lastReplayReport(): ReplayReport | null {
-        return this.replayReport;
+        return this.replay.lastReplayReport();
     }
 
     destroy(): void {
         this.world.off(Physics.Arcade.Events.WORLD_STEP, this.onWorldStep);
-        this.tuning.offMutation(this.onTuningMutation);
+        this.scene.events.off(Scenes.Events.POST_UPDATE, this.onPostUpdate);
     }
 }
