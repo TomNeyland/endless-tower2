@@ -36,6 +36,7 @@ import {
     syntheticFactScript,
     waitUntil,
 } from './EngineFacts';
+import { type PressureInvariantReport, runPressureInvariants } from './PressureInvariants';
 import type { Game } from 'phaser';
 import type { ComboRelay } from '../systems/ComboRelay';
 import type { SessionLog } from '../systems/SessionLog';
@@ -61,6 +62,8 @@ export interface Et2Bridge {
     };
     events: {
         recent(count?: number, type?: MovementEventType): MovementEvent[];
+        /** session-logs.md's name for the same look at the ring buffer. */
+        tail(count?: number): MovementEvent[];
         tickFrames(count?: number): TickEvent[];
         clear(): void;
     };
@@ -79,6 +82,11 @@ export interface Et2Bridge {
         /** Instrumentation gate #1, re-runnable: drives a synthetic scripted
          *  replay and checks the three engine facts. Drift = stop the line. */
         engineFacts(): Promise<EngineFactReport>;
+        /** Instrumentation gate #2, re-runnable: pressure.md's pre-registered
+         *  invariants — one catch per invuln window, rescue outruns the
+         *  line, zero hearts is final. Restarts into a fresh segment and
+         *  cleans up to the endless sandbox. */
+        pressureInvariants(): PressureInvariantReport;
     };
     /** PRESSURE: segment mode + death-line harness (docs/design/pressure.md).
      *  startSegment/stopSegment restart the scene — re-read window.__ET2__. */
@@ -204,6 +212,7 @@ export class DebugBridge {
                     const source = type ? this.ring.filter((e) => e.type === type) : this.ring;
                     return source.slice(-count);
                 },
+                tail: (count = 50) => this.ring.slice(-count),
                 tickFrames: (count = 120) => this.tickRing.slice(-count),
                 clear: () => {
                     this.ring = [];
@@ -236,6 +245,8 @@ export class DebugBridge {
             },
             verify: {
                 engineFacts: () => this.runEngineFacts(),
+                pressureInvariants: () =>
+                    runPressureInvariants(this.deps.game, () => window.__ET2__),
             },
             pressure: {
                 startSegment: (spec?: Partial<SegmentSpec>) => pressure.startSegment(spec),
