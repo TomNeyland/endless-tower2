@@ -1,0 +1,227 @@
+/**
+ * The movement event taxonomy — v1 of the nervous-system vocabulary — and the
+ * deterministic emitter.
+ *
+ * Design law: events carry facts and physically-grounded classifications only.
+ * Never point values, never combo state, never judgments a downstream system
+ * might re-decide. The tick is the canonical timebase.
+ */
+
+export const EVENT_SCHEMA_VERSION = 1;
+
+/** Envelope present on every event. Kinematics are the values at emission. */
+export interface EventEnvelope {
+    tick: number;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    speed: number;
+    grounded: boolean;
+    floorIndex: number;
+}
+
+export type WallSide = 'left' | 'right';
+
+export interface SpawnEvent extends EventEnvelope {
+    type: 'movement/spawn';
+    reason: 'initial' | 'reset';
+}
+
+export interface JumpEvent extends EventEnvelope {
+    type: 'movement/jump';
+    launchSpeedX: number;
+    vyJump: number;
+    conversionFraction: number;
+    retainedSpeedX: number;
+    predictedHeightPx: number;
+    wasBuffered: boolean;
+    wasCoyote: boolean;
+    takeoffPlatformId: number;
+}
+
+export interface JumpCutEvent extends EventEnvelope {
+    type: 'movement/jump_cut';
+    vyBefore: number;
+    vyAfter: number;
+    riseMs: number;
+    floorsForfeited: number;
+}
+
+export interface LeftGroundEvent extends EventEnvelope {
+    type: 'movement/left_ground';
+    reason: 'jump' | 'walkoff';
+    takeoffSpeed: number;
+}
+
+export interface ApexEvent extends EventEnvelope {
+    type: 'movement/apex';
+    apexHeightPx: number;
+    floorsAboveTakeoff: number;
+    hangActive: boolean;
+}
+
+export interface LandEvent extends EventEnvelope {
+    type: 'movement/land';
+    impactVy: number;
+    airTicks: number;
+    floorsGained: number;
+    platformId: number;
+    momentumRetained: number;
+    bouncesDuringAir: number;
+    sameTickJump: boolean;
+}
+
+export interface WallBounceEvent extends EventEnvelope {
+    type: 'movement/wall_bounce';
+    side: WallSide;
+    impactSpeedX: number;
+    exitSpeedX: number;
+    efficiency: number;
+    /**
+     * Ticks since the most recent input edge toward the wall (the kick).
+     * 0 = pressed on the impact tick; larger = pressed earlier. Emission is
+     * immediate (audio/juice need the impact tick), so post-impact presses
+     * are not observable here; INPUT_LEAD_NEVER means no recent kick press.
+     * Signed by contract so a future consumer may re-window without a
+     * schema change.
+     */
+    inputLeadTicks: number;
+    perfect: boolean;
+    airborne: boolean;
+    bounceIndexInAir: number;
+    timeSinceLastBounceMs: number | null;
+    heightAtBounce: number;
+}
+
+/** Sentinel for `inputLeadTicks` when no kick press preceded the bounce. */
+export const INPUT_LEAD_NEVER = 999;
+
+export interface WallTouchEvent extends EventEnvelope {
+    type: 'movement/wall_touch';
+    side: WallSide;
+    impactSpeedX: number;
+}
+
+export interface FloorCrossedEvent extends EventEnvelope {
+    type: 'movement/floor_crossed';
+    direction: 'up' | 'down';
+    cumulativeThisAir: number;
+    airborne: boolean;
+}
+
+export interface SpeedTierEvent extends EventEnvelope {
+    type: 'movement/speed_tier';
+    tier: number;
+    previousTier: number;
+    /** Self-describing px/s thresholds — fractions of the effective ceiling. */
+    thresholds: number[];
+}
+
+export interface CeilingEvent extends EventEnvelope {
+    type: 'movement/ceiling';
+    state: 'entered' | 'exited';
+    effectiveMaxSpeed: number;
+    source: 'base' | 'stack';
+}
+
+export interface StallEvent extends EventEnvelope {
+    type: 'movement/stall';
+    state: 'entered' | 'exited';
+    durationTicks: number;
+}
+
+export interface ReversalEvent extends EventEnvelope {
+    type: 'movement/reversal';
+    speedBefore: number;
+    viaWallBounce: boolean;
+}
+
+/** 60Hz firehose — debug bridge only. */
+export interface TickEvent extends EventEnvelope {
+    type: 'movement/tick';
+    axisX: number;
+    jumpHeld: boolean;
+    gravityScale: number;
+    tier: number;
+    hangActive: boolean;
+    coyoteTicksLeft: number;
+    bufferTicksLeft: number;
+    graceTicksLeft: number;
+    lockoutBlocked: number;
+    wallDedupHits: number;
+}
+
+// Reserved (do not implement, do not repurpose): a ceiling-bump event slot
+// for EXAM-phase tower mutation.
+
+export type MovementEvent =
+    | SpawnEvent
+    | JumpEvent
+    | JumpCutEvent
+    | LeftGroundEvent
+    | ApexEvent
+    | LandEvent
+    | WallBounceEvent
+    | WallTouchEvent
+    | FloorCrossedEvent
+    | SpeedTierEvent
+    | CeilingEvent
+    | StallEvent
+    | ReversalEvent
+    | TickEvent;
+
+export type MovementEventType = MovementEvent['type'];
+export type EventOf<T extends MovementEventType> = Extract<MovementEvent, { type: T }>;
+
+type AnyHandler = (event: MovementEvent) => void;
+
+/**
+ * Deterministic synchronous emitter: handlers run in subscription order, on
+ * the emitting tick. Movement emits and never knows who listens.
+ */
+export class EventBus {
+    private handlers = new Map<MovementEventType, AnyHandler[]>();
+    private anyHandlers: AnyHandler[] = [];
+
+    on<T extends MovementEventType>(type: T, fn: (event: EventOf<T>) => void): void {
+        const list = this.handlers.get(type) ?? [];
+        list.push(fn as AnyHandler);
+        this.handlers.set(type, list);
+    }
+
+    off<T extends MovementEventType>(type: T, fn: (event: EventOf<T>) => void): void {
+        const list = this.handlers.get(type);
+        if (list) {
+            this.handlers.set(
+                type,
+                list.filter((h) => h !== (fn as AnyHandler)),
+            );
+        }
+    }
+
+    onAny(fn: AnyHandler): void {
+        this.anyHandlers.push(fn);
+    }
+
+    offAny(fn: AnyHandler): void {
+        this.anyHandlers = this.anyHandlers.filter((h) => h !== fn);
+    }
+
+    emit(event: MovementEvent): void {
+        const list = this.handlers.get(event.type);
+        if (list) {
+            for (const fn of list) {
+                fn(event);
+            }
+        }
+        for (const fn of this.anyHandlers) {
+            fn(event);
+        }
+    }
+
+    clear(): void {
+        this.handlers.clear();
+        this.anyHandlers = [];
+    }
+}
