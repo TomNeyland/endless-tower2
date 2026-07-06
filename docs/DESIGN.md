@@ -97,11 +97,15 @@ loot)*. Modifiers mutate how momentum is earned/kept in that segment.
 
 ### Relics
 
-Permanent-for-the-run passives, designed to stack multiplicatively. v1's ten timed
-powerups get promoted to relics (Momentum Lock, Wall Grip, Air Walker, Midas
-Touch…) plus new ones. The explicit design goal: a good run should assemble a
-visibly broken machine — five-floor leaps, perma-combo, screen on fire. Timed
-powerups still spawn inside segments as moment-to-moment spice.
+Permanent-for-the-run passives, designed to stack multiplicatively. Every relic
+must amplify how momentum is earned, kept, routed, or spent, and must combine
+with other relics into something greater. Candidates come from anywhere — v1's
+powerup roster, genre classics, fresh invention — and provenance grants neither
+credit nor demerit (nothing is adopted because v1 promised it, nothing rejected
+because v1 touched it): one bar for all, the spine and the feel gate. The
+explicit goal: a good run should assemble a visibly broken machine — five-floor
+leaps, perma-combo, screen on fire. Timed powerups still spawn inside segments
+as moment-to-moment spice.
 
 ### Combos
 
