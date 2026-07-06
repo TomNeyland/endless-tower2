@@ -2,7 +2,27 @@
 
 Extracted from `~/code/endless-tower` (Angular + Phaser 3). Framing: v1's feel
 "narrowly landed the plane" — **every number here is a known-mediocre baseline
-that shipped, not a spec to copy.** The gotchas are the real treasure.
+that shipped, not a spec to copy.**
+
+## Epistemic status — read before trusting anything below
+
+v1's "solutions" may be patches and hacks layered on wrong approaches. Classify
+every finding in this document before using it:
+
+1. **Engine facts** (e.g., Phaser zeroes velocity during collision separation;
+   `setMaxVelocity` clamps silently): properties of Phaser, not of v1. Safe to
+   rely on, but re-verify against Phaser 4 before building on them.
+2. **Player-feel observations** (e.g., zero vertical boost on walls felt more
+   authentic; low accel + high ceiling created skill tiers): n=1 evidence from a
+   mediocre build. Re-test cheaply in the sandbox; never assume.
+3. **Patches on wrong approaches** (e.g., the 50px teleport-nudge off walls, the
+   jump cooldown masking cascade-jumping, the custom redirect written after
+   `bounce.setTo()` "jittered"): **symptoms, not solutions.** Each flags a
+   decision v2 must make deliberately from first principles. If v2's clean
+   architecture never produces the disease, do not import the cure.
+
+Build from the design spec and current Phaser 4 idioms first; consult this file
+to avoid v1's failure classes, not to inherit its fixes.
 
 ## Critical: v1's docs lie about its three flagship systems
 
