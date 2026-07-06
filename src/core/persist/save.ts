@@ -22,6 +22,7 @@ import {
     foldRunIntoStats,
     type LifetimeStats,
     type RunRecord,
+    TIER_HISTOGRAM_SIZE,
 } from '../meta/stats';
 import type { UnlockGrant } from '../meta/unlocks';
 
@@ -113,14 +114,65 @@ function assertSaveShape(raw: Record<string, unknown>): SaveDocument {
     for (const id of u.modifiers) {
         modifierById(id);
     }
-    const stats = raw.stats as LifetimeStats | undefined;
-    if (
-        stats === undefined ||
-        typeof stats.runs !== 'number' ||
-        !Array.isArray(stats.tierHistogram) ||
-        typeof stats.perCharacter !== 'object'
-    ) {
+    // The stats block is checked field-for-field against what the museum
+    // and foldRunIntoStats actually consume — a truncated or hand-edited
+    // block is CORRUPT (fresh save + warning), never quietly rendered as
+    // NaN/undefined.
+    const stats = raw.stats as Partial<LifetimeStats> | undefined;
+    if (stats === undefined || stats === null || typeof stats !== 'object') {
         throw new Error('save: stats block malformed');
+    }
+    const numericStatFields = [
+        'runs',
+        'wins',
+        'deaths',
+        'winStreak',
+        'bestWinStreak',
+        'totalFloors',
+        'totalBanks',
+        'totalVoids',
+        'totalPerfectBounces',
+        'totalSegments',
+        'bestChainFloors',
+        'bestChainMult',
+        'bestChainPayout',
+        'bestRunScore',
+        'bestRunFloors',
+    ] as const;
+    for (const field of numericStatFields) {
+        if (typeof stats[field] !== 'number' || !Number.isFinite(stats[field])) {
+            throw new Error(`save: stats.${field} malformed`);
+        }
+    }
+    if (typeof stats.bestChainFace !== 'string') {
+        throw new Error('save: stats.bestChainFace malformed');
+    }
+    if (stats.bestChainCharacterId !== null && typeof stats.bestChainCharacterId !== 'string') {
+        throw new Error('save: stats.bestChainCharacterId malformed');
+    }
+    if (stats.fastestActTicks !== null && typeof stats.fastestActTicks !== 'number') {
+        throw new Error('save: stats.fastestActTicks malformed');
+    }
+    if (
+        !Array.isArray(stats.tierHistogram) ||
+        stats.tierHistogram.length !== TIER_HISTOGRAM_SIZE ||
+        !stats.tierHistogram.every((n) => typeof n === 'number' && Number.isFinite(n))
+    ) {
+        throw new Error('save: stats.tierHistogram malformed');
+    }
+    if (typeof stats.perCharacter !== 'object' || stats.perCharacter === null) {
+        throw new Error('save: stats.perCharacter malformed');
+    }
+    for (const [characterId, record] of Object.entries(stats.perCharacter)) {
+        if (
+            typeof record.runs !== 'number' ||
+            typeof record.wins !== 'number' ||
+            typeof record.bestChainPayout !== 'number' ||
+            typeof record.bestChainFace !== 'string' ||
+            typeof record.bestScore !== 'number'
+        ) {
+            throw new Error(`save: stats.perCharacter.${characterId} malformed`);
+        }
     }
     const settings = raw.settings as SaveSettings | undefined;
     if (
@@ -222,14 +274,17 @@ export function withFeat(
         feats: [...doc.unlocks.feats, featId],
     };
     if (grant !== null) {
-        const list =
+        // Copy-then-assign, never push: the spread above is shallow, and a
+        // push would mutate the array the PREVIOUS document still holds —
+        // "pure" must mean the old snapshot stays true.
+        const key =
             grant.kind === 'character'
-                ? unlocks.characters
+                ? 'characters'
                 : grant.kind === 'relic'
-                  ? unlocks.relics
-                  : unlocks.modifiers;
-        if (!list.includes(grant.id)) {
-            list.push(grant.id);
+                  ? 'relics'
+                  : 'modifiers';
+        if (!unlocks[key].includes(grant.id)) {
+            unlocks[key] = [...unlocks[key], grant.id];
         }
     }
     return { ...doc, unlocks };

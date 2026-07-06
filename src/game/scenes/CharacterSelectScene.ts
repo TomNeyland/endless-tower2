@@ -29,6 +29,16 @@ interface Column {
     ring: GameObjects.Image;
 }
 
+/** The lock line for a locked column. Explicitly narrowed: a null-feat
+ *  character is ALWAYS unlocked (characterUnlocked), so reaching here with
+ *  null is a broken invariant — fail loud, never cast it away. */
+function lockedBlurb(character: CharacterDef): string {
+    if (character.unlockFeat === null) {
+        throw new Error(`character select: ${character.id} is locked with no unlock feat`);
+    }
+    return `locked — ${featById(character.unlockFeat).blurb}`;
+}
+
 export class CharacterSelectScene extends Scene {
     private seed!: string;
     private columns: Column[] = [];
@@ -153,14 +163,11 @@ export class CharacterSelectScene extends Scene {
                 })
                 .setOrigin(0.5),
             this.add
-                .text(
-                    CX,
-                    580,
-                    unlocked
-                        ? character.traitLine
-                        : `locked — ${featById(character.unlockFeat as string).blurb}`,
-                    { fontFamily: 'Arial', fontSize: 17, color: unlocked ? '#e8f4ff' : '#8a9db0' },
-                )
+                .text(CX, 580, unlocked ? character.traitLine : lockedBlurb(character), {
+                    fontFamily: 'Arial',
+                    fontSize: 17,
+                    color: unlocked ? '#e8f4ff' : '#8a9db0',
+                })
                 .setOrigin(0.5),
         );
     }

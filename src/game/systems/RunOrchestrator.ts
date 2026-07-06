@@ -60,6 +60,15 @@ export class RunOrchestrator {
     private readonly characterId: string;
     /** RETURN's run-spanning feat/stat watcher — one per run. */
     private readonly tracker: MetaTracker;
+    /**
+     * The unlock pools, PINNED at run start. Feats fire mid-run but their
+     * unlocks are announced at run end (meta-progression.md) — so nothing
+     * unlocked mid-run may stock a shop, seed an elite reward, or roll onto
+     * a map before its unlock moment. Pools grow BETWEEN runs, which is
+     * also what keeps the NEW stamp true on a relic's first appearances.
+     */
+    private readonly unlockedRelicIds: readonly string[];
+    private readonly unlockedModifierIds: readonly string[];
     private graph: ActGraph;
     private ring: RunRingEvent[] = [];
     private toast: ToastData | null = null;
@@ -77,6 +86,9 @@ export class RunOrchestrator {
         this.game = game;
         this.characterId = characterId;
         this.tracker = new MetaTracker(saveStore());
+        const unlocks = saveStore().doc.unlocks;
+        this.unlockedRelicIds = [...unlocks.relics];
+        this.unlockedModifierIds = [...unlocks.modifiers];
         this.host = RunHost.begin(seed, (e) => this.emit(e), characterId);
         this.graph = this.generateAct(1);
         installMapBridge(this, game);
@@ -202,6 +214,7 @@ export class RunOrchestrator {
             },
             nodeId: node.id,
             act: this.host.run.act,
+            relicPool: relicPool(this.unlockedRelicIds),
             tick: () => 0, // the map is tickless; segment shops pass the player clock
             onLeave,
         };
@@ -263,7 +276,7 @@ export class RunOrchestrator {
                 node.id,
                 run.act,
                 run.relicIds(),
-                relicPool(saveStore().doc.unlocks.relics),
+                relicPool(this.unlockedRelicIds),
             );
             if (relic === null) {
                 lines.push('the tower had no relic left to give');
@@ -350,13 +363,15 @@ export class RunOrchestrator {
     }
 
     private generateAct(actIndex: number): ActGraph {
-        // The modifier roll pool is the save's (RETURN): the meta-locked
-        // three stay out until their act-completion feats land.
+        // The modifier roll pool is the save's, pinned at run start
+        // (RETURN): the meta-locked three stay out until their
+        // act-completion feats land — and a feat fired THIS run grows the
+        // pool next run, after its unlock moment.
         const graph = generateActGraph(
             this.host.run.runSeed,
             actIndex,
             DEFAULT_TUNING['map.maxRegens'],
-            modifierPool(saveStore().doc.unlocks.modifiers),
+            modifierPool(this.unlockedModifierIds),
         );
         this.emit({
             type: 'map/generated',
@@ -394,7 +409,8 @@ export class RunOrchestrator {
 
     debugSetSeed(seed: string): void {
         // A fresh run on the given seed — the shareable-seed harness path.
-        // Same seed + same character = same run offer (meta-progression.md).
+        // Same seed + same character + same unlock pools = same run offer
+        // (meta-progression.md, as qualified by DEVIATIONS entry 21).
         removeMapBridge();
         RunOrchestrator.begin(this.game, seed, this.characterId);
     }

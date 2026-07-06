@@ -17,6 +17,7 @@ import {
     type SegmentSpec,
 } from '../../core/pressure/segment';
 import { applyCharacterLayers, characterById } from '../../core/meta/characters';
+import { relicPool } from '../../core/meta/unlocks';
 import { applyOwnedRelicLayers } from '../../core/relics/effects';
 import { relicById } from '../../core/relics/roster';
 import { RunState, type RunSnapshot } from '../../core/run/state';
@@ -512,6 +513,10 @@ export class Sandbox extends Scene {
             grantRelic: (relicId, source) => this.relicEffects.grantRelic(relicId, source),
             nodeId: id,
             act: this.runState.act,
+            // The debug host stocks from the LIVE save pool — a bridge
+            // surface, not gameplay (entry-14 honesty precedent); the run's
+            // pinned pool lives on the orchestrator's map shops.
+            relicPool: relicPool(saveStore().doc.unlocks.relics),
             tick: () => this.playerTick(),
             onLeave: () => this.scene.resume(),
         };

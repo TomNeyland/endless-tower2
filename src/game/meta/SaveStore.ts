@@ -34,7 +34,9 @@ const META_RING_SIZE = 128;
 
 export class SaveStore {
     private document: SaveDocument;
-    private readonly writable: boolean;
+    /** False after a refused-future load; resetSave restores it (the newer
+     *  document the refusal protected is deliberately gone then). */
+    private writable: boolean;
     private ring: MetaEvent[] = [];
 
     constructor(raw: string | null) {
@@ -114,10 +116,13 @@ export class SaveStore {
         this.write();
     }
 
-    /** Dev-only (debug bridge): wipe the save and start fresh. */
+    /** Dev-only (debug bridge): wipe the save and start fresh. Restores
+     *  writability — the refusal existed to protect a newer document on
+     *  disk, and that document was just deleted on purpose. */
     resetSave(): void {
         localStorage.removeItem(SAVE_STORAGE_KEY);
         this.document = freshSave();
+        this.writable = true;
         this.ring = [];
     }
 

@@ -21,7 +21,6 @@
 import { Scene } from 'phaser';
 import { heartPrice, relicPrice, rerollPrice, rollShopStock } from '../../core/economy/shop';
 import type { RelicSource } from '../../core/events';
-import { relicPool } from '../../core/meta/unlocks';
 import type { RelicDef } from '../../core/relics/types';
 import type { RunEmit, RunState } from '../../core/run/state';
 import type { TuningStack } from '../../core/tuning';
@@ -39,6 +38,10 @@ export interface ShopLaunchData {
     nodeId: string;
     /** 1-based act — weights the stock's rarity roll. */
     act: number;
+    /** The unlocked relic pool the stock rolls from — the ORCHESTRATOR pins
+     *  it at run start (mid-run feat fires must not stock a shop before
+     *  their run-end unlock moment; the debug host passes the live pool). */
+    relicPool: RelicDef[];
     /** The caller's tick provider (paused mid-segment: a frozen timebase;
      *  the map: tickless zero). */
     tick: () => number;
@@ -87,14 +90,16 @@ export class ShopScene extends Scene {
     // --- Stock ---
 
     private rollStock(): void {
-        // The save's unlocked pool (RETURN): 16 initials + earned unlockables.
+        // The host's pinned pool (RETURN): 16 initials + the unlockables
+        // earned BEFORE this run — a relic unlocked mid-run waits for its
+        // run-end moment before it can be shelved.
         this.stock = rollShopStock(
             this.ctx.run.runSeed,
             this.ctx.nodeId,
             this.ctx.act,
             this.ctx.run.relicIds(),
             this.rerolls,
-            relicPool(saveStore().doc.unlocks.relics),
+            this.ctx.relicPool,
         );
         this.renderCards();
     }
