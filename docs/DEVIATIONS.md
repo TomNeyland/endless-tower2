@@ -484,17 +484,16 @@ below it. Until this entry, the deviation lived only in a presets.ts code
 comment — the exact failure this file's preamble names.
 
 **The budget math, honestly:** hp = hpBanks × `boss.decentBankPayout`
-(12,000) — act 1 = 42,000, act 3 = 66,000. Payout is Icy Tower's quadratic
-(`10 × chainFloors² × mult`), so chain quality dominates: at the reference
-"decent chain" (25 floors, mult ~2 → ~12,500/bank) act 3 is ~6 banks ≈ 150
-chain-floors — comfortably inside the budget, and god-chains need far
-less. But the quadratic cuts the other way for weak play: 12-floor chains
-at mult ~1.5 (~2,160/bank) need ~31 banks ≈ 370 chain-floors — the tower
-CAN run out under a duel of small chains. When it does, the line — whose
-`line.rampPerFloor` (0.6 px/s) has added ~130 px/s to its base 55 by the
-budget's top — closes the arena from below. The shipped truth is therefore
-an implicit **soft-enrage**: the duel must be won inside the budget or the
-run ends at the one visible danger.
+(30,000) — act 1 = 105,000, act 3 = 165,000. Payout is Icy Tower's quadratic
+(`10 × chainFloors² × mult`), so chain quality dominates: at the boss-strike
+reference (30,000/bank) act 3 is ~6 banks, and god-chains need far less.
+But the quadratic cuts the other way for weak play: 12-floor chains at mult
+~1.5 (~2,160/bank) need ~77 banks ≈ 920 chain-floors — the tower CAN run
+out under a duel of small chains. When it does, the line — whose
+`line.rampPerFloor` (0.2 px/s) has added ~44 px/s to its base 55 by the
+budget's top, plus the visible catch-up leash — closes the arena from below.
+The shipped truth is therefore an implicit **soft-enrage**: the duel must be
+won inside the budget or the run ends at the one visible danger.
 
 **Why it stands for now:** the tower is pre-generated because determinism
 and the session recording embed the full layout (entry 5) and the

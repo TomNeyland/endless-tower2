@@ -31,8 +31,11 @@ who is winning without reading a number.*
   and the line converts lost momentum into lost hearts. Every threat
   funnels through the one visible danger; hearts remain line-only
   (pressure.md's law holds even here).
-- **HP budget:** sized in expected banks — act 1 ≈ 3–4 decent chains, act 3
-  ≈ 5–6 or two god-chains. Phases at ⅔ and ⅓ HP.
+- **HP budget:** sized in expected boss-strike banks — act 1 ≈ 3–4
+  well-timed openness banks (or about five raw decent banks), act 3 ≈ 5–6
+  well-timed openness banks or two god-chains. The tutorial boss should
+  usually be won, but it must live long enough to teach that banking is
+  attacking. Phases at ⅔ and ⅓ HP.
 
 ## Embodiment (the mandate, made mechanical)
 
@@ -55,6 +58,10 @@ who is winning without reading a number.*
 5. **Authored entrance and defeat:** an intro beat (it arrives; name card;
    the line ignites at its command) and a defeat beat (it falls PAST you,
    down into the line — the tower's own justice; then the door lights).
+6. **The first boss teaches the verb in one breath.** The Slime Sovereign's
+   entrance carries a small, persistent prompt until the first hit lands:
+   bank combos to damage the boss; gold stance hits harder. Later bosses
+   rely on the learned vocabulary.
 
 ## The tower-attack toolkit (reusable, telegraphed, data-driven)
 

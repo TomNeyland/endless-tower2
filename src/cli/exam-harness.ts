@@ -97,25 +97,32 @@ section('damage: the frozen contract');
 }
 
 // ---------------------------------------------------------------------------
-section('hp budgets: sized in expected banks (bosses.md), priced by real payout math');
+section('hp budgets: sized in expected boss-strike banks, priced by real payout math');
 {
     const t = new TuningStack();
-    // The baseline decent bank — the doc's own reference shape: a ~25-floor
-    // chain at a modest ×2 (chain-shape assumption; the MATH is live code).
-    const decentBank = payoutOf(basePoints(25, t), 2.0);
+    // The raw decent chain is still real payout math, but no longer the HP
+    // reference: live play showed the tutorial boss evaporated before it
+    // taught banking. The boss-strike reference is the data row.
+    const rawDecentBank = payoutOf(basePoints(25, t), 2.0);
+    const bossStrikeBank = t.value('boss.decentBankPayout');
+    const meteoricOpener = payoutOf(basePoints(30, t), 3.0);
     const hpAct1 = bossHpFor(SLIME_SOVEREIGN, t);
     const hpAct3 = bossHpFor(SUMMIT_KEEPER, t);
     assert(
         SLIME_SOVEREIGN.hpBanks >= 3 && SLIME_SOVEREIGN.hpBanks <= 4,
-        'act 1 budget: 3-4 decent banks',
+        'act 1 budget: 3-4 boss-strike banks',
     );
     assert(
         SUMMIT_KEEPER.hpBanks >= 5 && SUMMIT_KEEPER.hpBanks <= 6,
-        'act 3 budget: 5-6 decent banks',
+        'act 3 budget: 5-6 boss-strike banks',
     );
     assert(
-        Math.ceil(hpAct1 / bankDamage(decentBank, false, t)) >= 3,
-        `baseline play needs >= 3 banks on act 1 (decent bank ${decentBank}, hp ${hpAct1})`,
+        Math.ceil(hpAct1 / bankDamage(bossStrikeBank, true, t)) >= 3,
+        `well-timed boss strikes need >= 3 banks on act 1 (strike ${bossStrikeBank}, hp ${hpAct1})`,
+    );
+    assert(
+        bankDamage(meteoricOpener, true, t) * 2 < hpAct1,
+        `act 1 survives a normal METEORIC opener (raw decent ${rawDecentBank}, opener ${meteoricOpener}, hp ${hpAct1})`,
     );
     assert(hpAct3 > hpAct1 * 1.4, 'the summit exam is meaningfully longer than the tutorial');
 

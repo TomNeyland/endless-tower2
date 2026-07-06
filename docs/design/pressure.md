@@ -20,18 +20,20 @@ tower; the line just makes standing still expensive. Design consequences:
 
 - **Dormant start, announced ignition.** Each segment begins with the line
   dormant. It activates after `line.graceMs` (10s) OR when the player climbs
-  `line.graceFloors` (10) — whichever first (v1's dual trigger, a fine
-  shape). Activation is a visible, audible moment: the line ignites at the
+  `line.graceFraction` (⅓ of the segment) — whichever first. Activation is
+  a visible, audible moment: the line ignites at the
   bottom of the arena (per-act skin: grass fire / sandstorm / creeping void,
   per art-direction.md). Never a silent start.
 - **Speed = max(base, catch-up), never pity.**
   `lineSpeed = max(line.baseSpeed, catchUp)` where catch-up engages only
-  when the player's gap exceeds `line.slackPx` (1400): the line accelerates
-  (`line.catchUpFactor` 1.6 × base) until back inside slack. The line stays
+  when the player's gap exceeds `line.slackPx` (360): the line accelerates
+  (`line.catchUpFactor` 2.4 × base) until back inside slack. Slack is a
+  screen-story leash, not a hidden abyss; if the player is outrunning it,
+  the line should still haunt the bottom of the play space. The line stays
   *relevant* on god-runs without ever being unfair — and it **never slows
   down to spare a struggling player** (pity would make pressure dishonest
   and quietly insult the feel; hearts are the mercy system, not the line).
-- **A designed ramp, per segment, as data.** `line.rampPerFloor` (+0.6 px/s
+- **A designed ramp, per segment, as data.** `line.rampPerFloor` (+0.2 px/s
   per floor climbed) raises base speed gently across a segment, so late
   floors are hotter than early ones. All line constants live in the tuning
   table — node modifiers reprice them (*Greedy Line: faster, double loot*),
@@ -127,9 +129,9 @@ combo-scoring.md published. Facts-only law applies (no score, no judgment).
 | Key | Value | Meaning |
 |---|---|---|
 | `line.baseSpeed` | 55 px/s | dormant→active base rise speed |
-| `line.rampPerFloor` | +0.6 px/s | designed ramp across a segment |
-| `line.graceMs` / `line.graceFloors` | 10000 / 10 | dual activation trigger |
-| `line.slackPx` / `line.catchUpFactor` | 1400 / 1.6 | catch-up leash (relevance, not pity) |
+| `line.rampPerFloor` | +0.2 px/s | designed ramp across a 100+ floor segment |
+| `line.graceMs` / `line.graceFraction` | 10000 / ⅓ | dual activation trigger |
+| `line.slackPx` / `line.catchUpFactor` | 360 / 2.4 | visible catch-up leash (relevance, not pity) |
 | `line.proximityTiers` | [800, 400, 200, 80] px | broadcast boundaries, hysteresis 40 |
 | `hearts.max` / `hearts.start` | 3 / 3 | generous baseline |
 | `hearts.rescueVy` / `hearts.rescueVxKeep` | −1500 px/s / 0.5 | the skyward mercy |

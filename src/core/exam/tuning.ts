@@ -9,16 +9,17 @@
  * The frozen contract (combo-scoring.md): bosses consume `combo/banked` and
  * apply their own curve over the exposed axes — `boss.damagePerPoint` is
  * that curve's first coefficient, deliberately flat at 1 until relic-era
- * playtests demand shape. HP budgets are sized in expected banks
- * (bosses.md): `hp = def.hpBanks × boss.decentBankPayout`, where the
- * reference payout is a decent baseline chain (~25 floors at mult ~2 → ten
- * times 625 times 2 ≈ 12,500; the row ships 12,000, generous per pillar 1).
+ * playtests demand shape. HP budgets are sized in expected boss-strike banks
+ * (bosses.md): `hp = def.hpBanks × boss.decentBankPayout`. Early live play
+ * showed the raw 25-floor ×2 chain was too soft a reference once openness
+ * and arena-length chains entered; the row now prices the bank that should
+ * visibly move a boss without deleting the tutorial.
  */
 
 export const DEFAULT_EXAM_TUNING = {
     // --- The frozen damage contract (bosses.md: all axes readable) ---
     'boss.damagePerPoint': 1, // damage = payout × this; EXAM's own curve knob
-    'boss.decentBankPayout': 12000, // reference bank for hp budgets (hp = hpBanks × this)
+    'boss.decentBankPayout': 30000, // reference boss-strike bank (hp = hpBanks × this)
     'boss.opennessMs': 2500, // the stance-change window after each attack resolves
     'boss.opennessMult': 1.5, // damage multiplier inside the window — a bonus, not a gate
     // --- Land classifications (movement.md Amendment 1c, landed) ---

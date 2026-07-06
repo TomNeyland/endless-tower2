@@ -98,8 +98,8 @@ export const DEFAULT_TUNING = {
     'line.rampPerFloor': 0.2, // px/s per floor: 100 floors preserve the old 30-floor total arc
     'line.graceMs': 10000, // dual activation trigger, half one: time
     'line.graceFraction': 1 / 3, // dual trigger half two: progress fraction, length-independent
-    'line.slackPx': 1400, // catch-up leash: relevance on god-runs, never pity
-    'line.catchUpFactor': 1.6, // x base while the gap exceeds the slack
+    'line.slackPx': 360, // visible catch-up leash: relevance on god-runs, never pity
+    'line.catchUpFactor': 2.4, // x base while the gap exceeds the slack
     'line.igniteOffsetPx': 128, // ignition starts one floor below the arena bottom — announced, never an instant catch
     'line.proximitySafePx': 800, // broadcast boundaries: each tier's outer edge...
     'line.proximityAwarePx': 400,

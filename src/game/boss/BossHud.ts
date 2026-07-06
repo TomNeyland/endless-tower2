@@ -5,13 +5,19 @@
  * the show (art-direction.md).
  */
 import type { GameObjects, Scene } from 'phaser';
-import type { BossDefeatedEvent, BossHitEvent, BossSpawnedEvent, EventBus } from '../../core/events';
+import type {
+    BossDefeatedEvent,
+    BossHitEvent,
+    BossSpawnedEvent,
+    EventBus,
+} from '../../core/events';
 import type { BossSystem } from './BossSystem';
 import { GAME_WIDTH } from '../main';
 
 const BAR_W = 360;
 const BAR_H = 7;
 const BAR_Y = 30;
+const TEACH_ACT = 1;
 
 export class BossHud {
     private readonly scene: Scene;
@@ -21,6 +27,7 @@ export class BossHud {
     private barBack: GameObjects.Rectangle | null = null;
     private barFill: GameObjects.Rectangle | null = null;
     private nameLabel: GameObjects.Text | null = null;
+    private teachLines: GameObjects.Text[] = [];
     private notches: GameObjects.Rectangle[] = [];
 
     private readonly onSpawned = (e: BossSpawnedEvent): void => {
@@ -61,11 +68,15 @@ export class BossHud {
             },
         });
         this.buildBar(e.name);
+        if (this.boss.def.act === TEACH_ACT) {
+            this.buildTeachingPrompt();
+        }
     };
 
     private readonly onHit = (_e: BossHitEvent): void => {
         // The bar reads per frame (update); a hit just pings the label.
         this.nameLabel?.setAlpha(1);
+        this.fadeTeachingPrompt();
     };
 
     private readonly onDefeated = (_e: BossDefeatedEvent): void => {
@@ -120,6 +131,58 @@ export class BossHud {
             .setAlpha(0.8);
     }
 
+    private buildTeachingPrompt(): void {
+        const lines = [
+            'BANK COMBOS TO DAMAGE THE BOSS',
+            'land a small hop to cash out — gold stance hits harder',
+        ];
+        this.teachLines = lines.map((text, i) =>
+            this.scene.add
+                .text(GAME_WIDTH / 2, BAR_Y + 40 + i * 18, text, {
+                    fontFamily: i === 0 ? 'Arial Black' : 'Arial',
+                    fontSize: i === 0 ? '15px' : '13px',
+                    color: i === 0 ? '#ffe9c4' : '#d8b890',
+                    stroke: '#241205',
+                    strokeThickness: i === 0 ? 4 : 3,
+                })
+                .setOrigin(0.5, 0)
+                .setScrollFactor(0)
+                .setDepth(35)
+                .setAlpha(0),
+        );
+        this.scene.tweens.add({
+            targets: this.teachLines,
+            alpha: 1,
+            delay: 900,
+            duration: 350,
+        });
+    }
+
+    private fadeTeachingPrompt(): void {
+        if (this.teachLines.length === 0) {
+            return;
+        }
+        const lines = this.teachLines;
+        this.teachLines = [];
+        this.scene.tweens.add({
+            targets: lines,
+            alpha: 0,
+            duration: 350,
+            onComplete: () => {
+                for (const line of lines) {
+                    line.destroy();
+                }
+            },
+        });
+    }
+
+    private clearTeachingPrompt(): void {
+        for (const line of this.teachLines) {
+            line.destroy();
+        }
+        this.teachLines = [];
+    }
+
     update(): void {
         if (this.barFill) {
             const frac = Math.max(0, this.boss.health.hpRemaining() / this.boss.health.hpMax);
@@ -135,6 +198,7 @@ export class BossHud {
         this.barBack?.destroy();
         this.barFill?.destroy();
         this.nameLabel?.destroy();
+        this.clearTeachingPrompt();
         for (const notch of this.notches) {
             notch.destroy();
         }
