@@ -25,12 +25,19 @@ export const Sfx = {
     jumpHigh: 'sfx-jump-high',
     bump: 'sfx-bump',
     gem: 'sfx-gem',
+    // PRESSURE voice: the one hard sound, the rescue whoosh, ignition, exit.
+    hurt: 'sfx-hurt',
+    disappear: 'sfx-disappear',
+    magic: 'sfx-magic',
+    coin: 'sfx-coin',
 } as const;
 
 /** Runtime-generated textures (no files) — keys still live in the manifest. */
 export const Gen = {
     dust: 'gen-dust',
     streak: 'gen-streak',
+    /** Vertical white gradient (bright bottom, clear top) — glow bands. */
+    glow: 'gen-glow',
 } as const;
 
 /** Frame names inside the character atlas — swappable with the art. */
@@ -51,6 +58,18 @@ export const TileFrame = {
     groundTop: 'terrain_grass_block_top',
     groundFill: 'terrain_grass_block_center',
     wallColumn: 'terrain_grass_vertical_middle',
+    // PRESSURE: the exit door and the act-1 grass-fire skin.
+    doorBottom: 'door_open',
+    doorTop: 'door_open_top',
+    fireEdge: 'lava_top',
+    fireFill: 'lava',
+    fireball: 'fireball',
+} as const;
+
+/** HUD frames inside the tiles atlas (pack `hud_*` sprites before custom art). */
+export const HudFrame = {
+    heartFull: 'hud_heart',
+    heartEmpty: 'hud_heart_empty',
 } as const;
 
 export function loadCoreAssets(load: Loader.LoaderPlugin): void {
@@ -75,6 +94,10 @@ export function loadCoreAssets(load: Loader.LoaderPlugin): void {
     load.audio(Sfx.jumpHigh, 'Sounds/sfx_jump-high.ogg');
     load.audio(Sfx.bump, 'Sounds/sfx_bump.ogg');
     load.audio(Sfx.gem, 'Sounds/sfx_gem.ogg');
+    load.audio(Sfx.hurt, 'Sounds/sfx_hurt.ogg');
+    load.audio(Sfx.disappear, 'Sounds/sfx_disappear.ogg');
+    load.audio(Sfx.magic, 'Sounds/sfx_magic.ogg');
+    load.audio(Sfx.coin, 'Sounds/sfx_coin.ogg');
 }
 
 /** Create the tiny procedural particle textures once per game. */
@@ -91,6 +114,17 @@ export function ensureGeneratedTextures(scene: Scene): void {
         g.fillStyle(0xffffff, 1);
         g.fillRect(0, 0, 18, 2);
         g.generateTexture(Gen.streak, 18, 2);
+        g.destroy();
+    }
+    if (!scene.textures.exists(Gen.glow)) {
+        // Stepped alpha bands read as a smooth gradient once tinted/scaled.
+        const g = scene.add.graphics();
+        const bands = 16;
+        for (let i = 0; i < bands; i += 1) {
+            g.fillStyle(0xffffff, ((i + 1) / bands) ** 2);
+            g.fillRect(0, i * 4, 32, 4);
+        }
+        g.generateTexture(Gen.glow, 32, bands * 4);
         g.destroy();
     }
 }

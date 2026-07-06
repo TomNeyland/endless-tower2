@@ -156,6 +156,8 @@ export interface TickEvent extends EventEnvelope {
 // Reserved (do not implement, do not repurpose): a ceiling-bump event slot
 // for EXAM-phase tower mutation.
 
+// The game-wide event union. The name predates PRESSURE (kept stable for
+// consumers); pressure events ride the same bus under the same facts law.
 export type MovementEvent =
     | SpawnEvent
     | JumpEvent
@@ -170,7 +172,88 @@ export type MovementEvent =
     | CeilingEvent
     | StallEvent
     | ReversalEvent
-    | TickEvent;
+    | TickEvent
+    | PressureEvent;
+
+// ---------------------------------------------------------------------------
+// PRESSURE events (docs/design/pressure.md) — same envelope, same facts-only
+// law. The death line, hearts, and segment lifecycle broadcast here; nothing
+// reads the line except consumers of these events. `run/heart_lost` and
+// `run/segment_end` are exactly the RunSignal wiring combo-scoring.md
+// published (facts only — no score, no judgment).
+// ---------------------------------------------------------------------------
+
+export const PRESSURE_SCHEMA_VERSION = 1;
+
+export type LineProximityTier = 'safe' | 'aware' | 'danger' | 'critical';
+
+/** A tuning repricing broadcast as a fact (structurally = a layer, sans id). */
+export interface SegmentOverrideFact {
+    key: string;
+    op: 'mul' | 'add' | 'set';
+    value: number;
+}
+
+export interface SegmentStartEvent extends EventEnvelope {
+    type: 'run/segment_start';
+    segmentId: string;
+    floors: number;
+    seed: number;
+    doorFloorIndex: number;
+    lineProfile: SegmentOverrideFact[];
+    modifiers: SegmentOverrideFact[];
+}
+
+export interface LineStateEvent extends EventEnvelope {
+    type: 'line/state';
+    state: 'dormant' | 'active';
+    /** Which half of the dual trigger ignited the line (null when dormant). */
+    trigger: 'time' | 'floors' | null;
+    igniteTick: number | null;
+    lineY: number | null;
+}
+
+export interface LineProximityEvent extends EventEnvelope {
+    type: 'line/proximity';
+    tier: LineProximityTier;
+    gapPx: number;
+    direction: 'closing' | 'receding';
+    lineY: number;
+}
+
+export interface HeartLostEvent extends EventEnvelope {
+    type: 'run/heart_lost';
+    heartsRemaining: number;
+    gapAtCatch: number;
+    catchFloorIndex: number;
+}
+
+export interface SegmentEndEvent extends EventEnvelope {
+    type: 'run/segment_end';
+    reason: 'exit';
+    segmentId: string;
+    floorsClimbed: number;
+    timeTicks: number;
+    heartsLost: number;
+}
+
+export interface RunEndedEvent extends EventEnvelope {
+    type: 'run/ended';
+    reason: 'death_line';
+    segmentId: string;
+    /** Interim final stats; score/session_final (MASTERY) will join this. */
+    floorsClimbed: number;
+    timeTicks: number;
+    heartsLost: number;
+}
+
+export type PressureEvent =
+    | SegmentStartEvent
+    | LineStateEvent
+    | LineProximityEvent
+    | HeartLostEvent
+    | SegmentEndEvent
+    | RunEndedEvent;
 
 export type MovementEventType = MovementEvent['type'];
 export type EventOf<T extends MovementEventType> = Extract<MovementEvent, { type: T }>;
