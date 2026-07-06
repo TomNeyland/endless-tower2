@@ -10,7 +10,7 @@ import { CHARACTERS, type CharacterDef } from '../../core/meta/characters';
 import { featById } from '../../core/meta/feats';
 import { characterUnlocked } from '../../core/meta/unlocks';
 import { Atlas, characterFrames, ensureGeneratedTextures, Gen, Img, Sfx } from '../assets';
-import { GAME_HEIGHT, GAME_WIDTH } from '../main';
+import { GAME_HEIGHT, GAME_WIDTH } from '../dims';
 import { saveStore } from '../meta/SaveStore';
 import { RunOrchestrator } from '../systems/RunOrchestrator';
 

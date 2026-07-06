@@ -1,4 +1,5 @@
 import { AUTO, Game, Scale, type Types } from 'phaser';
+import { GAME_HEIGHT, GAME_WIDTH } from './dims';
 import { Boot } from './scenes/Boot';
 import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { MainMenu } from './scenes/MainMenu';
@@ -9,8 +10,9 @@ import { ResultsScene } from './scenes/ResultsScene';
 import { Sandbox } from './scenes/Sandbox';
 import { ShopScene } from './scenes/ShopScene';
 
-export const GAME_WIDTH = 1024;
-export const GAME_HEIGHT = 768;
+// Re-exported for existing runtime readers; module-scope readers must
+// import ./dims directly (see that module's header for the cycle story).
+export { GAME_HEIGHT, GAME_WIDTH } from './dims';
 
 const config: Types.Core.GameConfig = {
     type: AUTO,

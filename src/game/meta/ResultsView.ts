@@ -14,7 +14,7 @@ import type { RunRecord } from '../../core/meta/stats';
 import { modifierById } from '../../core/map/modifiers';
 import { relicById } from '../../core/relics/roster';
 import { Atlas, characterFrames, Gen } from '../assets';
-import { GAME_HEIGHT, GAME_WIDTH } from '../main';
+import { GAME_HEIGHT, GAME_WIDTH } from '../dims';
 import type { FeatFireRecord } from './MetaTracker';
 
 const CX = GAME_WIDTH / 2;

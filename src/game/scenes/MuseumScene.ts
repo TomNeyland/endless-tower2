@@ -13,7 +13,7 @@ import { CHARACTERS } from '../../core/meta/characters';
 import type { LifetimeStats } from '../../core/meta/stats';
 import { characterUnlocked } from '../../core/meta/unlocks';
 import { Atlas, characterFrames, ensureGeneratedTextures, Gen, Sfx } from '../assets';
-import { GAME_HEIGHT, GAME_WIDTH } from '../main';
+import { GAME_HEIGHT, GAME_WIDTH } from '../dims';
 import { clockFace } from '../meta/ResultsView';
 import { saveStore } from '../meta/SaveStore';
 
