@@ -174,9 +174,15 @@ export function rollFieldClassifications(
             continue;
         }
         const roll = rng();
-        if (roll < fractions.crumbleFraction && !prevCrumble) {
-            p.landClass = 'crumble';
-            prevCrumble = true;
+        if (roll < fractions.crumbleFraction) {
+            // An adjacency-blocked crumble stays ORDINARY — it never slides
+            // into the sticky window (the label priced two separate odds).
+            if (!prevCrumble) {
+                p.landClass = 'crumble';
+                prevCrumble = true;
+            } else {
+                prevCrumble = false;
+            }
         } else if (roll < fractions.crumbleFraction + fractions.stickyFraction) {
             p.landClass = 'sticky';
             prevCrumble = false;
