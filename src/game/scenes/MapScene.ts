@@ -27,6 +27,9 @@ export class MapScene extends Scene {
     private card!: NodeCardView;
     private hud!: MapHud;
     private focusId: string | null = null;
+    /** The open decision overlay — owned here so a scene shutdown while it
+     *  is up (debug jump, run end) tears its key handler down with it. */
+    private overlay: MysteryOverlay | SummitCard | null = null;
     private overlayOpen = false;
     private traversing = false;
 
@@ -72,7 +75,9 @@ export class MapScene extends Scene {
 
         if (this.run.isSummit()) {
             this.overlayOpen = true;
-            new SummitCard(this, palette, this.run.snapshot(), () => this.run.endRun());
+            this.overlay = new SummitCard(this, palette, this.run.snapshot(), () =>
+                this.run.endRun(),
+            );
         } else {
             const toast = this.run.consumeToast();
             if (toast) {
@@ -129,27 +134,58 @@ export class MapScene extends Scene {
         this.card.show(label, pos.x, pos.y, reachable ? verb : null);
     }
 
+    /**
+     * Keyboard roams the WHOLE act, exactly like pointer hover: plan-ahead
+     * label reading is the map phase's core activity ("you chose all of it,
+     * three rows ago, on purpose" — map-modifiers.md), so upper rows must be
+     * studyable without a mouse. Left/Right walks the focused row, Up/Down
+     * hops rows to the nearest window, Enter/Space commits — and only a
+     * reachable focus commits (the card's commit-hint is already null
+     * elsewhere).
+     */
     private handleKey(event: KeyboardEvent): void {
         if (this.overlayOpen || this.traversing) {
             return;
         }
-        const reachable = this.run.reachableIds();
-        if (reachable.length === 0) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            if (this.focusId === null) {
+                this.focusFirstReachable();
+            } else if (this.run.reachableIds().includes(this.focusId)) {
+                this.commit(this.focusId);
+            }
             return;
         }
-        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-            const current = this.focusId !== null ? reachable.indexOf(this.focusId) : -1;
+        const horizontal = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
+        const vertical = event.key === 'ArrowUp' || event.key === 'ArrowDown';
+        if (!horizontal && !vertical) {
+            return;
+        }
+        if (this.focusId === null) {
+            this.focusFirstReachable();
+            return;
+        }
+        const graph = this.run.actGraph();
+        const node = nodeById(graph, this.focusId);
+        if (horizontal) {
+            const row = graph.rows[node.row];
+            const i = row.findIndex((n) => n.id === this.focusId);
             const step = event.key === 'ArrowLeft' ? -1 : 1;
-            const next =
-                current === -1 ? 0 : (current + step + reachable.length) % reachable.length;
-            this.setFocus(reachable[next]);
-        } else if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowUp') {
-            if (this.focusId !== null && reachable.includes(this.focusId)) {
-                this.commit(this.focusId);
-            } else {
-                this.focusFirstReachable();
+            this.setFocus(row[(i + step + row.length) % row.length].id);
+            return;
+        }
+        const targetRow = node.row + (event.key === 'ArrowUp' ? 1 : -1);
+        if (targetRow < 0 || targetRow >= graph.rows.length) {
+            return;
+        }
+        const x = this.view.windowPos(this.focusId).x;
+        let best = graph.rows[targetRow][0];
+        for (const candidate of graph.rows[targetRow]) {
+            const dist = Math.abs(this.view.windowPos(candidate.id).x - x);
+            if (dist < Math.abs(this.view.windowPos(best.id).x - x)) {
+                best = candidate;
             }
         }
+        this.setFocus(best.id);
     }
 
     /** Confirm → traversal animation → map/node_committed → route. */
@@ -178,7 +214,7 @@ export class MapScene extends Scene {
         this.overlayOpen = true;
         this.syncRunPosition();
         const palette = actPalette(this.run.snapshot().actIndex);
-        new MysteryOverlay(
+        this.overlay = new MysteryOverlay(
             this,
             palette,
             // Rendered from the same data the resolution reads — one authority.
@@ -202,6 +238,7 @@ export class MapScene extends Scene {
     }
 
     private closeOverlay(): void {
+        this.overlay = null; // the overlay destroyed itself before closing
         this.overlayOpen = false;
         this.hud.refresh(this.hudReadout());
         this.syncRunPosition();
@@ -214,6 +251,8 @@ export class MapScene extends Scene {
 
     private teardown(): void {
         this.input.keyboard?.off('keydown', this.onKeyDown);
+        this.overlay?.destroy(); // its key handler must not outlive the scene
+        this.overlay = null;
         this.card.destroy();
         this.hud.destroy();
         this.view.destroy();

@@ -3,63 +3,31 @@
  * inter-node results toast (light, per playthrough-trace.md finding 4),
  * and the summit card. The shop is NOT an overlay — committed Shop nodes
  * launch IDENTITY's real ShopScene above the paused map.
+ *
+ * Keyboard + pointer both first-class (map-modifiers.md, binding): every
+ * overlay that takes a decision answers keys — digits or arrows+Enter pick
+ * a mystery choice, Enter/Space presses CONTINUE and RETURN. Handlers are
+ * stored refs removed in destroy() (listener hygiene law); the MapScene
+ * owns the open overlay and destroys it on scene shutdown.
  */
 import type { GameObjects, Scene } from 'phaser';
 import { groupDigits } from '../../core/format';
 import type { MysteryEvent } from '../../core/map/mystery';
 import type { RunSnapshot } from '../../core/run/state';
 import { GAME_HEIGHT, GAME_WIDTH } from '../main';
+import { buildPanel, OverlayButton, PANEL_W } from './overlayKit';
 import type { ActPalette } from './palettes';
-
-const PANEL_W = 460;
-
-/** A dim scrim plus a centered panel container. */
-function buildPanel(scene: Scene, palette: ActPalette, height: number): GameObjects.Container {
-    const c = scene.add.container(0, 0).setDepth(40);
-    const scrim = scene.add
-        .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.55)
-        .setInteractive(); // swallow clicks behind the panel
-    const bg = scene.add.graphics();
-    const x = (GAME_WIDTH - PANEL_W) / 2;
-    const y = (GAME_HEIGHT - height) / 2;
-    bg.fillStyle(0x10131a, 0.96);
-    bg.fillRoundedRect(x, y, PANEL_W, height, 12);
-    bg.lineStyle(2, palette.glow, 0.9);
-    bg.strokeRoundedRect(x, y, PANEL_W, height, 12);
-    c.add([scrim, bg]);
-    return c;
-}
-
-function buildButton(
-    scene: Scene,
-    c: GameObjects.Container,
-    label: string,
-    x: number,
-    y: number,
-    onClick: () => void,
-): GameObjects.Text {
-    const t = scene.add
-        .text(x, y, label, {
-            fontFamily: 'Arial Black',
-            fontSize: 17,
-            color: '#ffe9b0',
-            backgroundColor: '#26202e',
-            padding: { x: 14, y: 8 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-    t.on('pointerover', () => t.setStyle({ backgroundColor: '#3a3348' }));
-    t.on('pointerout', () => t.setStyle({ backgroundColor: '#26202e' }));
-    t.on('pointerdown', onClick);
-    c.add(t);
-    return t;
-}
 
 /** The mystery event: prompt, choices, then the outcome and a Continue. */
 export class MysteryOverlay {
     private readonly scene: Scene;
     private readonly palette: ActPalette;
     private container: GameObjects.Container;
+    private buttons: OverlayButton[] = [];
+    private focusIndex = -1;
+    private outcomePhase = false;
+
+    private readonly onKey = (event: KeyboardEvent): void => this.handleKey(event);
 
     constructor(
         scene: Scene,
@@ -94,15 +62,60 @@ export class MysteryOverlay {
                 .setOrigin(0.5),
         );
         event.choices.forEach((choice, i) => {
-            buildButton(scene, this.container, choice.label, cx, top + 168 + i * 52, () => {
-                const text = resolve(i);
-                this.showOutcome(text, onClose);
-            });
+            const button = new OverlayButton(
+                scene,
+                this.container,
+                `${i + 1}. ${choice.label}`,
+                cx,
+                top + 168 + i * 52,
+                () => {
+                    const text = resolve(i);
+                    this.showOutcome(text, onClose);
+                },
+            );
+            button.onHover(() => this.setFocus(i));
+            this.buttons.push(button);
         });
+        this.setFocus(0);
+        scene.input.keyboard?.on('keydown', this.onKey);
+    }
+
+    private setFocus(index: number): void {
+        this.focusIndex = index;
+        this.buttons.forEach((b, i) => {
+            b.setFocused(i === index);
+        });
+    }
+
+    private handleKey(event: KeyboardEvent): void {
+        if (event.key === 'Enter' || event.key === ' ') {
+            if (!event.repeat && this.focusIndex >= 0) {
+                this.buttons[this.focusIndex].press();
+            }
+            return;
+        }
+        if (this.outcomePhase) {
+            return;
+        }
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            const step = event.key === 'ArrowUp' ? -1 : 1;
+            this.setFocus((this.focusIndex + step + this.buttons.length) % this.buttons.length);
+            return;
+        }
+        const digit = Number.parseInt(event.key, 10);
+        if (
+            !event.repeat &&
+            Number.isInteger(digit) &&
+            digit >= 1 &&
+            digit <= this.buttons.length
+        ) {
+            this.buttons[digit - 1].press();
+        }
     }
 
     private showOutcome(text: string, onClose: () => void): void {
         this.container.destroy();
+        this.outcomePhase = true;
         this.container = buildPanel(this.scene, this.palette, 200);
         const cx = GAME_WIDTH / 2;
         const top = (GAME_HEIGHT - 200) / 2;
@@ -117,13 +130,23 @@ export class MysteryOverlay {
                 })
                 .setOrigin(0.5),
         );
-        buildButton(this.scene, this.container, 'CONTINUE', cx, top + 148, () => {
-            this.destroy();
-            onClose();
-        });
+        const button = new OverlayButton(
+            this.scene,
+            this.container,
+            'CONTINUE',
+            cx,
+            top + 148,
+            () => {
+                this.destroy();
+                onClose();
+            },
+        );
+        this.buttons = [button];
+        this.setFocus(0);
     }
 
     destroy(): void {
+        this.scene.input.keyboard?.off('keydown', this.onKey);
         this.container.destroy();
     }
 }
@@ -186,9 +209,19 @@ export class ResultsToast {
 
 /** The summit: the run is won. Score, best chain, seed — then the menu. */
 export class SummitCard {
+    private readonly scene: Scene;
     private readonly container: GameObjects.Container;
 
+    private readonly onKey = (event: KeyboardEvent): void => {
+        if (!event.repeat && (event.key === 'Enter' || event.key === ' ')) {
+            this.returnButton.press();
+        }
+    };
+
+    private readonly returnButton: OverlayButton;
+
     constructor(scene: Scene, palette: ActPalette, state: RunSnapshot, onDone: () => void) {
+        this.scene = scene;
         this.container = buildPanel(scene, palette, 300);
         const cx = GAME_WIDTH / 2;
         const top = (GAME_HEIGHT - 300) / 2;
@@ -211,13 +244,23 @@ export class SummitCard {
             add(132, `best chain ${state.bestChainFace}`, 16, '#ffce7a');
         }
         add(170, `seed ${state.seed}`, 14, palette.textDim);
-        buildButton(scene, this.container, 'RETURN', cx, top + 236, () => {
-            this.destroy();
-            onDone();
-        });
+        this.returnButton = new OverlayButton(
+            scene,
+            this.container,
+            'RETURN',
+            cx,
+            top + 236,
+            () => {
+                this.destroy();
+                onDone();
+            },
+        );
+        this.returnButton.setFocused(true);
+        scene.input.keyboard?.on('keydown', this.onKey);
     }
 
     destroy(): void {
+        this.scene.input.keyboard?.off('keydown', this.onKey);
         this.container.destroy();
     }
 }
