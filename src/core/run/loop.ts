@@ -44,6 +44,10 @@ export function specWithGifts(node: NodeSpec, giftIds: readonly string[]): Segme
     }
     const spec: SegmentSpec = {
         ...node.segment,
+        difficulty: {
+            profile: { ...node.segment.difficulty.profile },
+            actIndex: node.segment.difficulty.actIndex,
+        },
         lineProfile: node.segment.lineProfile.map((o) => ({ ...o })),
         modifiers: node.segment.modifiers.map((o) => ({ ...o })),
         loot: { ...node.segment.loot },

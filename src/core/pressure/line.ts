@@ -43,6 +43,8 @@ export interface LineStepIo {
     feetY: number;
     /** High-water floors climbed this segment — drives ramp and ignition. */
     highWaterFloors: number;
+    /** Segment length makes the floor trigger a progress fraction. */
+    totalFloors: number;
     /** Rescue invulnerability: the line cannot catch (but never pauses). */
     invulnerable: boolean;
 }
@@ -133,7 +135,7 @@ export function stepDeathLine(
 
     let ignited: IgnitionTrigger | null = null;
     if (state.mode === 'dormant') {
-        if (io.highWaterFloors >= t.value('line.graceFloors')) {
+        if (io.highWaterFloors / io.totalFloors >= t.value('line.graceFraction')) {
             ignited = 'floors';
         } else if (state.ticksSinceStart >= msToTicks(t.value('line.graceMs'))) {
             ignited = 'time';

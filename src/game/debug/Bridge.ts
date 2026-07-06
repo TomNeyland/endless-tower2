@@ -1,10 +1,6 @@
-/**
- * The debug bridge: window.__ET2__. All diagnostics live here — live tuning
- * get/set, the event ring buffer, the input recorder/replay harness, and the
- * stats surface. Debug never leaks into production scenes: this object is
- * invisible unless you open the console, and nothing in the game reads it.
- */
+/** window.__ET2__: invisible diagnostics; production code never reads it. */
 import type { ChainSummary, ComboTripwires } from '../../core/combo/engine';
+import type { DifficultyTracePoint } from '../../core/difficulty/types';
 import {
     type AnyComboEvent,
     type AnyComboEventType,
@@ -55,9 +51,7 @@ import type { SessionLog } from '../systems/SessionLog';
 import type { SessionSummary } from '../systems/SessionVault';
 import type { MovementStats, StatsSnapshot } from './Stats';
 
-const RING_SIZE = 1024;
-const TICK_RING_SIZE = 600;
-const COMBO_RING_SIZE = 512;
+const [RING_SIZE, TICK_RING_SIZE, COMBO_RING_SIZE] = [1024, 600, 512];
 
 export interface Et2Bridge {
     schemaVersion: number;
@@ -90,6 +84,7 @@ export interface Et2Bridge {
         snapshot(): StatsSnapshot;
         reset(): void;
     };
+    difficultyTrace(): DifficultyTracePoint[];
     verify: {
         /** Instrumentation gate #1, re-runnable: drives a synthetic scripted
          *  replay and checks the three engine facts. Drift = stop the line. */
@@ -103,7 +98,7 @@ export interface Et2Bridge {
     /** PRESSURE: segment mode + death-line harness (docs/design/pressure.md).
      *  startSegment/stopSegment restart the scene — re-read window.__ET2__. */
     pressure: {
-        startSegment(spec?: Partial<SegmentSpec>): SegmentSpec;
+        startSegment(spec?: SegmentSpec): SegmentSpec;
         stopSegment(): void;
         state(): PressureSnapshot | null;
         lineTeleport(y: number): void;
@@ -196,12 +191,13 @@ interface BridgeDeps {
     tuning: TuningStack;
     player: PlayerSystem;
     stats: MovementStats;
+    difficultyTrace: readonly DifficultyTracePoint[];
     combo: ComboRelay;
     session: SessionLog;
     resetSandbox: () => void;
     pressure: {
         system: PressureSystem;
-        startSegment: (spec?: Partial<SegmentSpec>) => SegmentSpec;
+        startSegment: (spec?: SegmentSpec) => SegmentSpec;
         stopSegment: () => void;
     };
     identity: {
@@ -303,13 +299,14 @@ export class DebugBridge {
                 snapshot: () => stats.snapshot(),
                 reset: () => stats.reset(),
             },
+            difficultyTrace: () => this.deps.difficultyTrace.map((point) => ({ ...point })),
             verify: {
                 engineFacts: () => this.runEngineFacts(),
                 pressureInvariants: () =>
                     runPressureInvariants(this.deps.game, () => window.__ET2__),
             },
             pressure: {
-                startSegment: (spec?: Partial<SegmentSpec>) => pressure.startSegment(spec),
+                startSegment: (spec?: SegmentSpec) => pressure.startSegment(spec),
                 stopSegment: () => pressure.stopSegment(),
                 state: () => pressure.system.snapshot(),
                 lineTeleport: (y: number) => pressure.system.debugLineTeleport(y),

@@ -23,6 +23,7 @@
  * character is the physique the build is assembled onto.
  */
 import { validateComboTuning } from './combo/tuning';
+import { validateDifficultyTuning } from './difficulty/tuning';
 import { validateIdentityTuning } from './economy/tuning';
 import { validateExamTuning } from './exam/tuning';
 import { validatePressureTuning } from './pressure/tuning';
@@ -150,6 +151,7 @@ export class TuningStack {
             ownerRank(layer.owner);
             const resolved = this.snapshot();
             validateComboTuning(resolved);
+            validateDifficultyTuning(resolved);
             validateIdentityTuning(resolved);
             validateExamTuning(resolved);
             validatePressureTuning(resolved);

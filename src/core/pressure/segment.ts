@@ -9,6 +9,8 @@
  * never a place a finishing player can strand themselves.
  */
 import { rollFieldClassifications } from '../exam/field';
+import { DIFFICULTY_PROFILES } from '../difficulty/profiles';
+import type { SegmentDifficulty } from '../difficulty/types';
 import { fork } from '../rng';
 import { generateSandboxTower, type PlatformSpec, type TowerLayout } from '../tower';
 import type { TuningKey, TuningOp, TuningStack } from '../tuning';
@@ -48,6 +50,8 @@ export interface SegmentSpec {
     floors: number;
     /** Tower-generation seed; identical spec replays identically. */
     seed: number;
+    /** Intra-segment geometry curve, evaluated against this segment's seed. */
+    difficulty: SegmentDifficulty;
     /** Line repricing for this segment (e.g. Greedy Line), applied as layers. */
     lineProfile: SegmentTuningOverride[];
     /** CHOICE-phase mutators, applied as layers. Semantics arrive with CHOICE. */
@@ -91,6 +95,7 @@ export function defaultSegmentSpec(t: TuningStack, seed: number): SegmentSpec {
         segmentId: `segment-${seed}-${floors}`,
         floors,
         seed,
+        difficulty: { profile: DIFFICULTY_PROFILES.climb, actIndex: 1 },
         lineProfile: [],
         modifiers: [],
         loot: defaultSegmentLoot(t),
@@ -124,11 +129,11 @@ export function buildSegmentTower(
     const budgetFloors = spec.floors + t.value('segment.doorBufferFloors');
     const budgetPx = budgetFloors * floorH;
 
-    // The sandbox generator places platforms 100-160px apart, so this count
-    // is guaranteed to reach the budget height; everything above it is
-    // trimmed (a prefix of the reachability chain stays reachable).
-    const platformCount = Math.ceil(budgetPx / 100) + 2;
-    const full = generateSandboxTower(spec.seed, t, groundTopY, platformCount);
+    const full = generateSandboxTower(spec.seed, t, groundTopY, {
+        totalFloors: spec.floors,
+        heightFloors: budgetFloors,
+        difficulty: spec.difficulty,
+    });
     const platforms = full.platforms.filter((p) => p.topY >= groundTopY - budgetPx);
 
     let door: DoorPlacement | null = null;

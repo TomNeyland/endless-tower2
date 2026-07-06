@@ -35,8 +35,12 @@ import type { EventIndex, MarkerRecord, Recording, TuningMutationRecord } from '
  * per-platform `landClass`. Same precedent as v2: a v2 file cannot represent
  * a duel's world mutations and its `segment.door` shape predates boss
  * arenas, so it is refused loudly rather than replayed wrongly.
+ *
+ * v4: difficulty adds the generated curve trace and platform phrase facts to
+ * the embedded tower. A v3 file cannot serve the new debug truth, so it is
+ * refused rather than partially loaded.
  */
-export const SESSION_SCHEMA_VERSION = 3;
+export const SESSION_SCHEMA_VERSION = 4;
 
 /**
  * One run-length-encoded stretch of identical input:
@@ -229,6 +233,9 @@ export function assertSessionShape(raw: unknown): SessionRecording {
     }
     if (typeof s.tower !== 'object' || !Array.isArray(s.tower.platforms)) {
         throw new Error('session: missing embedded tower layout');
+    }
+    if (!Array.isArray(s.tower.difficultyTrace)) {
+        throw new Error('session: missing embedded difficulty trace');
     }
     if (s.segment === undefined || (s.segment !== null && typeof s.segment.spec !== 'object')) {
         throw new Error('session: missing segment field (null for the endless sandbox)');

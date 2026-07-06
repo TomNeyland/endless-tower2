@@ -14,7 +14,8 @@
     "format": "biome format --write src",
     "check": "npm run typecheck && npm run lint",
     "replay": "tsx src/cli/replay.ts",
-    "exam": "tsx src/cli/exam-harness.ts"
+    "exam": "tsx src/cli/exam-harness.ts",
+    "difficulty": "tsx harness/difficulty.harness.ts"
   },
   "dependencies": {
     "phaser": "^4.2.0"

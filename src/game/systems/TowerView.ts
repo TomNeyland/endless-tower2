@@ -18,6 +18,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../main';
 const CRUMBLE_TINT = 0xd8b088; // dry, brittle — visibly not ordinary ground
 const GOO_TINT = 0x86d94e;
 const GLOW_TINT = 0xffb03a;
+const BREATHER_TINT = 0xffe0ae;
 
 interface PlatformVisual {
     tiles: GameObjects.Image[];
@@ -27,6 +28,7 @@ interface PlatformVisual {
     xCenter: number;
     topY: number;
     width: number;
+    baseTint: number | null;
 }
 
 export class TowerView {
@@ -79,8 +81,14 @@ export class TowerView {
                 xCenter: p.xCenter,
                 topY: p.topY,
                 width: p.width,
+                baseTint: p.breather ? BREATHER_TINT : null,
             };
             this.platforms.set(p.id, visual);
+            if (visual.baseTint !== null) {
+                for (const tile of visual.tiles) {
+                    tile.setTint(visual.baseTint);
+                }
+            }
             if (p.landClass === 'crumble') {
                 this.applyClass(p.id, 'crumble');
             } else if (p.landClass === 'sticky') {
@@ -140,7 +148,11 @@ export class TowerView {
             return;
         }
         for (const tile of v.tiles) {
-            tile.clearTint();
+            if (v.baseTint === null) {
+                tile.clearTint();
+            } else {
+                tile.setTint(v.baseTint);
+            }
         }
         for (const blob of v.goo) {
             blob.destroy();

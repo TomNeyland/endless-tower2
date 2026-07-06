@@ -314,7 +314,7 @@ export const RELICS: readonly RelicDef[] = [
         hook: 'body',
         layers: [
             { key: 'line.graceMs', op: 'mul', value: 1.5 },
-            { key: 'line.graceFloors', op: 'mul', value: 1.5 },
+            { key: 'line.graceFraction', op: 'mul', value: 1.5 },
         ],
         triggers: [],
         tell: { color: 0xc8e8a8, style: 'orbit' },

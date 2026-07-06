@@ -99,7 +99,7 @@ export const MODIFIER_ROSTER: readonly ModifierSpec[] = [
         pay: 'run accel +20% (you are faster too)',
         tuningLayers: [
             { key: 'line.graceMs', op: 'mul', value: 0.5 },
-            { key: 'line.graceFloors', op: 'mul', value: 0.5 },
+            { key: 'line.graceFraction', op: 'mul', value: 0.5 },
             { key: 'RUN_ACCEL_LOW', op: 'mul', value: 1.2 },
             { key: 'RUN_ACCEL_HIGH', op: 'mul', value: 1.2 },
         ],
@@ -131,7 +131,7 @@ export const MODIFIER_ROSTER: readonly ModifierSpec[] = [
         // default (the label may never drift from the physics).
         tuningLayers: [{ key: 'land.stickyKeep', op: 'set', value: 0.7 }],
         genPatch: { stickyFraction: 0.1, stickySpeedKeep: 0.7 },
-        lootPatch: { bountyCoinsAdd: 40 },
+        lootPatch: { bountyCoinsPerFloorAdd: 0.4 },
         // Rollable since EXAM landed Amendment 1c's sticky classification
         // (DEVIATIONS entry 10's flip condition, met).
         rollable: true,
@@ -239,7 +239,7 @@ export function validateModifierRoster(roster: readonly ModifierSpec[]): void {
         if (l?.coinsMul !== undefined && l.coinsMul <= 0) {
             fail(m.id, 'coinsMul must be positive');
         }
-        if (l?.bountyCoinsAdd !== undefined && l.bountyCoinsAdd < 0) {
+        if (l?.bountyCoinsPerFloorAdd !== undefined && l.bountyCoinsPerFloorAdd < 0) {
             fail(m.id, 'negative bounty');
         }
         if (l?.relicOddsAdd !== undefined && (l.relicOddsAdd < 0 || l.relicOddsAdd > 1)) {

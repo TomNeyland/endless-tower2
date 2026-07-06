@@ -14,7 +14,7 @@ export const DEFAULT_IDENTITY_TUNING = {
     // --- Coins (economy, distinct from score — coins never measure skill) ---
     'coins.magnetPx': 48, // collection radius around the player's center
     'coins.pickupValue': 1, // wallet value of one placed coin
-    'coins.perFloor': 1.0, // baseline placement density; node loot profiles scale it
+    'coins.perFloor': 0.3, // 100-floor climbs preserve the old 30-floor wallet arc
     'coins.stormRate': 0, // coins/sec raining near the player; >0 only under Coin Storm
     // --- The Ghost powerup's substrate: the line rises but cannot catch ---
     'line.ghost': 0, // 0 or 1; a temporary `powerup:ghost` set-layer holds it at 1

@@ -6,6 +6,7 @@
  */
 import { Scene } from 'phaser';
 import { bossById } from '../../core/boss/defs';
+import { DIFFICULTY_PROFILES } from '../../core/difficulty/profiles';
 import type { RunEndedEvent, SegmentEndEvent } from '../../core/events';
 import { EventBus } from '../../core/events';
 import { InputRecorder } from '../../core/input/recorder';
@@ -13,6 +14,7 @@ import { LINE_PROFILES } from '../../core/map/presets';
 import type { RunSegmentHandoff, SegmentOutcome } from '../../core/run/loop';
 import {
     buildSegmentTower,
+    defaultSegmentLoot,
     defaultSegmentSpec,
     type SegmentSpec,
 } from '../../core/pressure/segment';
@@ -232,7 +234,12 @@ export class Sandbox extends Scene {
             layout = build.layout;
             segment = { spec: this.segmentSpec, door: build.door, groundTopY };
         } else {
-            layout = generateSandboxTower(seed, this.tuning, groundTopY);
+            const sandboxFloors = this.tuning.value('segment.sandboxFloors');
+            layout = generateSandboxTower(seed, this.tuning, groundTopY, {
+                totalFloors: sandboxFloors,
+                heightFloors: sandboxFloors,
+                difficulty: { profile: DIFFICULTY_PROFILES.climb, actIndex: 1 },
+            });
         }
 
         this.backdrop = new ParallaxBackdrop(this);
@@ -402,6 +409,7 @@ export class Sandbox extends Scene {
             tuning: this.tuning,
             player: this.playerSystem,
             stats: this.stats,
+            difficultyTrace: layout.difficultyTrace,
             combo: this.comboRelay,
             session: this.sessionLog,
             resetSandbox: () => this.resetRun(),
@@ -457,20 +465,7 @@ export class Sandbox extends Scene {
     }
 
     /** Bridge-driven segment mode: __ET2__.pressure.startSegment(spec). */
-    private startSegment(partial: Partial<SegmentSpec> = {}): SegmentSpec {
-        const seed = partial.seed ?? SANDBOX_SEED;
-        const defaults = defaultSegmentSpec(this.tuning, seed);
-        const floors = partial.floors ?? defaults.floors;
-        const spec: SegmentSpec = {
-            segmentId: partial.segmentId ?? `segment-${seed}-${floors}`,
-            floors,
-            seed,
-            lineProfile: partial.lineProfile ?? [],
-            modifiers: partial.modifiers ?? [],
-            loot: partial.loot ?? defaults.loot,
-            field: partial.field,
-            boss: partial.boss,
-        };
+    private startSegment(spec: SegmentSpec = defaultSegmentSpec(this.tuning, SANDBOX_SEED)): SegmentSpec {
         this.scene.restart({ segment: spec } satisfies SandboxBootData);
         return spec;
     }
@@ -478,11 +473,15 @@ export class Sandbox extends Scene {
     /** Bridge-driven duel: __ET2__.boss.spawn(bossId) — a real arena, the
      *  same spec shape the map's boss nodes commit (harness venue). */
     private startArena(bossId: string): SegmentSpec {
-        bossById(bossId); // throws on unknown ids before the restart
+        const boss = bossById(bossId);
         return this.startSegment({
             segmentId: `arena-${bossId}`,
             floors: 220,
+            seed: SANDBOX_SEED,
+            difficulty: { profile: DIFFICULTY_PROFILES.boss, actIndex: boss.act },
             lineProfile: LINE_PROFILES.boss.overrides.map((o) => ({ ...o })),
+            modifiers: [],
+            loot: defaultSegmentLoot(this.tuning),
             boss: bossId,
         });
     }

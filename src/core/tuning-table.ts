@@ -11,6 +11,7 @@
  * crowds the file cap as systems keep adding rows.
  */
 import { DEFAULT_COMBO_TUNING } from './combo/tuning';
+import { DEFAULT_DIFFICULTY_TUNING } from './difficulty/tuning';
 import { DEFAULT_IDENTITY_TUNING } from './economy/tuning';
 import { DEFAULT_EXAM_TUNING } from './exam/tuning';
 
@@ -94,9 +95,9 @@ export const DEFAULT_TUNING = {
 
     // --- PRESSURE: the death line (docs/design/pressure.md) ---
     'line.baseSpeed': 55, // px/s: dormant->active base rise speed
-    'line.rampPerFloor': 0.6, // px/s per floor climbed — the designed per-segment ramp
+    'line.rampPerFloor': 0.2, // px/s per floor: 100 floors preserve the old 30-floor total arc
     'line.graceMs': 10000, // dual activation trigger, half one: time
-    'line.graceFloors': 10, // dual activation trigger, half two: floors climbed
+    'line.graceFraction': 1 / 3, // dual trigger half two: progress fraction, length-independent
     'line.slackPx': 1400, // catch-up leash: relevance on god-runs, never pity
     'line.catchUpFactor': 1.6, // x base while the gap exceeds the slack
     'line.igniteOffsetPx': 128, // ignition starts one floor below the arena bottom — announced, never an instant catch
@@ -115,11 +116,12 @@ export const DEFAULT_TUNING = {
 
     // --- PRESSURE: segments ---
     'segment.doorBufferFloors': 6, // visual continuity above the exit — scenery, not play space
-    'segment.defaultFloors': 30, // the bridge's no-argument segment length
+    'segment.defaultFloors': 100, // the bridge's no-argument segment length
+    'segment.sandboxFloors': 300, // endless feel-gate generation budget
 
     // --- CHOICE: the map and the tower generator's repriceable knobs ---
     'map.maxRegens': 16, // validate-or-regenerate budget; exceeding it THROWS (map-modifiers.md)
-    'tower.platformWidthMul': 1.0, // platform width multiplier — Narrow Ledges' price, Coin Rush's wide ledges
+    ...DEFAULT_DIFFICULTY_TUNING,
 
     // --- Combo & score (MASTERY): defaults live in src/core/combo/tuning.ts;
     //     merged here so relics/modifiers need zero combo-specific plumbing ---

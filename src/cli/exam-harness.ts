@@ -2,7 +2,7 @@
  * The EXAM harness — engine-free proof of the duel core, in Node, with
  * assertions (`npm run exam`). No Phaser, no browser: the same core the
  * scene composes is exercised directly, and the headless replay is driven
- * over synthetic v3 sessions so the recorded-channel plumbing is proven
+ * over synthetic v4 sessions so the recorded-channel plumbing is proven
  * end-to-end. Any failed assertion exits 1 — a broken exam is a stopped
  * line, never a shrug.
  */
@@ -10,6 +10,7 @@ import { BossBrain } from '../core/boss/brain';
 import { bankDamage, bankLoudness, BossHealth, bossHpFor } from '../core/boss/damage';
 import { BOSS_ROSTER, SLIME_SOVEREIGN, SUMMIT_KEEPER } from '../core/boss/defs';
 import { basePoints, payoutOf } from '../core/combo/spice';
+import { DIFFICULTY_PROFILES } from '../core/difficulty/profiles';
 import type { BossEvent, LandEvent } from '../core/events';
 import type { ExamCommand } from '../core/exam/commands';
 import { PlatformField, rollFieldClassifications } from '../core/exam/field';
@@ -18,13 +19,13 @@ import { generateActGraph } from '../core/map/gen';
 import { rollableModifiers } from '../core/map/modifiers';
 import { emitSpawn, stepMovement } from '../core/movement/logic';
 import { createMovementState, msToTicks } from '../core/movement/state';
-import { buildSegmentTower } from '../core/pressure/segment';
+import { buildSegmentTower, type SegmentSpec } from '../core/pressure/segment';
 import { relicById } from '../core/relics/roster';
 import { simulateSession } from '../core/replay/simulate';
 import { fork, mulberry32 } from '../core/rng';
 import type { PlatformSpec } from '../core/tower';
 import { TuningStack } from '../core/tuning';
-import { climbFrames, GROUND_TOP_Y, segmentSpecOf, syntheticSession } from './exam-sessions';
+import { climbFrames, GROUND_TOP_Y, syntheticSession } from './exam-sessions';
 
 let failures = 0;
 let checks = 0;
@@ -136,7 +137,9 @@ section('hp budgets: sized in expected banks (bosses.md), priced by real payout 
         1 + bounces * recipe.value('combo.multWallBounce') + recipe.value('combo.multCeiling');
     const recipeBank = payoutOf(basePoints(floors, recipe), mult);
     assert(recipeBank >= recipe.value('hud.bankVoice'), 'the recipe bank is roar-class');
-    const roars = Math.ceil(bossHpFor(SLIME_SOVEREIGN, recipe) / bankDamage(recipeBank, false, recipe));
+    const roars = Math.ceil(
+        bossHpFor(SLIME_SOVEREIGN, recipe) / bankDamage(recipeBank, false, recipe),
+    );
     assert(roars <= 2, `full-stack recipe kills act 1 in <= 2 roars (took ${roars})`);
 }
 
@@ -144,7 +147,16 @@ section('hp budgets: sized in expected banks (bosses.md), priced by real payout 
 section('brain: seeded, deterministic, telegraphed');
 {
     const t = new TuningStack();
-    const spec = segmentSpecOf({ segmentId: 'brain-arena', floors: 60, boss: 'slime-sovereign' });
+    const spec: SegmentSpec = {
+        segmentId: 'brain-arena',
+        floors: 60,
+        seed: 991,
+        difficulty: { profile: DIFFICULTY_PROFILES.boss, actIndex: 1 },
+        lineProfile: [],
+        modifiers: [],
+        loot: { coinsPerFloor: 0, powerupEveryFloors: 9 },
+        boss: 'slime-sovereign',
+    };
     const build = buildSegmentTower(spec, t, GROUND_TOP_Y);
 
     const run = (label: string, def = SLIME_SOVEREIGN, phase = 1, ticks = 4000) => {
@@ -255,7 +267,8 @@ section('brain: seeded, deterministic, telegraphed');
     );
     const swarmCmds = a.commands.filter((cmd) => cmd.op === 'swarm');
     assert(
-        swarmCmds.length === 0 || a.events.some((e) => e.type === 'boss/attack' && e.kind === 'swarm'),
+        swarmCmds.length === 0 ||
+            a.events.some((e) => e.type === 'boss/attack' && e.kind === 'swarm'),
         'swarm spawns only from resolved swarm attacks',
     );
 }
@@ -297,7 +310,12 @@ section('platform field: touch-armed crumbles, commands, the adjacency law');
     for (let i = 0; i <= 200; i += 1) {
         platforms.push({ id: i, xCenter: 512, topY: 704 - i * 128, width: 256 });
     }
-    rollFieldClassifications(platforms, mulberry32(7), { crumbleFraction: 1, stickyFraction: 0 }, []);
+    rollFieldClassifications(
+        platforms,
+        mulberry32(7),
+        { crumbleFraction: 1, stickyFraction: 0 },
+        [],
+    );
     let adjacent = false;
     let crumbles = 0;
     for (let i = 1; i < platforms.length; i += 1) {
@@ -373,7 +391,10 @@ section('swarm: a deterministic tax on momentum, never hearts');
     assert(at(100).contacts.length === 1, 'overlap connects');
     assert(at(101).contacts.length === 0, 'the re-hit cooldown holds');
     assert(at(100 + cooldown).contacts.length === 1, 'and releases exactly on time');
-    assert(swarm.step(700, { x: 500, y: 300 }, radius, cooldown).expiredIds.length === 1, 'lifetimes expire');
+    assert(
+        swarm.step(700, { x: 500, y: 300 }, radius, cooldown).expiredIds.length === 1,
+        'lifetimes expire',
+    );
     assert(swarm.count() === 0, 'expired critters despawn');
 }
 
@@ -414,12 +435,16 @@ section('tuning: degenerate exam values fail loud at layer-push');
 section('headless replay: classifications, crumbles, and the commanded door');
 {
     // Sticky-everything arena: every classified landing must say so.
-    const stickySpec = segmentSpecOf({
+    const stickySpec: SegmentSpec = {
         segmentId: 'sticky-proof',
         floors: 24,
         seed: 4242,
+        difficulty: { profile: DIFFICULTY_PROFILES.climb, actIndex: 1 },
+        lineProfile: [],
+        modifiers: [],
+        loot: { coinsPerFloor: 0, powerupEveryFloors: 9 },
         field: { crumbleFraction: 0, stickyFraction: 1 },
-    });
+    };
     const sticky = syntheticSession(stickySpec, climbFrames(1500), []);
     const result = simulateSession(sticky.session);
     const lands = result.events.filter(
@@ -442,12 +467,16 @@ section('headless replay: classifications, crumbles, and the commanded door');
 
     // Crumble arena: a touched ledge must never be landed on after its
     // deadline — the collider forgets it in the headless world too.
-    const crumbleSpec = segmentSpecOf({
+    const crumbleSpec: SegmentSpec = {
         segmentId: 'crumble-proof',
         floors: 24,
         seed: 2026,
+        difficulty: { profile: DIFFICULTY_PROFILES.climb, actIndex: 1 },
+        lineProfile: [],
+        modifiers: [],
+        loot: { coinsPerFloor: 0, powerupEveryFloors: 9 },
         field: { crumbleFraction: 1, stickyFraction: 0 },
-    });
+    };
     const crumble = syntheticSession(crumbleSpec, climbFrames(2400), []);
     const crumbleResult = simulateSession(crumble.session);
     const t = new TuningStack();
@@ -475,12 +504,16 @@ section('headless replay: classifications, crumbles, and the commanded door');
 
     // The commanded door: an arena has no exit until the timeline says so —
     // then run/segment_end regenerates headless from the command alone.
-    const arenaSpec = segmentSpecOf({
+    const arenaSpec: SegmentSpec = {
         segmentId: 'door-proof',
         floors: 40,
         seed: 31337,
+        difficulty: { profile: DIFFICULTY_PROFILES.boss, actIndex: 1 },
+        lineProfile: [],
+        modifiers: [],
+        loot: { coinsPerFloor: 0, powerupEveryFloors: 9 },
         boss: 'slime-sovereign',
-    });
+    };
     const doorFrame = 300;
     const arena = syntheticSession(arenaSpec, climbFrames(600), [
         { frameIndex: doorFrame, cmd: { op: 'door', platformId: 0 } },

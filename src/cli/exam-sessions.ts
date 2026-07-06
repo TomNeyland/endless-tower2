@@ -2,7 +2,7 @@
  * Synthetic session builders for the EXAM harness — engine-free fixtures
  * that exercise the headless replay end-to-end: a segment spec becomes a
  * real tower (the same buildSegmentTower the scene runs), scripted inputs
- * become a v3 session file shape, and recorded exam commands ride the
+ * become a v4 session file shape, and recorded exam commands ride the
  * timeline exactly as a browser duel would have stamped them.
  */
 import { EVENT_SCHEMA_VERSION } from '../core/events';
@@ -42,23 +42,12 @@ export function idleFrames(ticks: number): InputFrame[] {
     return frames;
 }
 
-export function segmentSpecOf(partial: Partial<SegmentSpec> & { segmentId: string }): SegmentSpec {
-    return {
-        floors: 24,
-        seed: 991,
-        lineProfile: [],
-        modifiers: [],
-        loot: { coinsPerFloor: 0, powerupEveryFloors: 9 },
-        ...partial,
-    };
-}
-
 export interface SyntheticSession {
     session: SessionRecording;
     doorPlatformId: number | null;
 }
 
-/** Build a v3 session file around a spec + inputs + command timeline. */
+/** Build a v4 session file around a spec + inputs + command timeline. */
 export function syntheticSession(
     spec: SegmentSpec,
     frames: InputFrame[],
