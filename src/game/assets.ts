@@ -76,6 +76,18 @@ export const TileFrame = {
 export const HudFrame = {
     heartFull: 'hud_heart',
     heartEmpty: 'hud_heart_empty',
+    coin: 'hud_coin',
+} as const;
+
+/** CHOICE: node-type icons on the map's glowing windows (tiles atlas). The
+ *  silhouette carries the shape; cards carry the detail (map-modifiers.md). */
+export const MapIconFrame = {
+    coinRush: 'coin_gold',
+    challenge: 'bomb',
+    elite: 'saw',
+    shop: 'sign',
+    mystery: 'star',
+    boss: 'flag_red_a',
 } as const;
 
 export function loadCoreAssets(load: Loader.LoaderPlugin): void {
