@@ -236,6 +236,26 @@ export class MainMenu extends Scene {
     private buildFieldGuide(): void {
         const x = 44;
         const y = 374;
+        const device = this.sys.game.device;
+        const lines = device.input.touch && !device.os.desktop
+            ? [
+                  'FLAPPY TOWER mobile',
+                  'the runner auto-paces',
+                  'tap LAUNCH to spend speed',
+                  'hold for height',
+                  'release to cut the jump',
+                  'land and wait to BANK',
+                  'gold boss stance hits harder',
+              ]
+            : [
+                  'A/D or ←/→  build speed',
+                  'SPACE or Z  jump',
+                  'speed becomes height',
+                  'wall bounces keep momentum',
+                  'land a small hop to BANK',
+                  'bank before fire or critters',
+                  'turn your combo into safety',
+              ];
         this.add
             .rectangle(x, y, 268, 250, 0x07111f, 0.72)
             .setOrigin(0, 0.5)
@@ -251,15 +271,7 @@ export class MainMenu extends Scene {
             .text(
                 x + 22,
                 y - 60,
-                [
-                    'A/D or ←/→  build speed',
-                    'SPACE or Z  jump',
-                    'speed becomes height',
-                    'wall bounces keep momentum',
-                    'land a small hop to BANK',
-                    'bank before fire or critters',
-                    'turn your combo into safety',
-                ],
+                lines,
                 {
                     fontFamily: 'Arial',
                     fontSize: 15,

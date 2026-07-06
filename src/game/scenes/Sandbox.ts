@@ -246,7 +246,7 @@ export class Sandbox extends Scene {
         this.backdrop = new ParallaxBackdrop(this);
         new MuteButton(this);
         this.towerView = new TowerView(this, layout);
-        this.inputMap = new InputMap(this);
+        this.inputMap = new InputMap(this, layout, this.tuning, this.bus);
         this.replayDriver = new ReplayDriver(recorder, this.tuning, seed);
         this.playerSystem = new PlayerSystem(
             this,

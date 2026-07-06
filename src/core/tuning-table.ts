@@ -58,6 +58,11 @@ export const DEFAULT_TUNING = {
     JUMP_CUT_MIN_RISE_MS: 80, // ascent required before a cut is allowed
     REGROUND_LOCKOUT_TICKS: 3, // engineering guard only; its counter must read 0 forever
 
+    // --- FlappyTower mobile input shell (game-layer policy, same InputFrame) ---
+    'flappytower.edgeGuardPx': 84, // max inset before the auto-pacer turns on a runway
+    'flappytower.edgeGuardRunwayFrac': 0.55, // narrow ledges spend this share of their usable half-runway
+    'flappytower.directionSeedSpeed': 90, // landing vx needed to seed the next committed run direction
+
     // --- Walls: the routing law ---
     WALL_EFFICIENCY: 1.0, // lossless — never a tax, never a pump; modifiers arrive as data
     WALL_MIN_BOUNCE_SPEED: 150, // px/s: below this a contact is a lean, not a bounce

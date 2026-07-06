@@ -223,9 +223,15 @@ export class PlayerSystem {
 
     /** One fixed step: latch input, run the core, apply Actions verbatim. */
     private step(): void {
-        const frame = this.replay.frameFor(this.inputMap.sample());
-
         const body = this.body;
+        const frame = this.replay.frameFor(
+            this.inputMap.sample({
+                x: body.center.x,
+                vx: body.velocity.x,
+                grounded: this.state.grounded,
+                platformId: this.state.groundedPlatformId,
+            }),
+        );
         const io = {
             input: frame,
             body: {

@@ -132,10 +132,12 @@ export class BossHud {
     }
 
     private buildTeachingPrompt(): void {
-        const lines = [
-            'BANK COMBOS TO DAMAGE THE BOSS',
-            'land a small hop to cash out — gold stance hits harder',
-        ];
+        const lines = this.scene.sys.game.device.input.touch
+            ? ['TAP LAUNCH TO CHAIN', 'land and wait to bank — gold stance hits harder']
+            : [
+                  'BANK COMBOS TO DAMAGE THE BOSS',
+                  'land a small hop to cash out — gold stance hits harder',
+              ];
         this.teachLines = lines.map((text, i) =>
             this.scene.add
                 .text(GAME_WIDTH / 2, BAR_Y + 40 + i * 18, text, {

@@ -126,12 +126,12 @@ self-reprices when a relic raises the ceiling (systems-architect, verbatim).
 ### Mobile hands
 
 Desktop and mobile feed the same `InputFrame` contract. Keyboard remains
-arrows/WASD + Space/Z. Touch devices get visible thumb zones in the game
-layer only: left-bottom zone produces `axisX = -1|1` based on thumb side,
-right-bottom zone holds jump. Phaser is configured for four active pointers
-so "hold direction + jump" is a first-class chord, not an accident. These
-controls never add verbs, never touch core state, and never bypass the
-per-fixed-step latch; deleting them must leave keyboard replays unchanged.
+arrows/WASD + Space/Z. Touch devices use the **FlappyTower** one-button shell
+specified in `docs/design/flappytower.md`: the game layer auto-paces horizontal
+`axisX`, the visible button supplies jump press/hold/release, and core still
+receives exactly one deterministic `InputFrame` per fixed step. These controls
+never add verbs, never touch core state, and never bypass the per-fixed-step
+latch; deleting them must leave keyboard replays unchanged.
 
 ### Walls (the routing law)
 
