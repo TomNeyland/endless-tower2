@@ -164,6 +164,16 @@ floorIndex}` — tick is the canonical timebase.
 Reserved (do not implement, do not repurpose): a ceiling-bump event slot for
 EXAM-phase tower mutation.
 
+**Amendment 2** (ruling on implementation deviation 1, 2026-07-06; see
+docs/DEVIATIONS.md): perfect-bounce detection is **anticipation-sided by
+design** — `inputLeadTicks` measures ticks since the last input edge toward
+the new direction *before/at* contact, window [0, +5]; post-contact flips are
+unobservable in an impact-tick event and are not "perfect" (reaction is not
+anticipation). The field stays signed with sentinel 999 = never; MASTERY may
+re-window within the observable side; any future post-contact forgiveness
+arrives as a new additive event under schema versioning, never by delaying
+bounce emission (the juice doctrine forbids ~83ms-late audio).
+
 **Amendment 1** (accepted from the combo design, 2026-07-06; additive,
 implement no later than MASTERY): (a) `tier` (current speed-tier index) joins
 the envelope — two consumers need tier-at-event and stateful reconstruction

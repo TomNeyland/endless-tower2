@@ -29,13 +29,13 @@ export const DEFAULT_TUNING = {
 
     // --- Run: two regimes, crisp skids, the ice glide ---
     RUN_ACCEL_LOW: 1600, // px/s^2 below the regime knee: 0->400 in 0.25s, hand-in-glove
-    RUN_ACCEL_HIGH: 500, // px/s^2 above: the last 400 px/s is a career, not a held key
+    RUN_ACCEL_HIGH: 340, // px/s^2 above: the top of the ladder is a career, not a held key
     RUN_REGIME_SPEED: 400, // px/s: boundary between the two regimes
     TURN_ACCEL: 2600, // px/s^2 when input opposes velocity — the skid
     GROUND_DRAG: 350, // px/s^2 with no input — a 900 px/s coast survives ~2.6s
     AIR_ACCEL: 400, // px/s^2: air is spent, not earned
     AIR_DRAG: 0, // airborne momentum is sacred
-    MAX_RUN_SPEED: 1400, // px/s: the effective ceiling; manual clamp
+    MAX_RUN_SPEED: 1600, // px/s: the effective ceiling; manual clamp
 
     // --- Speed tiers (fractions of the effective ceiling — self-repricing) ---
     TIER_FRAC_1: 0.29,
