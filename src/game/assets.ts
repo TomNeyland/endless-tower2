@@ -25,12 +25,18 @@ export const Sfx = {
     jumpHigh: 'sfx-jump-high',
     bump: 'sfx-bump',
     gem: 'sfx-gem',
+    /** The combo tier stinger — pitched up the pentatonic ladder per tier. */
+    magic: 'sfx-magic',
+    /** The bank tally voice — the detune-then-tally phrase's coins. */
+    coin: 'sfx-coin',
 } as const;
 
 /** Runtime-generated textures (no files) — keys still live in the manifest. */
 export const Gen = {
     dust: 'gen-dust',
     streak: 'gen-streak',
+    /** Soft radial glow — the combo ladder's earned character light. */
+    glow: 'gen-glow',
 } as const;
 
 /** Frame names inside the character atlas — swappable with the art. */
@@ -75,6 +81,8 @@ export function loadCoreAssets(load: Loader.LoaderPlugin): void {
     load.audio(Sfx.jumpHigh, 'Sounds/sfx_jump-high.ogg');
     load.audio(Sfx.bump, 'Sounds/sfx_bump.ogg');
     load.audio(Sfx.gem, 'Sounds/sfx_gem.ogg');
+    load.audio(Sfx.magic, 'Sounds/sfx_magic.ogg');
+    load.audio(Sfx.coin, 'Sounds/sfx_coin.ogg');
 }
 
 /** Create the tiny procedural particle textures once per game. */
@@ -91,6 +99,16 @@ export function ensureGeneratedTextures(scene: Scene): void {
         g.fillStyle(0xffffff, 1);
         g.fillRect(0, 0, 18, 2);
         g.generateTexture(Gen.streak, 18, 2);
+        g.destroy();
+    }
+    if (!scene.textures.exists(Gen.glow)) {
+        // Concentric falloff — a soft radial glow without gradient support.
+        const g = scene.add.graphics();
+        for (let r = 32; r >= 4; r -= 4) {
+            g.fillStyle(0xffffff, 0.1 * (1 - r / 40));
+            g.fillCircle(32, 32, r);
+        }
+        g.generateTexture(Gen.glow, 64, 64);
         g.destroy();
     }
 }

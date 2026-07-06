@@ -59,8 +59,7 @@ function landingPhase(ctx: StepCtxWithIo): void {
             airTicks: state.airTicks,
             floorsGained: landFloor - state.takeoffFloorIndex,
             platformId: landing.platformId,
-            momentumRetained:
-                state.takeoffSpeed > 0 ? Math.abs(ctx.vx) / state.takeoffSpeed : 1,
+            momentumRetained: state.takeoffSpeed > 0 ? Math.abs(ctx.vx) / state.takeoffSpeed : 1,
             bouncesDuringAir: state.bounceIndexInAir,
             sameTickJump: state.bufferTicksLeft > 0 || input.jumpPressedEdge,
         });

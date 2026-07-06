@@ -64,7 +64,12 @@ export class ComboEngine {
         this.t = tuning;
         // Spawn is airborne (envelope grounded: false); the first landing is
         // floor 0 — a fizzle that settles into IDLE_GROUND silently.
-        this.state = { kind: 'IDLE_AIR', ledger: emptyLedger(), inert: false, takeoffFloorIndex: 0 };
+        this.state = {
+            kind: 'IDLE_AIR',
+            ledger: emptyLedger(),
+            inert: false,
+            takeoffFloorIndex: 0,
+        };
     }
 
     handle(event: MovementEvent | RunSignal): ComboEvent[] {
@@ -132,7 +137,12 @@ export class ComboEngine {
         if (chain) {
             events.push(this.voidEvent(chain, 'reset', tick, 0));
         }
-        this.state = { kind: 'IDLE_AIR', ledger: emptyLedger(), inert: false, takeoffFloorIndex: floorIndex };
+        this.state = {
+            kind: 'IDLE_AIR',
+            ledger: emptyLedger(),
+            inert: false,
+            takeoffFloorIndex: floorIndex,
+        };
         this.pendingInert = false;
         this.nextChainId = 1;
         events.push({ type: 'combo/reset', tick, reason: 'spawn' });
@@ -295,7 +305,12 @@ export class ComboEngine {
         }
         if (this.state.kind === 'CHAIN_AIR' || this.state.kind === 'IDLE_AIR') {
             const takeoffFloorIndex = this.state.takeoffFloorIndex;
-            this.state = { kind: 'IDLE_AIR', ledger: emptyLedger(), inert: true, takeoffFloorIndex };
+            this.state = {
+                kind: 'IDLE_AIR',
+                ledger: emptyLedger(),
+                inert: true,
+                takeoffFloorIndex,
+            };
         } else {
             this.state = { kind: 'IDLE_GROUND' };
             this.pendingInert = true;
@@ -309,10 +324,17 @@ export class ComboEngine {
             return [];
         }
         // Unconfirmed air spice evaporates: only a landing proves a climb.
-        const events = [this.bankEvent(chain, reason, tick, chain.startFloorIndex + chain.chainFloors)];
+        const events = [
+            this.bankEvent(chain, reason, tick, chain.startFloorIndex + chain.chainFloors),
+        ];
         if (this.state.kind === 'CHAIN_AIR') {
             const takeoffFloorIndex = this.state.takeoffFloorIndex;
-            this.state = { kind: 'IDLE_AIR', ledger: emptyLedger(), inert: false, takeoffFloorIndex };
+            this.state = {
+                kind: 'IDLE_AIR',
+                ledger: emptyLedger(),
+                inert: false,
+                takeoffFloorIndex,
+            };
         } else {
             this.state = { kind: 'IDLE_GROUND' };
         }
