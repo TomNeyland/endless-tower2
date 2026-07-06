@@ -15,6 +15,7 @@
  * Engine-free by law. Wall-clock stamps are parameters supplied by the game
  * layer at the export boundary — core never reads a clock.
  */
+import type { ExamCommandRecord } from '../exam/commands';
 import type { TowerLayout } from '../tower';
 import type { TuningLayer, TuningTable } from '../tuning';
 import type { InputFrame } from '../movement/state';
@@ -28,8 +29,14 @@ import type { EventIndex, MarkerRecord, Recording, TuningMutationRecord } from '
  * TuningLayer gained its owner tag. The bump is honest versioning: a v1
  * file has ownerless layers and unrepresentable pressure state, so it is
  * refused loudly rather than replayed wrongly.
+ *
+ * v3: EXAM adds the `examCommands` timeline (commanded platform-field /
+ * swarm / door mutations, frame-stamped like tuning changes) and the tower's
+ * per-platform `landClass`. Same precedent as v2: a v2 file cannot represent
+ * a duel's world mutations and its `segment.door` shape predates boss
+ * arenas, so it is refused loudly rather than replayed wrongly.
  */
-export const SESSION_SCHEMA_VERSION = 2;
+export const SESSION_SCHEMA_VERSION = 3;
 
 /**
  * One run-length-encoded stretch of identical input:
@@ -63,6 +70,8 @@ export interface SessionRecording {
     baseTuning: TuningTable;
     baseLayers: TuningLayer[];
     tuningTimeline: TuningMutationRecord[];
+    /** Commanded world mutations (EXAM) — see core/exam/commands.ts. */
+    examCommands: ExamCommandRecord[];
     inputRle: RleRun[];
     markers: MarkerRecord[];
     eventIndex: EventIndex;
@@ -124,11 +133,22 @@ export function decodeInputRle(runs: readonly RleRun[]): InputFrame[] {
  */
 const RUN_ECONOMY_PREFIXES = ['coin/', 'relic/', 'shop/', 'powerup/'];
 
+/**
+ * Boss events are excluded for the same reason as run-economy events: the
+ * brain runs browser-side only, so the physics replay does not regenerate
+ * its facts — every physics consequence it causes DOES replay, through the
+ * tuning timeline (surges, gusts) and the exam-command timeline (collapses,
+ * goo, swarm, the defeat door). Indexing boss/* would turn every duel into
+ * a false determinism alarm.
+ */
+const BOSS_PREFIX = 'boss/';
+
 export function shouldIndexEvent(type: string): boolean {
     return (
         type !== 'movement/tick' &&
         type !== 'movement/spawn' &&
         type !== 'run/heart_gained' &&
+        !type.startsWith(BOSS_PREFIX) &&
         !RUN_ECONOMY_PREFIXES.some((prefix) => type.startsWith(prefix))
     );
 }
@@ -166,6 +186,7 @@ export function sessionFromRecording(
         baseTuning: recording.baseTuning,
         baseLayers: recording.baseLayers,
         tuningTimeline: recording.mutations,
+        examCommands: recording.examCommands,
         inputRle: encodeInputRle(recording.frames),
         markers: recording.markers,
         eventIndex: recording.eventIndex,
@@ -185,6 +206,7 @@ export function recordingFromSession(session: SessionRecording): Recording {
         baseLayers: session.baseLayers,
         frames: decodeInputRle(session.inputRle),
         mutations: session.tuningTimeline,
+        examCommands: session.examCommands,
         positions: [],
         markers: session.markers,
         eventIndex: session.eventIndex,
@@ -216,6 +238,9 @@ export function assertSessionShape(raw: unknown): SessionRecording {
     }
     if (typeof s.baseTuning !== 'object' || s.baseTuning === null) {
         throw new Error('session: missing baseTuning');
+    }
+    if (!Array.isArray(s.examCommands)) {
+        throw new Error('session: missing examCommands timeline (empty for duel-free sessions)');
     }
     if (typeof s.eventIndex !== 'object' || s.eventIndex === null) {
         throw new Error('session: missing eventIndex');

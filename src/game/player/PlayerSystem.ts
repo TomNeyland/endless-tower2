@@ -17,7 +17,7 @@
  * inputs — replay divergence under frame jitter, false lockout tripwires.
  */
 import { type GameObjects, Physics, type Scene, Scenes } from 'phaser';
-import type { EventBus } from '../../core/events';
+import type { EventBus, LandClassification } from '../../core/events';
 import type { Recording, ReplayReport } from '../../core/input/recorder';
 import { emitSpawn, stepMovement } from '../../core/movement/logic';
 import {
@@ -65,6 +65,10 @@ export class PlayerSystem {
     private body!: Physics.Arcade.Body;
     private state: MovementState = createMovementState();
     private pendingLanding: LandingContact | null = null;
+    private readonly platformRects = new Map<number, GameObjects.Rectangle>();
+    /** The platform field's contact-time lookup (EXAM). Null = no field —
+     *  every landing is an ordinary ledge (the endless sandbox). */
+    private landClassifier: ((platformId: number) => LandClassification | undefined) | null = null;
 
     private readonly onWorldStep = (): void => this.step();
 
@@ -158,6 +162,7 @@ export class PlayerSystem {
             rect.setData('topY', p.topY);
             this.scene.physics.add.existing(rect, true);
             statics.push(rect);
+            this.platformRects.set(p.id, rect);
         }
         this.scene.physics.add.collider(
             this.carrier,
@@ -184,11 +189,36 @@ export class PlayerSystem {
         if (prevFeetY > topY + 2) {
             return false;
         }
+        const platformId = platform.getData('id') as number;
         this.pendingLanding = {
-            platformId: platform.getData('id') as number,
+            platformId,
             impactVy: body.velocity.y,
+            classification: this.landClassifier?.(platformId),
         };
         return true;
+    }
+
+    /**
+     * Arm the platform field's contact-time lookup (EXAM, movement.md
+     * Amendment 1c): the classification is a platform fact the detection
+     * layer reports with the contact; core applies its physics and echoes
+     * it on the land event. Headless mirror: HeadlessWorld.setPlatformField.
+     */
+    setLandClassifier(fn: (platformId: number) => LandClassification | undefined): void {
+        this.landClassifier = fn;
+    }
+
+    /**
+     * A crumbled ledge stops existing for physics: the static body is
+     * disabled, so the collider never reaches the process callback again —
+     * the same skip the headless mirror performs via PlatformField.isRemoved.
+     */
+    disablePlatform(platformId: number): void {
+        const rect = this.platformRects.get(platformId);
+        if (!rect) {
+            throw new Error(`player: disablePlatform(${platformId}) — no such platform`);
+        }
+        (rect.body as Physics.Arcade.StaticBody).enable = false;
     }
 
     /** One fixed step: latch input, run the core, apply Actions verbatim. */

@@ -4,6 +4,7 @@
  * with real clearance margins. If a layout cannot satisfy the contract it
  * throws — an unreachable tower is a bug, never a shrug.
  */
+import type { LandClassification } from './events';
 import { jumpVyForSpeed, minTakeoffSpeedForHeight, predictedApexPx } from './movement/jump';
 import { mulberry32, range, rangeInt } from './rng';
 import type { TuningStack } from './tuning';
@@ -29,6 +30,13 @@ export interface PlatformSpec {
     /** World y of the walkable top. */
     topY: number;
     width: number;
+    /**
+     * Initial landing classification (EXAM / movement.md Amendment 1c):
+     * rolled at segment build from the spec's field fractions (Brittle Rows,
+     * Sticky Patches). Absent = ordinary ledge. Embedded in recordings with
+     * the rest of the layout, so the headless field starts identically.
+     */
+    landClass?: LandClassification;
 }
 
 export interface TowerLayout {

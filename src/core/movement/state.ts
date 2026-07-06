@@ -2,7 +2,7 @@
  * Core movement state and the boundary types between core (decides) and the
  * game layer (detects). Engine-free by law.
  */
-import type { EventEnvelope, MovementEvent, WallSide } from '../events';
+import type { EventEnvelope, LandClassification, MovementEvent, WallSide } from '../events';
 import type { TuningStack } from '../tuning';
 
 export const TICK_HZ = 60;
@@ -37,6 +37,14 @@ export interface LandingContact {
     /** Captured in the collider's processCallback, pre-separation — the only
      *  honest impact velocity (Phaser zeroes velocity during separation). */
     impactVy: number;
+    /**
+     * The platform's landing classification at contact time (EXAM, movement.md
+     * Amendment 1c) — a fact the detection layer reads from the platform
+     * field. Absent on ordinary ledges and everywhere the field doesn't exist
+     * (the endless sandbox). Core applies the sticky drain from this and
+     * echoes it on the land event; it never owns the platform state.
+     */
+    classification?: LandClassification;
 }
 
 /**

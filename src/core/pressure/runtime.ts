@@ -76,7 +76,11 @@ export class PressureRuntime {
     private ended: 'exit' | 'death_line' | null = null;
 
     constructor(segment: ActiveSegment, tuning: TuningStack, hearts: HeartsPort) {
-        this.segment = segment;
+        // Own copy: setDoor (boss defeat) mutates the armed segment, and the
+        // caller's object is ALSO the one the flight recorder embeds — the
+        // recording must keep the arena's tick-0 truth (door absent), or a
+        // replay would arm with a door AND apply the door command.
+        this.segment = { spec: segment.spec, door: segment.door, groundTopY: segment.groundTopY };
         this.t = tuning;
         this.hearts = hearts;
         this.line = createDeathLine(segment.groundTopY);
@@ -99,7 +103,7 @@ export class PressureRuntime {
                 segmentId: spec.segmentId,
                 floors: spec.floors,
                 seed: spec.seed,
-                doorFloorIndex: this.segment.door.floorIndex,
+                doorFloorIndex: this.segment.door === null ? null : this.segment.door.floorIndex,
                 lineProfile: spec.lineProfile.map((o) => ({ ...o })),
                 modifiers: spec.modifiers.map((o) => ({ ...o })),
             });
@@ -111,7 +115,8 @@ export class PressureRuntime {
         }
 
         // The exit is checked before the catch: never punish finishing.
-        if (doorReached(this.segment.door, kin.feetY)) {
+        // A boss arena has no door until the duel resolves (setDoor).
+        if (this.segment.door !== null && doorReached(this.segment.door, kin.feetY)) {
             events.push(this.endSegment(kin));
             return { events, launch: null };
         }
@@ -228,13 +233,29 @@ export class PressureRuntime {
         };
     }
 
+    /**
+     * Materialize the exit door (boss defeat — bosses.md: "the door
+     * materializes on defeat, lit"). Arrives through the recorded
+     * exam-command channel so the headless replay ends the segment on the
+     * same tick. Setting a door twice, or into a doored climb, is a caller
+     * bug — fail loud.
+     */
+    setDoor(door: DoorPlacement): void {
+        if (this.segment.door !== null) {
+            throw new Error(
+                `pressure: segment ${this.segment.spec.segmentId} already has a door`,
+            );
+        }
+        this.segment.door = door;
+    }
+
     // --- Read surfaces (presentation layers and the bridge; never writes) ---
 
     segmentActive(): boolean {
         return this.ended === null;
     }
 
-    door(): DoorPlacement {
+    door(): DoorPlacement | null {
         return this.segment.door;
     }
 
@@ -269,7 +290,7 @@ export class PressureRuntime {
             heartsMax: this.hearts.heartsMax(),
             invulnTicksLeft: this.invulnTicksLeft,
             floorsClimbed: this.highWaterFloor,
-            doorFloorIndex: this.segment.door.floorIndex,
+            doorFloorIndex: this.segment.door === null ? null : this.segment.door.floorIndex,
             ended: this.ended,
         };
     }

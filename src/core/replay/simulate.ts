@@ -11,10 +11,14 @@
  * lands on the headless body through the same one-write channel.
  */
 import type { MovementEvent } from '../events';
+import { applyExamCommand, type ExamCommandSinks } from '../exam/commands';
+import { PlatformField } from '../exam/field';
+import { SwarmRuntime } from '../exam/swarm';
 import type { EventIndex } from '../input/recorder';
 import { recordingFromSession, type SessionRecording, shouldIndexEvent } from '../input/session';
 import { emitSpawn, stepMovement } from '../movement/logic';
 import { createMovementState, type MovementEnv } from '../movement/state';
+import { doorPlacementFor } from '../pressure/segment';
 import { PressureRuntime } from '../pressure/runtime';
 import { RunState } from '../run/state';
 import { applyTuningChange, TuningStack } from '../tuning';
@@ -82,6 +86,31 @@ export function simulateSession(session: SessionRecording): SimulationResult {
               )
             : null;
 
+    // ExamFieldSystem's construction mirror: the platform field starts from
+    // the embedded tower's landClass roll; the swarm starts empty. Commanded
+    // mutations arrive from the recorded exam-command timeline; touch-armed
+    // crumbles regenerate from the land events themselves (below).
+    const field = session.segment !== null ? new PlatformField(tower.platforms) : null;
+    const swarm = session.segment !== null ? new SwarmRuntime() : null;
+    if (field !== null) {
+        world.setPlatformField(field);
+    }
+    const sinks: ExamCommandSinks | null =
+        field !== null && swarm !== null
+            ? {
+                  field,
+                  swarm,
+                  setDoor: (platformId: number) => {
+                      if (pressure === null) {
+                          throw new Error('replay: door command without a segment');
+                      }
+                      pressure.setDoor(
+                          doorPlacementFor(tower, platformId, tuning.value('FLOOR_HEIGHT_PX')),
+                      );
+                  },
+              }
+            : null;
+
     // PlayerSystem.beginRecording: reset to spawn, emit the spawn fact.
     const spawnX = (tower.wallLeftX + tower.wallRightX) / 2;
     emitSpawn(state, env, tuning, emit, spawnX, tower.groundTopY, 'reset');
@@ -94,6 +123,16 @@ export function simulateSession(session: SessionRecording): SimulationResult {
                 applyTuningChange(tuning, m.change);
             }
         }
+        // Exam commands share the frame-boundary semantics: in the browser
+        // they were issued during tick i's exam step (after that tick's
+        // field.step), which is exactly this boundary.
+        if (sinks !== null) {
+            for (const c of recording.examCommands) {
+                if (c.frameIndex === i) {
+                    applyExamCommand(sinks, c.cmd, state.tick);
+                }
+            }
+        }
         const landing = world.step();
         const actions = stepMovement(
             state,
@@ -102,6 +141,11 @@ export function simulateSession(session: SessionRecording): SimulationResult {
             tuning,
             emit,
         );
+        // ExamFieldSystem's bus mirror: a landing arms a crumble ledge the
+        // moment the land event fires (regenerable channel, never recorded).
+        if (field !== null && landing !== null) {
+            field.handleLand(landing.platformId, state.tick, tuning.value('land.crumbleDelayTicks'));
+        }
         world.applyActions(actions);
         if (pressure) {
             // PressureSystem.onWorldStep mirror: post-movement kinematics in,
@@ -117,6 +161,23 @@ export function simulateSession(session: SessionRecording): SimulationResult {
             }
             if (out.launch) {
                 world.applyRescueLaunch(out.launch.vy, out.launch.vxKeep);
+            }
+        }
+        // ExamFieldSystem's step mirror, after pressure exactly like the
+        // scene's handler order: collapse timers expire (the world consults
+        // the field live, so removal binds from the next tick's collider),
+        // then the swarm taxes momentum through the one body surface.
+        if (field !== null && swarm !== null) {
+            field.step(state.tick);
+            const body = world.bodySnapshot();
+            const contacts = swarm.step(
+                state.tick,
+                { x: body.x, y: body.y },
+                tuning.value('exam.swarmRadiusPx'),
+                tuning.value('exam.swarmHitCooldownTicks'),
+            );
+            if (contacts.contacts.length > 0) {
+                world.applySpeedKeep(tuning.value('exam.swarmSpeedKeep'));
             }
         }
         endPosition = world.positionPair();

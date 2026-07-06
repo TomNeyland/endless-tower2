@@ -60,6 +60,7 @@ export function syntheticFactScript(
         baseLayers,
         frames,
         mutations: [],
+        examCommands: [],
         positions: [],
         markers: [],
         eventIndex: {},

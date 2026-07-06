@@ -47,6 +47,14 @@ function landingPhase(ctx: StepCtxWithIo): void {
     if (!state.grounded && landing !== null) {
         state.grounded = true;
         state.groundedPlatformId = landing.platformId;
+        // EXAM (movement.md Amendment 1c): a sticky ledge drinks speed AT the
+        // landing — the drain applies before the event so the envelope's vx
+        // and momentumRetained tell the truth about what survived. A buffered
+        // same-tick jump consumes the drained speed too: the goo taxes bhops,
+        // which is exactly the attack (sticky targets the damage economy).
+        if (landing.classification === 'sticky') {
+            ctx.vx *= ctx.t.value('land.stickyKeep');
+        }
         // Exact floors gained: feet are separated onto the platform top by
         // the time core sees the contact, so derive from feet directly.
         const landFloor = Math.floor(
@@ -62,6 +70,7 @@ function landingPhase(ctx: StepCtxWithIo): void {
             momentumRetained: state.takeoffSpeed > 0 ? Math.abs(ctx.vx) / state.takeoffSpeed : 1,
             bouncesDuringAir: state.bounceIndexInAir,
             sameTickJump: state.bufferTicksLeft > 0 || input.jumpPressedEdge,
+            classification: landing.classification,
         });
         state.jumpLatch = false;
         state.departedByJump = false;
