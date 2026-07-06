@@ -5,9 +5,11 @@
  * before any system is layered on — this scene is the feel gate's venue.
  */
 import { Scene } from 'phaser';
+import { bossById } from '../../core/boss/defs';
 import type { RunEndedEvent, SegmentEndEvent } from '../../core/events';
 import { EventBus } from '../../core/events';
 import { InputRecorder } from '../../core/input/recorder';
+import { LINE_PROFILES } from '../../core/map/presets';
 import type { RunSegmentHandoff, SegmentOutcome } from '../../core/run/loop';
 import {
     buildSegmentTower,
@@ -20,6 +22,12 @@ import { RunState, type RunSnapshot } from '../../core/run/state';
 import { generateSandboxTower, type TowerLayout } from '../../core/tower';
 import { TuningStack } from '../../core/tuning';
 import { ensureGeneratedTextures } from '../assets';
+import { BossAttackViews } from '../boss/BossAttackViews';
+import { BossAudio } from '../boss/BossAudio';
+import { BossBody } from '../boss/BossBody';
+import { BossHud } from '../boss/BossHud';
+import { BossSystem } from '../boss/BossSystem';
+import { SwarmView } from '../boss/SwarmView';
 import { DebugBridge } from '../debug/Bridge';
 import { MovementStats } from '../debug/Stats';
 import { GAME_HEIGHT } from '../main';
@@ -29,6 +37,7 @@ import { ReplayDriver } from '../player/ReplayDriver';
 import { AudioSystem } from '../systems/AudioSystem';
 import { CameraRig } from '../systems/CameraRig';
 import { CoinPickups } from '../systems/CoinPickups';
+import { ExamFieldSystem } from '../systems/ExamFieldSystem';
 import { ComboHud } from '../systems/ComboHud';
 import { ComboRelay } from '../systems/ComboRelay';
 import { InputMap } from '../systems/InputMap';
@@ -89,6 +98,15 @@ export class Sandbox extends Scene {
     private coinPickups: CoinPickups | null = null;
     private powerups: PowerupSystem | null = null;
     private runHandoff: RunSegmentHandoff | null = null;
+    // EXAM: the platform field runs in every segment; the duel roster only
+    // in arenas (spec.boss). All nullable — the endless sandbox stays naked.
+    private examField: ExamFieldSystem | null = null;
+    private bossSystem: BossSystem | null = null;
+    private bossBody: BossBody | null = null;
+    private bossAttackViews: BossAttackViews | null = null;
+    private swarmView: SwarmView | null = null;
+    private bossHud: BossHud | null = null;
+    private bossAudio: BossAudio | null = null;
 
     private readonly onResetKey = (): void => this.resetRun();
 
@@ -283,6 +301,59 @@ export class Sandbox extends Scene {
         );
         this.pressureHud = new PressureHud(this, this.pressureSystem, this.tuning);
         this.pressureAudio = new PressureAudio(this, this.bus);
+        // EXAM: the platform field + swarm step after pressure (registration
+        // order = the headless loop's order); the duel roster arms only in
+        // arenas. The recorder is the same one the flight recorder runs —
+        // commanded world mutations join the session file by construction.
+        if (this.segmentSpec) {
+            this.examField = new ExamFieldSystem(
+                this,
+                layout,
+                this.playerSystem,
+                this.pressureSystem,
+                this.towerView,
+                this.bus,
+                this.tuning,
+                recorder,
+            );
+            this.swarmView = new SwarmView(this, this.examField.swarm, this.examField, this.playerSystem);
+            if (this.segmentSpec.boss !== undefined) {
+                const def = bossById(this.segmentSpec.boss);
+                this.bossSystem = new BossSystem(
+                    this,
+                    def,
+                    this.runState.runSeed,
+                    this.segmentSpec.segmentId,
+                    layout,
+                    this.playerSystem,
+                    this.examField,
+                    this.pressureSystem,
+                    this.bus,
+                    this.comboRelay.comboBus,
+                    this.tuning,
+                );
+                this.bossBody = new BossBody(
+                    this,
+                    def,
+                    this.playerSystem,
+                    this.examField,
+                    this.towerView,
+                    this.juice,
+                    this.bus,
+                    this.comboRelay.comboBus,
+                    this.tuning,
+                );
+                this.bossAttackViews = new BossAttackViews(
+                    this,
+                    this.bus,
+                    this.towerView,
+                    this.pressureSystem,
+                    this.tuning,
+                );
+                this.bossHud = new BossHud(this, this.bus, this.bossSystem);
+                this.bossAudio = new BossAudio(this, this.bus);
+            }
+        }
         this.stats = new MovementStats(this.bus, this.playerSystem);
         // The flight recorder: always on in dev, from scene start. Segment +
         // carried hearts ride the recording (session-logs.md contract: every
@@ -321,6 +392,11 @@ export class Sandbox extends Scene {
                 run: this.runState,
                 relics: this.relicEffects,
                 enterShop: (nodeId?: string) => this.enterShop(nodeId),
+            },
+            exam: {
+                spawnArena: (bossId: string) => this.startArena(bossId),
+                boss: () => this.bossSystem,
+                field: () => this.examField,
             },
         });
 
@@ -366,9 +442,23 @@ export class Sandbox extends Scene {
             lineProfile: partial.lineProfile ?? [],
             modifiers: partial.modifiers ?? [],
             loot: partial.loot ?? defaults.loot,
+            field: partial.field,
+            boss: partial.boss,
         };
         this.scene.restart({ segment: spec } satisfies SandboxBootData);
         return spec;
+    }
+
+    /** Bridge-driven duel: __ET2__.boss.spawn(bossId) — a real arena, the
+     *  same spec shape the map's boss nodes commit (harness venue). */
+    private startArena(bossId: string): SegmentSpec {
+        bossById(bossId); // throws on unknown ids before the restart
+        return this.startSegment({
+            segmentId: `arena-${bossId}`,
+            floors: 220,
+            lineProfile: LINE_PROFILES.boss.overrides.map((o) => ({ ...o })),
+            boss: bossId,
+        });
     }
 
     /** Tick provider for run-scoped events; 0 before the player exists. */
@@ -417,6 +507,10 @@ export class Sandbox extends Scene {
         this.pressureView.update(scrollY);
         this.pressureHud.update();
         this.pressureAudio.update();
+        this.swarmView?.update();
+        this.bossBody?.update();
+        this.bossAttackViews?.update(scrollY);
+        this.bossHud?.update();
         this.sessionLog.update();
     }
 
@@ -427,6 +521,13 @@ export class Sandbox extends Scene {
         this.sessionLog.destroy();
         this.bridge.destroy();
         this.stats.destroy();
+        this.bossAudio?.destroy();
+        this.bossHud?.destroy();
+        this.bossAttackViews?.destroy();
+        this.swarmView?.destroy();
+        this.bossBody?.destroy();
+        this.bossSystem?.destroy();
+        this.examField?.destroy();
         this.pressureAudio.destroy();
         this.pressureHud.destroy();
         this.pressureView.destroy();

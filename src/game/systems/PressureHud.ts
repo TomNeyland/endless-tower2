@@ -35,8 +35,10 @@ export class PressureHud {
         this.pressure = pressure;
         this.t = tuning;
 
-        if (!pressure.door()) {
+        if (!pressure.inSegmentMode()) {
             return; // Endless sandbox: no pressure, no HUD, feel gate intact.
+            // (Boss arenas ARE segment mode — their door just doesn't exist
+            // yet, and the hearts/gap HUD matters most mid-duel.)
         }
 
         this.buildHeartsRow(pressure.heartsMax());

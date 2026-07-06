@@ -180,6 +180,29 @@ export class BossBrain {
         return out;
     }
 
+    // --- Debug/harness surfaces (unrecorded schedule pokes by design: the
+    //     COMMANDS they cause still ride the recorded channel) ---
+
+    /** Inject a swing NOW — the bridge's forceAttack. */
+    debugForceAttack(attackId: string, tick: number): void {
+        const def = attackById(this.def, attackId);
+        this.swings += 1;
+        this.pending.push({
+            def,
+            instanceId: `${def.id}#${this.swings}`,
+            igniteAt: tick,
+            resolveAt: tick + def.telegraphTicks,
+            targetPlatformIds: [],
+            band: null,
+            ignited: false,
+        });
+    }
+
+    /** Hold the window open — the bridge's forceOpenness. */
+    debugForceOpenness(tick: number, ticks: number): void {
+        this.opennessUntil = tick + ticks;
+    }
+
     // --- Scheduling ---
 
     private phaseDef() {

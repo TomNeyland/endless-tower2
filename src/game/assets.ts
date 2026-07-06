@@ -9,6 +9,9 @@ export const KENNEY_ROOT = 'assets/kenney_new-platformer-pack-1.0';
 export const Atlas = {
     characters: 'atlas-characters',
     tiles: 'atlas-tiles',
+    /** Double-resolution enemy sheet (128px frames) — EXAM's bosses render
+     *  at scale 2 from these: ~4 player-heights with zero new art. */
+    enemiesDouble: 'atlas-enemies-double',
 } as const;
 
 export const Img = {
@@ -85,6 +88,17 @@ export const HudFrame = {
     coin: 'hud_coin',
 } as const;
 
+/** Swarm critter frames in the double enemy atlas, per SwarmSkin — two
+ *  frames each for the wing/walk flip (verified against
+ *  spritesheet-enemies-double.xml). Boss body frames live in each BossDef's
+ *  presentation block; these are the shared critter roster. */
+export const CritterFrames: Record<string, [string, string]> = {
+    slime: ['slime_normal_walk_a', 'slime_normal_walk_b'],
+    saw: ['saw_a', 'saw_b'],
+    bee: ['bee_a', 'bee_b'],
+    fly: ['fly_a', 'fly_b'],
+} as const;
+
 /** CHOICE: node-type icons on the map's glowing windows (tiles atlas). The
  *  silhouette carries the shape; cards carry the detail (map-modifiers.md). */
 export const MapIconFrame = {
@@ -107,6 +121,11 @@ export function loadCoreAssets(load: Loader.LoaderPlugin): void {
         Atlas.tiles,
         'Spritesheets/spritesheet-tiles-default.png',
         'Spritesheets/spritesheet-tiles-default.xml',
+    );
+    load.atlasXML(
+        Atlas.enemiesDouble,
+        'Spritesheets/spritesheet-enemies-double.png',
+        'Spritesheets/spritesheet-enemies-double.xml',
     );
     load.image(Img.backgroundSky, 'Sprites/Backgrounds/Default/background_solid_sky.png');
     load.image(Img.backgroundHills, 'Sprites/Backgrounds/Default/background_color_hills.png');

@@ -274,6 +274,15 @@ export class PlayerSystem {
         this.body.velocity.x += vxAdd;
     }
 
+    /**
+     * External speed tax (the swarm's contact drain): the same sanctioned
+     * body surface. Recorded by regeneration — the swarm runtime is pure and
+     * steps identically headless (HeadlessWorld.applySpeedKeep mirrors this).
+     */
+    applySpeedKeep(keep: number): void {
+        this.body.velocity.x *= keep;
+    }
+
     kinematics(): PlayerKinematics {
         const body = this.body;
         return {

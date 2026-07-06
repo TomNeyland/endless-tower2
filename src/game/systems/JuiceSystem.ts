@@ -157,6 +157,15 @@ export class JuiceSystem {
     }
 
     /**
+     * Boss slams and knockdowns spend shake through the SAME scheduler
+     * (art-direction: shake is spent on combo escalations, boss slams, and
+     * heart-loss). Bank-class priority: a tier crossing still outranks it.
+     */
+    bossImpact(ampPx: number, ms: number): void {
+        this.requestShake(SHAKE_PRIORITY.bank, ampPx, ms);
+    }
+
+    /**
      * THE shake scheduler — every screen shake in the game goes through
      * here. Winners by priority, then by amplitude; the survivor takes the
      * max amplitude of the contenders (never the sum); an outranked request
