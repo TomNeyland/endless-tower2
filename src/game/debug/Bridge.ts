@@ -19,7 +19,9 @@ import {
     type TuningStack,
     type TuningTable,
 } from '../../core/tuning';
+import type { PressureSnapshot, SegmentSpec } from '../../core/pressure/segment';
 import type { PlayerSystem } from '../player/PlayerSystem';
+import type { PressureSystem } from '../systems/PressureSystem';
 import {
     EngineFactChecker,
     type EngineFactReport,
@@ -62,6 +64,19 @@ export interface Et2Bridge {
          *  replay and checks the three engine facts. Drift = stop the line. */
         engineFacts(): Promise<EngineFactReport>;
     };
+    /** PRESSURE: segment mode + death-line harness (docs/design/pressure.md).
+     *  startSegment/stopSegment restart the scene — re-read window.__ET2__. */
+    pressure: {
+        startSegment(spec?: Partial<SegmentSpec>): SegmentSpec;
+        stopSegment(): void;
+        state(): PressureSnapshot | null;
+        lineTeleport(y: number): void;
+        lineSpeedOverride(pxPerSec: number | null): void;
+        /** Force a catch attempt now; false while invulnerable — the
+         *  one-catch-per-invuln invariant's harness handle. */
+        forceCatch(): boolean;
+        forceExit(): boolean;
+    };
     reset(): void;
 }
 
@@ -77,6 +92,11 @@ interface BridgeDeps {
     player: PlayerSystem;
     stats: MovementStats;
     resetSandbox: () => void;
+    pressure: {
+        system: PressureSystem;
+        startSegment: (spec?: Partial<SegmentSpec>) => SegmentSpec;
+        stopSegment: () => void;
+    };
 }
 
 export class DebugBridge {
@@ -106,7 +126,7 @@ export class DebugBridge {
     }
 
     private buildApi(): Et2Bridge {
-        const { tuning, player, stats, resetSandbox } = this.deps;
+        const { tuning, player, stats, resetSandbox, pressure } = this.deps;
         return {
             schemaVersion: EVENT_SCHEMA_VERSION,
             tuning: {
@@ -155,6 +175,16 @@ export class DebugBridge {
             },
             verify: {
                 engineFacts: () => this.runEngineFacts(),
+            },
+            pressure: {
+                startSegment: (spec?: Partial<SegmentSpec>) => pressure.startSegment(spec),
+                stopSegment: () => pressure.stopSegment(),
+                state: () => pressure.system.snapshot(),
+                lineTeleport: (y: number) => pressure.system.debugLineTeleport(y),
+                lineSpeedOverride: (pxPerSec: number | null) =>
+                    pressure.system.debugLineSpeedOverride(pxPerSec),
+                forceCatch: () => pressure.system.debugForceCatch(),
+                forceExit: () => pressure.system.debugForceExit(),
             },
             reset: resetSandbox,
         };

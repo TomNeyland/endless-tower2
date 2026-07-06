@@ -86,6 +86,31 @@ export const DEFAULT_TUNING = {
 
     // --- Player presentation ---
     PLAYER_SCALE: 0.5, // one tile tall; the physics body never reads this
+
+    // --- PRESSURE: the death line (docs/design/pressure.md) ---
+    'line.baseSpeed': 55, // px/s: dormant->active base rise speed
+    'line.rampPerFloor': 0.6, // px/s per floor climbed — the designed per-segment ramp
+    'line.graceMs': 10000, // dual activation trigger, half one: time
+    'line.graceFloors': 10, // dual activation trigger, half two: floors climbed
+    'line.slackPx': 1400, // catch-up leash: relevance on god-runs, never pity
+    'line.catchUpFactor': 1.6, // x base while the gap exceeds the slack
+    'line.igniteOffsetPx': 128, // ignition starts one floor below the arena bottom — announced, never an instant catch
+    'line.proximitySafePx': 800, // broadcast boundaries: each tier's outer edge...
+    'line.proximityAwarePx': 400,
+    'line.proximityDangerPx': 200,
+    'line.proximityCriticalPx': 80,
+    'line.proximityHysteresisPx': 40, // ...crossed with this much slack on the way back out
+
+    // --- PRESSURE: hearts (the mercy that preserves the fantasy) ---
+    'hearts.max': 3,
+    'hearts.start': 3, // generous by design; shops sell them back (IDENTITY)
+    'hearts.rescueVy': -1500, // px/s: the skyward mercy — must clear the line's next ~2s of rise
+    'hearts.rescueVxKeep': 0.5, // vx multiplier at rescue: the momentum story stays intact
+    'hearts.invulnMs': 1600, // blink window; the line cannot re-catch (and never pauses)
+
+    // --- PRESSURE: segments ---
+    'segment.doorBufferFloors': 6, // visual continuity above the exit — scenery, not play space
+    'segment.defaultFloors': 30, // the bridge's no-argument segment length
 } satisfies Record<string, number>;
 
 export type TuningTable = { -readonly [K in keyof typeof DEFAULT_TUNING]: number };

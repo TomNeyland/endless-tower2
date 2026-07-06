@@ -145,7 +145,12 @@ export class PlayerSystem {
         const statics: GameObjects.Rectangle[] = [];
         for (const p of layout.platforms) {
             const rect = this.scene.add
-                .rectangle(p.xCenter, p.topY + PLATFORM_BODY_HEIGHT / 2, p.width, PLATFORM_BODY_HEIGHT)
+                .rectangle(
+                    p.xCenter,
+                    p.topY + PLATFORM_BODY_HEIGHT / 2,
+                    p.width,
+                    PLATFORM_BODY_HEIGHT,
+                )
                 .setVisible(false);
             rect.setData('id', p.id);
             rect.setData('topY', p.topY);
@@ -214,6 +219,19 @@ export class PlayerSystem {
         this.replay.afterStep(frame, body.center.x, body.bottom);
     }
 
+    /**
+     * External launch (the hearts rescue): writes body velocity ONLY — the
+     * same boundary surface collisions use. Core movement state is never
+     * touched; next tick the core reads the new velocity as a kinematic fact
+     * (BodySnapshot) exactly like any other external event. Runs after this
+     * tick's Actions were applied (world-step handler order), so the launch
+     * wins the tick it fires on.
+     */
+    applyExternalLaunch(vy: number, vxKeep: number): void {
+        this.body.velocity.y = vy;
+        this.body.velocity.x *= vxKeep;
+    }
+
     kinematics(): PlayerKinematics {
         const body = this.body;
         return {
@@ -244,7 +262,15 @@ export class PlayerSystem {
         this.body.reset(this.spawnX - PLAYER_BODY.width / 2, this.spawnFeetY - PLAYER_BODY.height);
         this.pendingLanding = null;
         this.state = createMovementState();
-        emitSpawn(this.state, this.env, this.tuning, this.emit, this.spawnX, this.spawnFeetY, reason);
+        emitSpawn(
+            this.state,
+            this.env,
+            this.tuning,
+            this.emit,
+            this.spawnX,
+            this.spawnFeetY,
+            reason,
+        );
     }
 
     /** Start recording live play from a clean spawn. */
