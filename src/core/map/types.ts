@@ -103,9 +103,10 @@ export interface NodeSpec {
     edgesUp: string[];
     modifierIds: string[];
     /**
-     * The segment spec, pre-built at generation (climbable types and the
-     * boss stub); null for shop/mystery. `map/node_committed` hands this to
-     * pressure verbatim.
+     * The segment spec, pre-built at generation (climbable types and boss
+     * arenas — real duels since EXAM, `spec.boss = bossForAct(act).id`);
+     * null for shop/mystery. `map/node_committed` hands this to pressure
+     * verbatim.
      */
     segment: SegmentSpec | null;
     rewards: NodeRewards;

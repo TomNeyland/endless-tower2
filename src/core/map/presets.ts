@@ -173,9 +173,11 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         type: 'boss',
         title: 'BOSS',
         blurb: 'The keeper of the act waits above. No door until it falls.',
-        // The duel arena (EXAM): floors here are the endless tower's
+        // The duel arena (EXAM): floors here are the "endless" tower's
         // generation budget, not a door altitude — the exit materializes on
-        // defeat, and the hp budget ends the duel long before the budget.
+        // defeat. The budget is an implicit soft-enrage for weak-chain
+        // duels: docs/DEVIATIONS.md entry 20 carries the math and the
+        // ruling options.
         floors: [220, 220],
         lineProfile: 'boss',
         genOverrides: [],

@@ -471,3 +471,87 @@ is reachable from the bridge alone.
 **Path back:** HANDS builds the settings surface on top of the same
 `updateSettings` call; the dev-write clause stands under the debug-honesty
 precedent unless the manager session rules otherwise.
+
+## 20. The "endless" boss arena is a 220-floor generation budget (bosses.md, duel frame)
+
+**The design says:** "Arena: an endless upward segment — no exit door until
+the boss dies."
+
+**What ships:** a FIXED tower of 220 floors, pre-generated at scene create
+like every other segment (`presets.ts` boss preset, `floors: [220, 220]`).
+Nothing regenerates above it; crumble volleys permanently delete rungs
+below it. Until this entry, the deviation lived only in a presets.ts code
+comment — the exact failure this file's preamble names.
+
+**The budget math, honestly:** hp = hpBanks × `boss.decentBankPayout`
+(12,000) — act 1 = 42,000, act 3 = 66,000. Payout is Icy Tower's quadratic
+(`10 × chainFloors² × mult`), so chain quality dominates: at the reference
+"decent chain" (25 floors, mult ~2 → ~12,500/bank) act 3 is ~6 banks ≈ 150
+chain-floors — comfortably inside the budget, and god-chains need far
+less. But the quadratic cuts the other way for weak play: 12-floor chains
+at mult ~1.5 (~2,160/bank) need ~31 banks ≈ 370 chain-floors — the tower
+CAN run out under a duel of small chains. When it does, the line — whose
+`line.rampPerFloor` (0.6 px/s) has added ~130 px/s to its base 55 by the
+budget's top — closes the arena from below. The shipped truth is therefore
+an implicit **soft-enrage**: the duel must be won inside the budget or the
+run ends at the one visible danger.
+
+**Why it stands for now:** the tower is pre-generated because determinism
+and the session recording embed the full layout (entry 5) and the
+reachability contract validates it whole at create; generating upward
+mid-duel needs the commanded-mutation machinery extended to platform
+CREATION plus headless-replay fidelity for it — an amendment-sized build,
+not a fix-session patch.
+
+**Path back:** either (a) the manager session ratifies the soft-enrage by
+amending bosses.md ("endless in play: a generation budget no honest duel
+exhausts — the line is the enrage"), ideally with a HANDS-phase visible
+treatment if the top can be SEEN; or (b) a later wave extends generation
+above the high-water mark in arenas through the recorded `examCommands`
+channel (the field/commands machinery already replays commanded mutations)
+with a harness assertion that worst-case-bank climb distance fits each
+act's budget.
+
+## 21. The seed offer depends on the save's unlock pools (meta-progression.md, seeds)
+
+**The design says:** "Same seed + same character = same run offer (map,
+stock, geometry — the determinism spine already guarantees it)."
+
+**What ships:** map generation, shop stock, and elite rewards all take the
+save's unlock pools as input (`modifierPool` / `relicPool` — RETURN's
+breadth axis is literally pool membership), so the offer is a function of
+seed + character + **unlock state**. Two saves sharing a seed can get
+different maps and shelves; the same player re-entering a seed after new
+unlocks gets a different offer. The wave-3 fix session pinned the pools at
+RUN START (the orchestrator snapshots them once; shops, elites, and act
+generation all consume the pinned pools), which closes the worse half —
+mid-run feat fires no longer mutate the offer, and content unlocked
+mid-run cannot appear before its run-end unlock moment (which is also what
+keeps the shop's NEW stamp true on a relic's first appearances). The
+cross-save / cross-unlock half remains: the doc's sentence as written is
+broken whenever unlock states differ.
+
+**Path back:** the manager session either amends meta-progression.md (the
+offer is seed + character + unlock breadth — arguably the honest reading
+of a breadth-only meta), or rules that seeded-entry runs pin a canonical
+pool (full pool, or a pool mask carried alongside the seed) so a shared
+seed is a complete challenge across saves. Both are one-surface changes on
+top of the now-pinned pools.
+
+## 22. Two playthrough-trace.md beats predate the 16/8 unlock split (meta-progression.md / playthrough-trace.md)
+
+**The design says** (the trace, a narrative walkthrough): the FIRST run's
+act-1 Elite grants **Echo Walls**, and that Elite's segment carries
+**Headwind**.
+
+**What ships:** the implementation's 16/8 relic split locks all rares +
+the legendary + the escrow doubler — Echo Walls unlocks via the deep-drink
+feat — and Headwind is an act-2-completion modifier unlock. Both trace
+beats are therefore unreachable on a fresh save. The trace is narrative,
+not a binding roster split (meta-progression.md names only Compounder),
+and the outcome is consistent with the doc's own "keeping early maps
+simpler by construction" — but this repo's discipline is to name the
+collision rather than let the trace quietly lie.
+
+**Path back:** none needed unless the manager session wants the trace
+amended (a one-line footnote there) or a different 16/8 membership.
