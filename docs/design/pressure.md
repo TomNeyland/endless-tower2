@@ -44,6 +44,29 @@ tower; the line just makes standing still expensive. Design consequences:
   art-direction's readability hierarchy — the line carries its own light and
   is unmissable at any grading). The camera never reacts (iron law).
 
+### The line's look (binding — v1's programmer art is refused by name)
+
+The death line is not a line. It is **the world ending from below** — a
+living surface with three layers, all buildable from generated textures,
+particles, and blend modes (no new art assets required):
+
+1. **The consumed zone**: everything below the edge sinks into the act's
+   consumption palette — a vertical gradient from the edge color down to
+   near-black, drawn over the world so the tower visibly *ceases to exist*
+   down there. Not a rectangle of color on top of a visible world.
+2. **The edge**: a bright, additive-blended band that **undulates** (two or
+   three layered, offset, slowly-scrolling strips — never a straight
+   ruler line) and pulses gently with proximity tier.
+3. **The breath**: particles rising off the edge — embers for act 1's grass
+   fire, grit streaks for act 2's sandstorm, slow star-motes for act 3's
+   creeping void — sparse at `safe`, denser and faster at `danger+`.
+
+Urgency is carried by the line's own light, the audio swell, and the
+screen-edge treatment. **Never by text.** v1's "DANGER — CLIMB NOW!"
+banner class is refused: no words, no arrows, no flashing labels. A
+spectator should find the line beautiful and the player should find it
+terrifying, and it should be the same rendering doing both.
+
 ## Hearts (the mercy that preserves the fantasy)
 
 Caught by the line = **one heart lost, not death**:
