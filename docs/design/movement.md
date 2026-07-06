@@ -123,6 +123,16 @@ self-reprices when a relic raises the ceiling (systems-architect, verbatim).
   diagnose loudly, never widen the window (that would be re-importing v1's
   mask).
 
+### Mobile hands
+
+Desktop and mobile feed the same `InputFrame` contract. Keyboard remains
+arrows/WASD + Space/Z. Touch devices get visible thumb zones in the game
+layer only: left-bottom zone produces `axisX = -1|1` based on thumb side,
+right-bottom zone holds jump. Phaser is configured for four active pointers
+so "hold direction + jump" is a first-class chord, not an accident. These
+controls never add verbs, never touch core state, and never bypass the
+per-fixed-step latch; deleting them must leave keyboard replays unchanged.
+
 ### Walls (the routing law)
 
 Airborne or grounded contact with |vx| ≥ 150: `vx := −vx · wallEfficiency`

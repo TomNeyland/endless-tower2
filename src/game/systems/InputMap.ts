@@ -1,10 +1,12 @@
 /**
  * Keyboard to InputFrame, latched once per physics step — never per render
  * frame (fixedStep runs 0..n steps per frame; latch per step or replays
- * diverge). Arrows/WASD move, Space/Z jump.
+ * diverge). Arrows/WASD move, Space/Z jump; on touch devices, thumb zones
+ * feed the same axis/jump-held facts.
  */
 import { Input, type Scene } from 'phaser';
 import type { InputFrame } from '../../core/movement/state';
+import { TouchControls } from './TouchControls';
 
 const KC = Input.Keyboard.KeyCodes;
 
@@ -16,6 +18,7 @@ export class InputMap {
     };
     private prevJumpHeld = false;
     private readonly keyboard: Input.Keyboard.KeyboardPlugin;
+    private readonly touch: TouchControls | null;
 
     constructor(scene: Scene) {
         const keyboard = scene.input.keyboard;
@@ -28,13 +31,15 @@ export class InputMap {
             right: [keyboard.addKey(KC.RIGHT), keyboard.addKey(KC.D)],
             jump: [keyboard.addKey(KC.SPACE), keyboard.addKey(KC.Z)],
         };
+        this.touch = scene.sys.game.device.input.touch ? new TouchControls(scene) : null;
     }
 
     /** Sample the current key state as this tick's InputFrame. */
     sample(): InputFrame {
-        const left = this.keys.left.some((k) => k.isDown);
-        const right = this.keys.right.some((k) => k.isDown);
-        const jumpHeld = this.keys.jump.some((k) => k.isDown);
+        const touch = this.touch?.sample();
+        const left = this.keys.left.some((k) => k.isDown) || touch?.axisX === -1;
+        const right = this.keys.right.some((k) => k.isDown) || touch?.axisX === 1;
+        const jumpHeld = this.keys.jump.some((k) => k.isDown) || touch?.jumpHeld === true;
         const axisX: -1 | 0 | 1 = left === right ? 0 : left ? -1 : 1;
         const frame: InputFrame = {
             axisX,
@@ -46,6 +51,7 @@ export class InputMap {
     }
 
     destroy(): void {
+        this.touch?.destroy();
         for (const group of [this.keys.left, this.keys.right, this.keys.jump]) {
             for (const key of group) {
                 this.keyboard.removeKey(key);

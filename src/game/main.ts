@@ -24,6 +24,9 @@ const config: Types.Core.GameConfig = {
         mode: Scale.FIT,
         autoCenter: Scale.CENTER_BOTH,
     },
+    input: {
+        activePointers: 4,
+    },
     physics: {
         default: 'arcade',
         arcade: {
