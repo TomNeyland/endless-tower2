@@ -18,7 +18,11 @@ export const DEFAULT_TUNING = {
     SPEED_DEADBAND: 100, // px/s: takeoff speeds below this convert as zero
     JUMP_SPAN: 650, // px/s: the soft-knee tanh span above the knee
     JUMP_HARD_CAP: 2400, // px/s: absolute asymptote — no relic stack outruns the camera
-    JUMP_RETENTION: 0.7, // the spend: vx multiplier applied at takeoff
+    JUMP_RETENTION: 0.78, // the spend: vx multiplier applied at takeoff — raised from
+    // 0.70 after the first human playtest: with 0.70, jump-spend vs runway-earn
+    // reached equilibrium near ~700 px/s (tier 2) and the ladder's top was a
+    // treadmill. 0.78 moves the buildable plateau into tier 3; perfect bhops
+    // (100% retention) remain the skill path above it.
 
     // --- Gravity family ---
     GRAVITY_RISE: 1500, // px/s^2 while ascending
@@ -29,13 +33,13 @@ export const DEFAULT_TUNING = {
 
     // --- Run: two regimes, crisp skids, the ice glide ---
     RUN_ACCEL_LOW: 1600, // px/s^2 below the regime knee: 0->400 in 0.25s, hand-in-glove
-    RUN_ACCEL_HIGH: 340, // px/s^2 above: the top of the ladder is a career, not a held key
+    RUN_ACCEL_HIGH: 500, // px/s^2 above: the top of the ladder is earned, not a held key
     RUN_REGIME_SPEED: 400, // px/s: boundary between the two regimes
     TURN_ACCEL: 2600, // px/s^2 when input opposes velocity — the skid
     GROUND_DRAG: 350, // px/s^2 with no input — a 900 px/s coast survives ~2.6s
     AIR_ACCEL: 400, // px/s^2: air is spent, not earned
     AIR_DRAG: 0, // airborne momentum is sacred
-    MAX_RUN_SPEED: 1600, // px/s: the effective ceiling; manual clamp
+    MAX_RUN_SPEED: 1400, // px/s: the effective ceiling; manual clamp
 
     // --- Speed tiers (fractions of the effective ceiling — self-repricing) ---
     TIER_FRAC_1: 0.29,
