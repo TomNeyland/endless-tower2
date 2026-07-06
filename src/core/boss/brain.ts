@@ -14,7 +14,7 @@
  * at `resolveAt`, and crumble glows START at ignite because the glow IS
  * the telegraph.
  */
-import type { BossEvent } from '../events';
+import type { BossEvent } from './events';
 import type { ExamCommand } from '../exam/commands';
 import type { PlatformField } from '../exam/field';
 import { msToTicks } from '../movement/state';
