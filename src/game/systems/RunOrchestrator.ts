@@ -197,6 +197,12 @@ export class RunOrchestrator {
     }
 
     private onOutcome(node: NodeSpec, outcome: SegmentOutcome, snap: RunSnapshot): void {
+        // The map-side wallet BEFORE adoption is the launch-time truth:
+        // diffing it against the returned snapshot recovers the segment's own
+        // coin story (placed pickups, minus anything a mid-segment shop
+        // charged) — the toast shows the segment's delta of coins, score,
+        // and bests (playthrough-trace.md finding 4).
+        const coinsBefore = this.host.run.coins;
         // Adopt the segment's returned truth whole — the one live authority
         // moves back to the map side (core/run/host.ts).
         this.host = RunHost.adopt(snap, (e) => this.emit(e));
@@ -208,12 +214,17 @@ export class RunOrchestrator {
             this.endRun();
             return;
         }
-        const lines = [`+${groupDigits(outcome.stats.totalScore)} score`];
+        const lines: string[] = [];
+        const coinsDelta = run.coins - coinsBefore;
+        if (coinsDelta !== 0) {
+            lines.push(`${coinsDelta > 0 ? '+' : ''}${coinsDelta} coins`);
+        }
         const bounty = Math.round(node.rewards.clearBounty * node.rewards.coinsMul);
         if (bounty > 0) {
             run.adjustCoins(bounty);
-            lines.unshift(`+${bounty} coins bounty`);
+            lines.push(`+${bounty} coins bounty`);
         }
+        lines.push(`+${groupDigits(outcome.stats.totalScore)} score`);
         if (outcome.stats.bestChainFace.length > 0) {
             lines.push(`best chain ${outcome.stats.bestChainFace}`);
         }
