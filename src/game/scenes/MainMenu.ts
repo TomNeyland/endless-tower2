@@ -36,7 +36,11 @@ export class MainMenu extends Scene {
             })
             .setOrigin(0.5);
 
+        // One start, ever: both listeners are removed when either fires
+        // (two live `once` handlers would double-start the scene).
         const start = () => {
+            this.input.off('pointerdown', start);
+            this.input.keyboard?.off('keydown', start);
             this.sound.play(Sfx.select, { volume: 0.5 });
             this.scene.start('Sandbox');
         };

@@ -1,34 +1,112 @@
-import { Scene } from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH } from '../main';
-import { Atlas, Img } from '../assets';
-
 /**
- * Placeholder proving the render pipeline (atlases, frames, background).
- * The FEEL phase replaces this with the real movement sandbox.
+ * The FEEL-phase movement sandbox. Composition root, nothing else: every
+ * system is constructed here, wired through the event bus and tuning stack,
+ * and torn down on shutdown. Raw climbing must be joyful in this empty room
+ * before any system is layered on — this scene is the feel gate's venue.
  */
+import { Scene } from 'phaser';
+import { EventBus } from '../../core/events';
+import { InputRecorder } from '../../core/input/recorder';
+import { generateSandboxTower } from '../../core/tower';
+import { TuningStack } from '../../core/tuning';
+import { ensureGeneratedTextures } from '../assets';
+import { DebugBridge } from '../debug/Bridge';
+import { MovementStats } from '../debug/Stats';
+import { GAME_HEIGHT } from '../main';
+import { PlayerAnimator } from '../player/PlayerAnimator';
+import { PlayerSystem } from '../player/PlayerSystem';
+import { AudioSystem } from '../systems/AudioSystem';
+import { CameraRig } from '../systems/CameraRig';
+import { InputMap } from '../systems/InputMap';
+import { JuiceSystem } from '../systems/JuiceSystem';
+import { ParallaxBackdrop } from '../systems/ParallaxBackdrop';
+import { TowerView } from '../systems/TowerView';
+
+const SANDBOX_SEED = 20260705;
+
 export class Sandbox extends Scene {
+    private tuning!: TuningStack;
+    private bus!: EventBus;
+    private playerSystem!: PlayerSystem;
+    private animator!: PlayerAnimator;
+    private cameraRig!: CameraRig;
+    private juice!: JuiceSystem;
+    private audio!: AudioSystem;
+    private inputMap!: InputMap;
+    private backdrop!: ParallaxBackdrop;
+    private towerView!: TowerView;
+    private stats!: MovementStats;
+    private bridge!: DebugBridge;
+
+    private readonly onResetKey = (): void => this.resetRun();
+
     constructor() {
         super('Sandbox');
     }
 
-    create() {
-        this.add.tileSprite(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, Img.backgroundSky);
+    create(): void {
+        ensureGeneratedTextures(this);
 
-        const groundY = GAME_HEIGHT - 32;
-        for (let x = 32; x < GAME_WIDTH; x += 64) {
-            this.add.image(x, groundY, Atlas.tiles, 'terrain_grass_cloud_middle');
-        }
+        this.tuning = new TuningStack();
+        this.bus = new EventBus();
+        const recorder = new InputRecorder();
+        const groundTopY = GAME_HEIGHT - 64;
+        const layout = generateSandboxTower(SANDBOX_SEED, this.tuning, groundTopY);
 
-        this.add.image(GAME_WIDTH / 2, groundY - 96, Atlas.characters, 'character_beige_idle');
+        this.backdrop = new ParallaxBackdrop(this);
+        this.towerView = new TowerView(this, layout);
+        this.inputMap = new InputMap(this);
+        this.playerSystem = new PlayerSystem(
+            this,
+            layout,
+            this.tuning,
+            this.bus,
+            recorder,
+            this.inputMap,
+            SANDBOX_SEED,
+        );
+        this.animator = new PlayerAnimator(this, this.playerSystem, this.bus, this.tuning);
+        this.cameraRig = new CameraRig(this, this.playerSystem, this.tuning);
+        this.juice = new JuiceSystem(this, this.playerSystem, this.animator, this.bus, this.tuning);
+        this.audio = new AudioSystem(this, this.bus, this.tuning);
+        this.stats = new MovementStats(this.bus, this.playerSystem);
+        this.bridge = new DebugBridge({
+            bus: this.bus,
+            tuning: this.tuning,
+            player: this.playerSystem,
+            stats: this.stats,
+            resetSandbox: () => this.resetRun(),
+        });
 
-        this.add
-            .text(GAME_WIDTH / 2, 120, 'movement sandbox — FEEL phase pending', {
-                fontFamily: 'Arial',
-                fontSize: 20,
-                color: '#ffffff',
-                stroke: '#1a3a5c',
-                strokeThickness: 4,
-            })
-            .setOrigin(0.5);
+        this.input.keyboard?.on('keydown-R', this.onResetKey);
+        this.events.once('shutdown', () => this.teardown());
+    }
+
+    private resetRun(): void {
+        this.playerSystem.reset('reset');
+        this.cameraRig.snap();
+    }
+
+    update(_time: number, delta: number): void {
+        this.cameraRig.update();
+        const scrollY = this.cameras.main.scrollY;
+        this.backdrop.update(scrollY, delta);
+        this.towerView.update(scrollY);
+        this.animator.update(delta);
+        this.juice.update();
+    }
+
+    private teardown(): void {
+        this.input.keyboard?.off('keydown-R', this.onResetKey);
+        this.bridge.destroy();
+        this.stats.destroy();
+        this.audio.destroy();
+        this.juice.destroy();
+        this.animator.destroy();
+        this.playerSystem.destroy();
+        this.inputMap.destroy();
+        this.towerView.destroy();
+        this.backdrop.destroy();
+        this.bus.clear();
     }
 }
