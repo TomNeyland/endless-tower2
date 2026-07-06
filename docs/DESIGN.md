@@ -160,7 +160,7 @@ No permanent stat grinding — skill is the progression.
 
 ## Playtest protocol
 
-- **Human (Tom):** the feel gate. Real-time play judgment.
+- **Human playtester:** the feel gate. Real-time play judgment.
 - **Automated (Claude via Chrome):** rendering, inputs, console, screenshots, and
   deterministic physics verification through the scripted-input harness — not
   real-time play.

@@ -1,8 +1,12 @@
 # CLAUDE.md
 
 Endless Tower 2 — a momentum roguelite built with Phaser 4 + Vite + TypeScript.
-Read `docs/DESIGN.md` before building anything; it is the canonical spec (spine,
-pillars, purpose arc, systems). `docs/research/` holds the v1 archaeology.
+Required reading order before building anything: `ETHOS.md` (how to think here),
+then `docs/DESIGN.md` (the canonical spec), then the relevant design document in
+`docs/design/` (per-system designs, written before code). `docs/research/` holds
+the v1 archaeology — avoid reading it into context unless your task specifically
+needs it (old ideas are old; the design docs already carry anything worth
+keeping, and its epistemic-status header explains why the rest is suspect).
 
 ## Commands
 
