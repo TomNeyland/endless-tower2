@@ -44,6 +44,8 @@ export interface PlayerKinematics {
     vy: number;
     grounded: boolean;
     tick: number;
+    /** Speed-tier index — envelope law (Amendment 1a) for event emitters. */
+    tier: number;
 }
 
 export class PlayerSystem {
@@ -242,6 +244,7 @@ export class PlayerSystem {
             vy: body.velocity.y,
             grounded: this.state.grounded,
             tick: this.state.tick,
+            tier: this.state.tier,
         };
     }
 

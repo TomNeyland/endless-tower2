@@ -28,7 +28,9 @@ export const Sfx = {
     // PRESSURE voice: the one hard sound, the rescue whoosh, ignition, exit.
     hurt: 'sfx-hurt',
     disappear: 'sfx-disappear',
+    /** The combo tier stinger — pitched up the pentatonic ladder per tier. */
     magic: 'sfx-magic',
+    /** The bank tally voice — the detune-then-tally phrase's coins. */
     coin: 'sfx-coin',
 } as const;
 
@@ -36,7 +38,9 @@ export const Sfx = {
 export const Gen = {
     dust: 'gen-dust',
     streak: 'gen-streak',
-    /** Vertical white gradient (bright bottom, clear top) — glow bands. */
+    /** Vertical white gradient (bright bottom, clear top) — PRESSURE's glow bands. */
+    glowBand: 'gen-glow-band',
+    /** Soft radial glow — the combo ladder's earned character light. */
     glow: 'gen-glow',
 } as const;
 
@@ -116,7 +120,7 @@ export function ensureGeneratedTextures(scene: Scene): void {
         g.generateTexture(Gen.streak, 18, 2);
         g.destroy();
     }
-    if (!scene.textures.exists(Gen.glow)) {
+    if (!scene.textures.exists(Gen.glowBand)) {
         // Stepped alpha bands read as a smooth gradient once tinted/scaled.
         const g = scene.add.graphics();
         const bands = 16;
@@ -124,7 +128,17 @@ export function ensureGeneratedTextures(scene: Scene): void {
             g.fillStyle(0xffffff, ((i + 1) / bands) ** 2);
             g.fillRect(0, i * 4, 32, 4);
         }
-        g.generateTexture(Gen.glow, 32, bands * 4);
+        g.generateTexture(Gen.glowBand, 32, bands * 4);
+        g.destroy();
+    }
+    if (!scene.textures.exists(Gen.glow)) {
+        // Concentric falloff — a soft radial glow without gradient support.
+        const g = scene.add.graphics();
+        for (let r = 32; r >= 4; r -= 4) {
+            g.fillStyle(0xffffff, 0.1 * (1 - r / 40));
+            g.fillCircle(32, 32, r);
+        }
+        g.generateTexture(Gen.glow, 64, 64);
         g.destroy();
     }
 }

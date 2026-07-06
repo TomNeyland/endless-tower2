@@ -89,6 +89,7 @@ export class PressureSystem {
             speed: Math.abs(k.vx),
             grounded: k.grounded,
             floorIndex: this.floorOf(k.feetY),
+            tier: k.tier,
         };
     }
 
@@ -150,7 +151,7 @@ export class PressureSystem {
             this.bus.emit({
                 type: 'line/proximity',
                 ...this.envelope(),
-                tier: facts.proximity.tier,
+                zone: facts.proximity.tier,
                 gapPx: facts.proximity.gapPx,
                 direction: facts.proximity.direction,
                 lineY: this.line.y,

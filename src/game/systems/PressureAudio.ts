@@ -35,7 +35,7 @@ export class PressureAudio {
     };
 
     private readonly onProximity = (e: LineProximityEvent): void => {
-        this.tier = e.tier;
+        this.tier = e.zone;
     };
 
     private readonly onHeartLost = (e: HeartLostEvent): void => {

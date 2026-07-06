@@ -4,6 +4,13 @@
  * stats surface. Debug never leaks into production scenes: this object is
  * invisible unless you open the console, and nothing in the game reads it.
  */
+import type { ChainSummary, ComboTripwires } from '../../core/combo/engine';
+import {
+    type AnyComboEvent,
+    type AnyComboEventType,
+    COMBO_SCHEMA_VERSION,
+    type SessionStats,
+} from '../../core/combo/types';
 import {
     EVENT_SCHEMA_VERSION,
     type EventBus,
@@ -28,10 +35,12 @@ import {
     syntheticFactScript,
     waitUntil,
 } from './EngineFacts';
+import type { ComboRelay } from '../systems/ComboRelay';
 import type { MovementStats, StatsSnapshot } from './Stats';
 
 const RING_SIZE = 1024;
 const TICK_RING_SIZE = 600;
+const COMBO_RING_SIZE = 512;
 
 export interface Et2Bridge {
     schemaVersion: number;
@@ -77,6 +86,20 @@ export interface Et2Bridge {
         forceCatch(): boolean;
         forceExit(): boolean;
     };
+    combo: {
+        schemaVersion: number;
+        recent(count?: number, type?: AnyComboEventType): AnyComboEvent[];
+        /** Session stat block (score-owned) — includes refarmedFloorShare. */
+        stats(): SessionStats;
+        /** The three counters that must read 0 forever. */
+        tripwires(): ComboTripwires;
+        /** Live chain view for the harness — never a payout surface. */
+        chain(): ChainSummary;
+        /** Inject run signals (orchestration-only port; harness use). */
+        forceBank(): void;
+        forceVoid(): void;
+        clear(): void;
+    };
     reset(): void;
 }
 
@@ -91,6 +114,7 @@ interface BridgeDeps {
     tuning: TuningStack;
     player: PlayerSystem;
     stats: MovementStats;
+    combo: ComboRelay;
     resetSandbox: () => void;
     pressure: {
         system: PressureSystem;
@@ -103,7 +127,15 @@ export class DebugBridge {
     private readonly deps: BridgeDeps;
     private ring: MovementEvent[] = [];
     private tickRing: TickEvent[] = [];
+    private comboRing: AnyComboEvent[] = [];
     private lastRecording: Recording | null = null;
+
+    private readonly onComboEvent = (event: AnyComboEvent): void => {
+        this.comboRing.push(event);
+        if (this.comboRing.length > COMBO_RING_SIZE) {
+            this.comboRing.shift();
+        }
+    };
 
     private readonly onEvent = (event: MovementEvent): void => {
         if (event.type === 'movement/tick') {
@@ -122,11 +154,12 @@ export class DebugBridge {
     constructor(deps: BridgeDeps) {
         this.deps = deps;
         deps.bus.onAny(this.onEvent);
+        deps.combo.comboBus.onAny(this.onComboEvent);
         window.__ET2__ = this.buildApi();
     }
 
     private buildApi(): Et2Bridge {
-        const { tuning, player, stats, resetSandbox, pressure } = this.deps;
+        const { tuning, player, stats, combo, resetSandbox, pressure } = this.deps;
         return {
             schemaVersion: EVENT_SCHEMA_VERSION,
             tuning: {
@@ -186,6 +219,23 @@ export class DebugBridge {
                 forceCatch: () => pressure.system.debugForceCatch(),
                 forceExit: () => pressure.system.debugForceExit(),
             },
+            combo: {
+                schemaVersion: COMBO_SCHEMA_VERSION,
+                recent: (count = 50, type?: AnyComboEventType) => {
+                    const source = type
+                        ? this.comboRing.filter((e) => e.type === type)
+                        : this.comboRing;
+                    return source.slice(-count);
+                },
+                stats: () => combo.score.sessionStats(),
+                tripwires: () => combo.engine.tripwires(),
+                chain: () => combo.engine.summary(),
+                forceBank: () => combo.signal({ type: 'run/bank_now', tick: player.currentTick }),
+                forceVoid: () => combo.signal({ type: 'run/heart_lost', tick: player.currentTick }),
+                clear: () => {
+                    this.comboRing = [];
+                },
+            },
             reset: resetSandbox,
         };
     }
@@ -211,6 +261,7 @@ export class DebugBridge {
 
     destroy(): void {
         this.deps.bus.offAny(this.onEvent);
+        this.deps.combo.comboBus.offAny(this.onComboEvent);
         window.__ET2__ = undefined;
     }
 }

@@ -142,7 +142,7 @@ export class PressureView {
             .setTint(FIRE_TINT)
             .setDepth(5);
         this.fireGlow = this.scene.add
-            .image(GAME_WIDTH / 2, 0, Gen.glow)
+            .image(GAME_WIDTH / 2, 0, Gen.glowBand)
             .setDisplaySize(GAME_WIDTH, 110)
             .setOrigin(0.5, 1)
             .setTint(0xff9a3d)

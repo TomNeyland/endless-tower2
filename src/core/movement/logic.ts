@@ -59,8 +59,7 @@ function landingPhase(ctx: StepCtxWithIo): void {
             airTicks: state.airTicks,
             floorsGained: landFloor - state.takeoffFloorIndex,
             platformId: landing.platformId,
-            momentumRetained:
-                state.takeoffSpeed > 0 ? Math.abs(ctx.vx) / state.takeoffSpeed : 1,
+            momentumRetained: state.takeoffSpeed > 0 ? Math.abs(ctx.vx) / state.takeoffSpeed : 1,
             bouncesDuringAir: state.bounceIndexInAir,
             sameTickJump: state.bufferTicksLeft > 0 || input.jumpPressedEdge,
         });
@@ -146,6 +145,12 @@ export function stepMovement(
         jumpedThisTick: false,
     };
 
+    // THE INTRA-TICK ORDERING PROMISE (movement.md Amendment 1b — documented
+    // contract, not an implementation accident): walls -> landing -> jump.
+    // Specifically, on a same-tick-bhop tick the land event is emitted BEFORE
+    // the jump's left_ground. The combo state machine depends on this order —
+    // link confirmed, fuse escaped, rhythm never touches the grace window. A
+    // future refactor must not silently reorder these phases.
     latchInputPhase(ctx);
     wallPhase(ctx);
     landingPhase(ctx);
@@ -202,6 +207,7 @@ export function emitSpawn(
         speed: 0,
         grounded: false,
         floorIndex: Math.floor((env.groundTopY - feetY) / t.value('FLOOR_HEIGHT_PX')),
+        tier: state.tier,
         reason,
     });
 }

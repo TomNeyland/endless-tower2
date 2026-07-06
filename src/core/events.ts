@@ -19,6 +19,13 @@ export interface EventEnvelope {
     speed: number;
     grounded: boolean;
     floorIndex: number;
+    /**
+     * Current speed-tier index at emission (movement.md Amendment 1a —
+     * additive under EVENT_SCHEMA_VERSION discipline, no bump). Two consumers
+     * (combo hot-landing spice, audio pitch-by-tier) need tier-at-event;
+     * stateful reconstruction downstream would ship known-desynced.
+     */
+    tier: number;
 }
 
 export type WallSide = 'left' | 'right';
@@ -215,7 +222,13 @@ export interface LineStateEvent extends EventEnvelope {
 
 export interface LineProximityEvent extends EventEnvelope {
     type: 'line/proximity';
-    tier: LineProximityTier;
+    /**
+     * pressure.md's table names this field `tier`, but the envelope's
+     * game-wide `tier` (speed tier, combo-scoring.md graft #1) claimed that
+     * name for every event. The proximity band renames to `zone` — the
+     * closed 4-name set is unchanged.
+     */
+    zone: LineProximityTier;
     gapPx: number;
     direction: 'closing' | 'receding';
     lineY: number;

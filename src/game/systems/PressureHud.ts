@@ -73,7 +73,7 @@ export class PressureHud {
         // silent until danger, swelling toward critical. Never the camera's
         // business — this is a fixed overlay.
         this.edgeGlow = scene.add
-            .image(GAME_WIDTH / 2, GAME_HEIGHT, Gen.glow)
+            .image(GAME_WIDTH / 2, GAME_HEIGHT, Gen.glowBand)
             .setDisplaySize(GAME_WIDTH, 150)
             .setOrigin(0.5, 1)
             .setTint(0xff5a1f)

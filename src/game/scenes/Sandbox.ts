@@ -23,6 +23,8 @@ import { PlayerSystem } from '../player/PlayerSystem';
 import { ReplayDriver } from '../player/ReplayDriver';
 import { AudioSystem } from '../systems/AudioSystem';
 import { CameraRig } from '../systems/CameraRig';
+import { ComboHud } from '../systems/ComboHud';
+import { ComboRelay } from '../systems/ComboRelay';
 import { InputMap } from '../systems/InputMap';
 import { JuiceSystem } from '../systems/JuiceSystem';
 import { ParallaxBackdrop } from '../systems/ParallaxBackdrop';
@@ -60,6 +62,8 @@ export class Sandbox extends Scene {
     private pressureHud!: PressureHud;
     private pressureAudio!: PressureAudio;
     private segmentSpec: SegmentSpec | null = null;
+    private comboRelay!: ComboRelay;
+    private comboHud!: ComboHud;
 
     private readonly onResetKey = (): void => this.resetRun();
 
@@ -138,8 +142,20 @@ export class Sandbox extends Scene {
         );
         this.animator = new PlayerAnimator(this, this.playerSystem, this.bus, this.tuning);
         this.cameraRig = new CameraRig(this, this.playerSystem, this.tuning);
-        this.juice = new JuiceSystem(this, this.playerSystem, this.animator, this.bus, this.tuning);
-        this.audio = new AudioSystem(this, this.bus, this.tuning);
+        // The combo pipeline: relay pumps movement -> engine/score -> comboBus.
+        // Pressure's run signals (run/heart_lost, run/segment_end) reach the
+        // relay by name over the same bus — no imports between the systems.
+        this.comboRelay = new ComboRelay(this.bus, this.tuning);
+        this.comboHud = new ComboHud(this, this.bus, this.comboRelay.comboBus, this.tuning);
+        this.juice = new JuiceSystem(
+            this,
+            this.playerSystem,
+            this.animator,
+            this.bus,
+            this.tuning,
+            this.comboRelay.comboBus,
+        );
+        this.audio = new AudioSystem(this, this.bus, this.tuning, this.comboRelay.comboBus);
         // Pressure registers its world-step hook after PlayerSystem's, so it
         // always reads post-movement kinematics. Inert without a segment.
         this.pressureSystem = new PressureSystem(
@@ -165,6 +181,7 @@ export class Sandbox extends Scene {
             tuning: this.tuning,
             player: this.playerSystem,
             stats: this.stats,
+            combo: this.comboRelay,
             resetSandbox: () => this.resetRun(),
             pressure: {
                 system: this.pressureSystem,
@@ -236,6 +253,8 @@ export class Sandbox extends Scene {
         this.pressureView.destroy();
         this.pressureSystem.destroy();
         this.audio.destroy();
+        this.comboHud.destroy();
+        this.comboRelay.destroy();
         this.juice.destroy();
         this.animator.destroy();
         this.playerSystem.destroy();

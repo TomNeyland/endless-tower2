@@ -35,6 +35,10 @@ value change, not a schema change. Until the manager session amends
 movement.md or ratifies that channel, `perfect` means "kick pressed within
 5 ticks at-or-before impact."
 
+*(Ruled 2026-07-06: movement.md Amendment 2 ratified this as
+anticipation-sided by design; the combo engine's own window follows suit —
+`[0, +combo.perfectWindowTicks]` on the raw value.)*
+
 ## 2. `ContactReport` carries no `prevFeetY` (movement.md, architecture)
 
 **The design says:** the architecture sketch lists
@@ -51,3 +55,47 @@ pre-separation, and the single nullable record makes a half-populated
 landing unrepresentable. The per-step `landing` evidence is also what makes
 grounding deterministic on multi-step frames (Phaser's `touching` flags
 reset per render frame, not per physics step).
+
+## 3. `combo/stumble` is an event the taxonomy table does not name (combo-scoring.md)
+
+**The design says:** the COMBO_SCHEMA_VERSION 1 event table lists eight
+combo/score events. The state machine separately specifies the stumble
+transition (`CHAIN_AIR --land <2--> CHAIN_GROUND` when a charge absorbs the
+fizzle) and the HUD draws the fuse against an absolute `graceDeadlineTick`
+carried by `combo/link`.
+
+**What ships:** a ninth event, `combo/stumble {chainId, chargesLeft,
+graceDeadlineTick}`, additive under COMBO_SCHEMA_VERSION discipline (no
+bump — the same mechanism the design's own EXAM reservation uses).
+
+**Why:** the constraint set demands it: the stumble transition restarts the
+fuse but confirms no link, so without an event the HUD's fuse would drain
+against a stale deadline — a visibly lying jeopardy indicator, which the
+spectator test forbids. Emitting a `combo/link` instead would violate the
+grammar (a link is `floorsGained >= linkMinFloors` by definition).
+
+**Path back:** if the manager session prefers a different shape (e.g. the
+deadline folded into a future payload), the event is additive and unshipped
+to consumers beyond the HUD/bridge — free to rename until PRESSURE/IDENTITY
+wire relics that grant charges.
+
+## 4. Array/class tuning rows land as scalar keys (combo-scoring.md, constants)
+
+**The design says:** the constants table lists `combo.ladderFloors` with
+value `[4,8,14,21,30,40,55,75]`, and `hud.bankWhisper/Voice/Roar` as three
+named loudness classes (`<500 / <5000 / >=5000`).
+
+**What ships:** eight scalar keys `combo.ladderFloors0..7`, and two
+boundary keys `hud.bankWhisper` (below = whisper) and `hud.bankVoice`
+(below = voice, at-or-above = roar).
+
+**Why:** the TuningTable is numbers-only by construction — movement.md's
+TuningStack (base + mul/add/set layers) is the one relic/modifier substrate
+and its ops are numeric. An array value cannot ride a `mul` layer. Per-rung
+scalar keys are also strictly more relic-expressive (a relic can lower one
+threshold without touching the rest). The three loudness classes need only
+two boundaries; a `bankRoar` key would be dead data (roar is the
+complement).
+
+**Path back:** none needed unless a future system wants non-numeric tuning
+values, which would be a TuningStack design amendment first.
