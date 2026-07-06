@@ -39,6 +39,17 @@ export const LINE_PROFILES: Record<LineProfileName, LineProfilePreset> = {
             { key: 'line.graceFloors', op: 'mul', value: 0.55 },
         ],
     },
+    boss: {
+        name: 'boss',
+        face: 'the boss commands the line',
+        // Time-triggered ignition, tuned to land just after the entrance
+        // beat (the longest is 4s) — the line lights at the boss's command,
+        // and its surges are boss:<attackId> layers pushed mid-duel.
+        overrides: [
+            { key: 'line.graceMs', op: 'set', value: 4500 },
+            { key: 'line.graceFloors', op: 'set', value: 999 },
+        ],
+    },
     none: { name: 'none', face: '', overrides: [] },
 };
 
@@ -160,12 +171,13 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
     },
     boss: {
         type: 'boss',
-        title: 'SUMMIT GATE',
-        blurb: 'A hardened climb guards the crown of the act.',
-        // EXAM-phase placeholder: the node commits to a short, hot proving
-        // climb until the real combo-damage duel replaces it (bossStub).
-        floors: [16, 20],
-        lineProfile: 'hot',
+        title: 'BOSS',
+        blurb: 'The keeper of the act waits above. No door until it falls.',
+        // The duel arena (EXAM): floors here are the endless tower's
+        // generation budget, not a door altitude — the exit materializes on
+        // defeat, and the hp budget ends the duel long before the budget.
+        floors: [220, 220],
+        lineProfile: 'boss',
         genOverrides: [],
         modifierSlots: { chance: 0, min: 0, max: 0, nastyOnly: false },
         lootCoinsMul: 1,
