@@ -110,6 +110,7 @@ function buildSegment(
     rng: Rng,
     preset: NodeTypePreset,
     modifierIds: string[],
+    coinsMul: number,
 ): SegmentSpec | null {
     if (preset.floors === null) {
         return null;
@@ -126,6 +127,14 @@ function buildSegment(
         seed: forkSeed(runSeed, `segment:${nodeId}`),
         lineProfile: LINE_PROFILES[preset.lineProfile].overrides.map((o) => ({ ...o })),
         modifiers: modifierLayers,
+        // Placed loot IS the coin economy ("coins by play"): the node type's
+        // density identity × the modifiers' folded loot repricing. Rolled
+        // from the base table — the map is generated once at run start, and
+        // the label prints what the segment will place (pillar 2).
+        loot: {
+            coinsPerFloor: DEFAULT_TUNING['coins.perFloor'] * preset.lootCoinsMul * coinsMul,
+            powerupEveryFloors: DEFAULT_TUNING['powerup.everyFloors'],
+        },
     };
 }
 
@@ -139,10 +148,12 @@ function buildNode(
     const id = nodeIdOf(actIndex, row, col);
     const preset = NODE_PRESETS[type];
     // The node's own forked stream — independently regenerable by label.
+    // (Shop stock is NOT rolled here: the real shop forks `shop:<nodeId>`
+    // from the run seed at visit time against the live owned-relic set.)
     const rng = fork(runSeed, `node:${id}`);
     const modifierIds = rollModifierIds(rng, preset);
+    const rewards = rollRewards(rng, preset, modifierIds);
     const mysteryRng = fork(runSeed, `mystery:${id}`);
-    const shopRng = fork(runSeed, `shop:${id}`);
     return {
         id,
         actIndex,
@@ -151,18 +162,11 @@ function buildNode(
         type,
         edgesUp: [],
         modifierIds,
-        segment: buildSegment(runSeed, id, rng, preset, modifierIds),
-        rewards: rollRewards(rng, preset, modifierIds),
+        segment: buildSegment(runSeed, id, rng, preset, modifierIds, rewards.coinsMul),
+        rewards,
         lineProfile: preset.lineProfile,
         mysteryEventId: type === 'mystery' ? pick(mysteryRng, MYSTERY_EVENTS).id : null,
         mysteryRoll: type === 'mystery' ? mysteryRng() : null,
-        shopStock:
-            type === 'shop'
-                ? {
-                      heartPrice: rangeInt(shopRng, 22, 30),
-                      heartsAvailable: rangeInt(shopRng, 1, 2),
-                  }
-                : null,
         bossStub: type === 'boss',
     };
 }
@@ -267,4 +271,18 @@ export function generateActGraph(
         `map gen: act ${actIndex} of seed "${runSeed}" failed validation ${maxRegens} times — ` +
             `last violations: ${lastViolations.join('; ')}`,
     );
+}
+
+/** Row widths + counts by type — `map/generated`'s graph summary. */
+export function actGraphSummary(graph: ActGraph): {
+    rowWidths: number[];
+    countsByType: Record<NodeType, number>;
+} {
+    const countsByType = {} as Record<NodeType, number>;
+    for (const row of graph.rows) {
+        for (const node of row) {
+            countsByType[node.type] = (countsByType[node.type] ?? 0) + 1;
+        }
+    }
+    return { rowWidths: graph.rows.map((r) => r.length), countsByType };
 }

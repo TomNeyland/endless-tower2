@@ -11,6 +11,7 @@
  * crowds the file cap as systems keep adding rows.
  */
 import { DEFAULT_COMBO_TUNING } from './combo/tuning';
+import { DEFAULT_IDENTITY_TUNING } from './economy/tuning';
 
 export const DEFAULT_TUNING = {
     // --- Jump: the exchange (speed spent on height along a convex curve) ---
@@ -122,6 +123,10 @@ export const DEFAULT_TUNING = {
     // --- Combo & score (MASTERY): defaults live in src/core/combo/tuning.ts;
     //     merged here so relics/modifiers need zero combo-specific plumbing ---
     ...DEFAULT_COMBO_TUNING,
+
+    // --- Coins, shop, powerups (IDENTITY): defaults live in
+    //     src/core/economy/tuning.ts, merged by the same rule ---
+    ...DEFAULT_IDENTITY_TUNING,
 } satisfies Record<string, number>;
 
 export type TuningTable = { -readonly [K in keyof typeof DEFAULT_TUNING]: number };

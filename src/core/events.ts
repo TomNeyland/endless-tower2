@@ -180,7 +180,8 @@ export type MovementEvent =
     | StallEvent
     | ReversalEvent
     | TickEvent
-    | PressureEvent;
+    | PressureEvent
+    | RunEconomyEvent;
 
 // ---------------------------------------------------------------------------
 // PRESSURE events (docs/design/pressure.md) — same envelope, same facts-only
@@ -267,6 +268,92 @@ export type PressureEvent =
     | HeartLostEvent
     | SegmentEndEvent
     | RunEndedEvent;
+
+// ---------------------------------------------------------------------------
+// RUN & ECONOMY events (IDENTITY, docs/design/relics-economy.md). Same bus,
+// same facts-only law. These are run-orchestration facts (wallet totals,
+// build changes, shop lifecycle), not kinematics: they carry the tick (the
+// canonical timebase) but not the movement envelope — a shop has no velocity.
+// Schema authority: RUN_SCHEMA_VERSION in src/core/run/state.ts.
+// ---------------------------------------------------------------------------
+
+export type RelicRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
+export type RelicSource = 'shop' | 'elite' | 'mystery' | 'debug';
+
+export interface RelicAcquiredEvent {
+    type: 'relic/acquired';
+    tick: number;
+    relicId: string;
+    rarity: RelicRarity;
+    source: RelicSource;
+    /** Permanent tuning layers this acquisition pushed (owner `relic:<id>`). */
+    layersPushed: number;
+}
+
+export interface CoinCollectedEvent {
+    type: 'coin/collected';
+    tick: number;
+    value: number;
+    /** Wallet total after collection — consumers scale with payload values. */
+    total: number;
+    magnetized: boolean;
+}
+
+export interface CoinSpentEvent {
+    type: 'coin/spent';
+    tick: number;
+    amount: number;
+    total: number;
+    item: string;
+}
+
+export interface ShopEnteredEvent {
+    type: 'shop/entered';
+    tick: number;
+    nodeId: string;
+    /** Relic ids on offer (the seeded stock). */
+    stock: string[];
+}
+
+export interface ShopLeftEvent {
+    type: 'shop/left';
+    tick: number;
+    nodeId: string;
+    /** Item ids bought this visit (relic ids, 'heart', 'reroll'). */
+    purchases: string[];
+}
+
+export interface PowerupStartedEvent {
+    type: 'powerup/started';
+    tick: number;
+    id: string;
+    durationTicks: number;
+}
+
+export interface PowerupExpiredEvent {
+    type: 'powerup/expired';
+    tick: number;
+    id: string;
+    durationTicks: number;
+}
+
+export interface HeartGainedEvent {
+    type: 'run/heart_gained';
+    tick: number;
+    /** What granted it: 'shop', a relic id ('fireproof', 'thick-skin'), ... */
+    source: string;
+    heartsNow: number;
+}
+
+export type RunEconomyEvent =
+    | RelicAcquiredEvent
+    | CoinCollectedEvent
+    | CoinSpentEvent
+    | ShopEnteredEvent
+    | ShopLeftEvent
+    | PowerupStartedEvent
+    | PowerupExpiredEvent
+    | HeartGainedEvent;
 
 export type MovementEventType = MovementEvent['type'];
 export type EventOf<T extends MovementEventType> = Extract<MovementEvent, { type: T }>;

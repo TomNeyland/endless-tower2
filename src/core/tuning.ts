@@ -16,6 +16,7 @@
  * at push time, never folds in a surprising place.
  */
 import { validateComboTuning } from './combo/tuning';
+import { validateIdentityTuning } from './economy/tuning';
 import { DEFAULT_TUNING, type TuningKey, type TuningTable } from './tuning-table';
 
 export { DEFAULT_TUNING } from './tuning-table';
@@ -137,7 +138,9 @@ export class TuningStack {
         // back before throwing so the stack is never left poisoned.
         try {
             ownerRank(layer.owner);
-            validateComboTuning(this.snapshot());
+            const resolved = this.snapshot();
+            validateComboTuning(resolved);
+            validateIdentityTuning(resolved);
         } catch (error) {
             this.layers.pop();
             this.dirty = true;

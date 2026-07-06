@@ -164,9 +164,6 @@ function contentViolations(node: NodeSpec, out: string[]): void {
     if (node.type === 'mystery' && (node.mysteryEventId === null || node.mysteryRoll === null)) {
         out.push(`${node.id} mystery has no seeded event/roll`);
     }
-    if (node.type === 'shop' && node.shopStock === null) {
-        out.push(`${node.id} shop has no stock`);
-    }
     const nonGift = node.modifierIds.map(modifierById).filter((m) => !m.gift);
     if (node.type === 'challenge' && (nonGift.length !== 1 || !nonGift[0].nasty)) {
         out.push(`${node.id} challenge must carry exactly one nasty modifier`);

@@ -1,13 +1,13 @@
 /**
  * Map-scene overlays: the mystery event (seeded outcomes, PG flavor), the
- * minimal shop (hearts only until IDENTITY stocks relics — the honest
- * subset of "spend coins"), the inter-node results toast (light, per
- * playthrough-trace.md finding 4), and the summit card.
+ * inter-node results toast (light, per playthrough-trace.md finding 4),
+ * and the summit card. The shop is NOT an overlay — committed Shop nodes
+ * launch IDENTITY's real ShopScene above the paused map.
  */
 import type { GameObjects, Scene } from 'phaser';
 import { groupDigits } from '../../core/format';
 import type { MysteryEvent } from '../../core/map/mystery';
-import type { MapRunState } from '../../core/map/run';
+import type { RunSnapshot } from '../../core/run/state';
 import { GAME_HEIGHT, GAME_WIDTH } from '../main';
 import type { ActPalette } from './palettes';
 
@@ -128,64 +128,6 @@ export class MysteryOverlay {
     }
 }
 
-/** The minimal shop: hearts for coins. IDENTITY stocks the rest. */
-export class ShopOverlay {
-    private readonly stockLine: GameObjects.Text;
-    private readonly walletLine: GameObjects.Text;
-    private readonly container: GameObjects.Container;
-
-    constructor(
-        scene: Scene,
-        palette: ActPalette,
-        stockText: () => string,
-        walletText: () => string,
-        buyHeart: () => boolean,
-        onClose: () => void,
-    ) {
-        this.container = buildPanel(scene, palette, 260);
-        const cx = GAME_WIDTH / 2;
-        const top = (GAME_HEIGHT - 260) / 2;
-        this.container.add(
-            scene.add
-                .text(cx, top + 34, 'SHOP', {
-                    fontFamily: 'Arial Black',
-                    fontSize: 24,
-                    color: palette.text,
-                })
-                .setOrigin(0.5),
-        );
-        this.stockLine = scene.add
-            .text(cx, top + 86, stockText(), {
-                fontFamily: 'Arial',
-                fontSize: 17,
-                color: palette.text,
-            })
-            .setOrigin(0.5);
-        this.walletLine = scene.add
-            .text(cx, top + 116, walletText(), {
-                fontFamily: 'Arial',
-                fontSize: 14,
-                color: palette.textDim,
-            })
-            .setOrigin(0.5);
-        this.container.add([this.stockLine, this.walletLine]);
-        buildButton(scene, this.container, 'BUY A HEART', cx - 90, top + 176, () => {
-            if (buyHeart()) {
-                this.stockLine.setText(stockText());
-                this.walletLine.setText(walletText());
-            }
-        });
-        buildButton(scene, this.container, 'LEAVE', cx + 110, top + 176, () => {
-            this.destroy();
-            onClose();
-        });
-    }
-
-    destroy(): void {
-        this.container.destroy();
-    }
-}
-
 export interface ToastData {
     headline: string;
     lines: string[];
@@ -246,7 +188,7 @@ export class ResultsToast {
 export class SummitCard {
     private readonly container: GameObjects.Container;
 
-    constructor(scene: Scene, palette: ActPalette, state: MapRunState, onDone: () => void) {
+    constructor(scene: Scene, palette: ActPalette, state: RunSnapshot, onDone: () => void) {
         this.container = buildPanel(scene, palette, 300);
         const cx = GAME_WIDTH / 2;
         const top = (GAME_HEIGHT - 300) / 2;

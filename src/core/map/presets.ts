@@ -61,7 +61,11 @@ export interface NodeTypePreset {
     /** Generation repricing (wide/tight ledges) — same substrate as modifiers. */
     genOverrides: SegmentTuningOverride[];
     modifierSlots: ModifierSlotPreset;
-    /** Inclusive clear-bounty range (placeholder economy — see NodeRewards). */
+    /** Placed-loot density multiplier on `coins.perFloor` — the node type's
+     *  loot identity (Coin Rush's "coins ×2.5 placement", Elite's lean walls). */
+    lootCoinsMul: number;
+    /** Inclusive clear-bounty range — nonzero only where the design names a
+     *  bounty (Challenge, Boss); placed loot pays everywhere else. */
     clearBounty: [number, number];
     guaranteedRelic: boolean;
     relicOddsAdd: number;
@@ -78,7 +82,8 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         lineProfile: 'standard',
         genOverrides: [],
         modifierSlots: { chance: 0.3, min: 1, max: 1, nastyOnly: false },
-        clearBounty: [10, 16],
+        lootCoinsMul: 1,
+        clearBounty: [0, 0],
         guaranteedRelic: false,
         relicOddsAdd: 0,
         giftChance: 0.06,
@@ -91,9 +96,8 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         lineProfile: 'gentle',
         genOverrides: [{ key: 'tower.platformWidthMul', op: 'mul', value: 1.25 }],
         modifierSlots: { chance: 0.2, min: 1, max: 1, nastyOnly: false },
-        // Loot-dense placeholder: reads as coins ×2.5 against a Climb's pay
-        // until placed loot arrives (IDENTITY).
-        clearBounty: [30, 42],
+        lootCoinsMul: 2.5, // the doc's "coins ×2.5 placement", now literally placed
+        clearBounty: [0, 0],
         guaranteedRelic: false,
         relicOddsAdd: 0,
         giftChance: 0.08,
@@ -106,7 +110,8 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         lineProfile: 'standard',
         genOverrides: [],
         modifierSlots: { chance: 1, min: 1, max: 1, nastyOnly: true },
-        clearBounty: [55, 70],
+        lootCoinsMul: 1,
+        clearBounty: [55, 70], // the design's "large fixed bounty"
         guaranteedRelic: false,
         relicOddsAdd: 0.2,
         giftChance: 0.04,
@@ -119,7 +124,8 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         lineProfile: 'hot',
         genOverrides: [{ key: 'tower.platformWidthMul', op: 'mul', value: 0.85 }],
         modifierSlots: { chance: 1, min: 1, max: 2, nastyOnly: true },
-        clearBounty: [24, 34],
+        lootCoinsMul: 0.75, // tight gen, lean walls — the relic is the pay
+        clearBounty: [0, 0],
         guaranteedRelic: true,
         relicOddsAdd: 0,
         giftChance: 0.04,
@@ -132,6 +138,7 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         lineProfile: 'none',
         genOverrides: [],
         modifierSlots: { chance: 0, min: 0, max: 0, nastyOnly: false },
+        lootCoinsMul: 1,
         clearBounty: [0, 0],
         guaranteedRelic: false,
         relicOddsAdd: 0,
@@ -145,6 +152,7 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         lineProfile: 'none',
         genOverrides: [],
         modifierSlots: { chance: 0, min: 0, max: 0, nastyOnly: false },
+        lootCoinsMul: 1,
         clearBounty: [0, 0],
         guaranteedRelic: false,
         relicOddsAdd: 0,
@@ -160,7 +168,8 @@ export const NODE_PRESETS: Record<NodeType, NodeTypePreset> = {
         lineProfile: 'hot',
         genOverrides: [],
         modifierSlots: { chance: 0, min: 0, max: 0, nastyOnly: false },
-        clearBounty: [90, 110],
+        lootCoinsMul: 1,
+        clearBounty: [90, 110], // "act completion + big bounty"
         guaranteedRelic: false,
         relicOddsAdd: 0,
         giftChance: 0,

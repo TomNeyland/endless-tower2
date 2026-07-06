@@ -9,20 +9,19 @@
  * override — plus commit() so the scripted harness can drive the loop.
  */
 import type { Game } from 'phaser';
-import type { MapEvent } from '../../core/map/events';
 import type { NodeLabel } from '../../core/map/label';
 import { type ActGraph, MAP_SCHEMA_VERSION } from '../../core/map/types';
-import type { MapRunState } from '../../core/map/run';
-import type { CommitRoute, RunOrchestrator } from '../systems/RunOrchestrator';
+import type { RunSnapshot } from '../../core/run/state';
+import type { CommitRoute, RunOrchestrator, RunRingEvent } from '../systems/RunOrchestrator';
 
 export interface Et2MapBridge {
     schemaVersion: number;
-    /** The minimal run state (seed, act, position, passthrough currencies). */
-    state(): MapRunState;
+    /** The reconciled run truth (seed, position, wallet, build). */
+    state(): RunSnapshot;
     graph(): ActGraph;
     reachable(): string[];
     label(nodeId: string): NodeLabel;
-    events(count?: number): MapEvent[];
+    events(count?: number): RunRingEvent[];
     /** Harness handle: drive the run loop without the scene's input path. */
     commit(nodeId: string): CommitRoute;
     jumpToNode(nodeId: string): void;
@@ -42,7 +41,7 @@ declare global {
 export function installMapBridge(run: RunOrchestrator, game: Game): void {
     window.__ET2_MAP__ = {
         schemaVersion: MAP_SCHEMA_VERSION,
-        state: () => ({ ...run.state, path: [...run.state.path] }),
+        state: () => run.snapshot(),
         graph: () => run.actGraph(),
         reachable: () => run.reachableIds(),
         label: (nodeId: string) => run.preview(nodeId),

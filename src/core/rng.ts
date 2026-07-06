@@ -41,16 +41,21 @@ function xmur3(str: string): number {
 }
 
 /**
- * Derive a 32-bit stream seed from the run seed and a stream label. The
+ * Derive a 32-bit stream seed from a parent seed and a stream label. The
  * separator is a control character so `('a:b', 'c')` and `('a', 'b:c')`
  * can never collide through label punctuation.
+ *
+ * Two legitimate parent domains, one derivation: the run seed (a shareable
+ * string — map/segment/shop streams fork from it) and derived 32-bit seeds
+ * (a segment's numeric seed — coins/powerups streams fork from it,
+ * second-level).
  */
-export function forkSeed(runSeed: string, label: string): number {
+export function forkSeed(runSeed: string | number, label: string): number {
     return xmur3(`${runSeed}\u001f${label}`);
 }
 
-/** A labeled, independent stream forked from the run seed. */
-export function fork(runSeed: string, label: string): Rng {
+/** A labeled, independent stream forked from a parent seed. */
+export function fork(runSeed: string | number, label: string): Rng {
     return mulberry32(forkSeed(runSeed, label));
 }
 

@@ -29,6 +29,11 @@ export interface NodeLabel {
     compound: string | null;
 }
 
+/** 2.5 → "2.5", 2.0 → "2" — label arithmetic, not formatting policy. */
+function trimNumber(n: number): string {
+    return `${Math.round(n * 100) / 100}`;
+}
+
 export function modifierBreath(id: string): ModifierLabelLine {
     const m = modifierById(id);
     return {
@@ -52,6 +57,14 @@ export function buildNodeLabel(node: NodeSpec, pendingGiftIds: readonly string[]
     const modifiers = modifierIds.map(modifierBreath);
 
     const rewards: string[] = [];
+    if (node.segment !== null) {
+        // The loot density is the printed pay (pillar 2: the price tag names
+        // the placement, e.g. Coin Rush's ×2.5, an Elite's lean ×0.75).
+        const lootMul = preset.lootCoinsMul * node.rewards.coinsMul;
+        if (lootMul !== 1) {
+            rewards.push(`coins ×${trimNumber(lootMul)} placement`);
+        }
+    }
     if (node.rewards.clearBounty > 0) {
         const bounty = Math.round(node.rewards.clearBounty * node.rewards.coinsMul);
         rewards.push(`${bounty} coins on clear`);
@@ -62,8 +75,8 @@ export function buildNodeLabel(node: NodeSpec, pendingGiftIds: readonly string[]
     if (node.rewards.relicOddsAdd > 0) {
         rewards.push('better relic odds');
     }
-    if (node.type === 'shop' && node.shopStock !== null) {
-        rewards.push(`hearts for sale (${node.shopStock.heartPrice} coins)`);
+    if (node.type === 'shop') {
+        rewards.push('relics, hearts, rerolls — spend coins');
     }
     if (node.type === 'mystery') {
         rewards.push('risk and reward, revealed inside');

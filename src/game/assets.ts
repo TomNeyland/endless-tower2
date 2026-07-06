@@ -70,6 +70,12 @@ export const TileFrame = {
     doorTop: 'door_open_top',
     fireEdge: 'lava_top',
     fireball: 'fireball',
+    // IDENTITY: coin pickups and the four timed-powerup spawns.
+    coinGold: 'coin_gold',
+    powerupSpring: 'spring',
+    powerupCoinStorm: 'block_coin',
+    powerupGhost: 'gem_blue',
+    powerupOverdrive: 'star',
 } as const;
 
 /** HUD frames inside the tiles atlas (pack `hud_*` sprites before custom art). */

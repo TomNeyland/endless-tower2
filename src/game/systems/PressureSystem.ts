@@ -15,7 +15,12 @@ import { Physics, type Scene } from 'phaser';
 import type { EventBus } from '../../core/events';
 import type { ProximityTierName } from '../../core/pressure/line';
 import { PressureRuntime, type PressureStepResult } from '../../core/pressure/runtime';
-import type { ActiveSegment, DoorPlacement, PressureSnapshot } from '../../core/pressure/segment';
+import type {
+    ActiveSegment,
+    DoorPlacement,
+    HeartsPort,
+    PressureSnapshot,
+} from '../../core/pressure/segment';
 import type { TuningStack } from '../../core/tuning';
 import type { PlayerSystem } from '../player/PlayerSystem';
 
@@ -34,11 +39,13 @@ export class PressureSystem {
         tuning: TuningStack,
         bus: EventBus,
         segment: ActiveSegment | null,
-        heartsCarried: number | null,
+        hearts: HeartsPort,
     ) {
         this.player = player;
         this.bus = bus;
-        this.rt = segment ? new PressureRuntime(segment, tuning, heartsCarried) : null;
+        // RunState (the single source of run truth) is the hearts port —
+        // pressure spends and reads through it, never owns it.
+        this.rt = segment ? new PressureRuntime(segment, tuning, hearts) : null;
         this.world = scene.physics.world;
         // Registered after PlayerSystem's handler (construction order in the
         // scene), so pressure always steps on post-movement kinematics.

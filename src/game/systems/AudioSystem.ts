@@ -16,7 +16,14 @@
 import type { Scene, Time } from 'phaser';
 import type { ComboBus } from '../../core/combo/bus';
 import type { ComboBankedEvent, ComboTierEvent } from '../../core/combo/types';
-import type { EventBus, JumpEvent, WallBounceEvent } from '../../core/events';
+import type {
+    CoinCollectedEvent,
+    EventBus,
+    HeartGainedEvent,
+    JumpEvent,
+    PowerupStartedEvent,
+    WallBounceEvent,
+} from '../../core/events';
 import type { TuningStack } from '../../core/tuning';
 import { Sfx } from '../assets';
 
@@ -92,6 +99,27 @@ export class AudioSystem {
         this.closeGlory();
     };
 
+    /** Coin pickup: a bright chirp, slightly brighter when the magnet did
+     *  the reaching. Casino-pack voice is the HANDS-phase upgrade
+     *  (audio.md: casino for coin/shop/reward) — the pack's coin sample
+     *  carries it until then. */
+    private readonly onCoinCollected = (e: CoinCollectedEvent): void => {
+        this.play(Sfx.coin, e.magnetized ? 1.25 : 1.1, 0.22);
+    };
+
+    /** A heart arriving is quiet warmth, never fanfare (mercy, not glory). */
+    private readonly onHeartGained = (_e: HeartGainedEvent): void => {
+        this.play(Sfx.select, 1.15, 0.4, false);
+    };
+
+    private readonly onPowerupStarted = (_e: PowerupStartedEvent): void => {
+        this.play(Sfx.magic, 1.35, 0.4, false);
+    };
+
+    private readonly onPowerupExpired = (): void => {
+        this.play(Sfx.disappear, 0.9, 0.25, false);
+    };
+
     constructor(scene: Scene, bus: EventBus, tuning: TuningStack, comboBus: ComboBus) {
         this.scene = scene;
         this.bus = bus;
@@ -100,6 +128,10 @@ export class AudioSystem {
         scene.sound.volume = tuning.value('MASTER_VOLUME');
         bus.on('movement/jump', this.onJump);
         bus.on('movement/wall_bounce', this.onWallBounce);
+        bus.on('coin/collected', this.onCoinCollected);
+        bus.on('run/heart_gained', this.onHeartGained);
+        bus.on('powerup/started', this.onPowerupStarted);
+        bus.on('powerup/expired', this.onPowerupExpired);
         comboBus.on('combo/tier', this.onComboTier);
         comboBus.on('combo/banked', this.onComboBanked);
         comboBus.on('combo/voided', this.onComboVoided);
@@ -143,6 +175,10 @@ export class AudioSystem {
         this.closeGlory();
         this.bus.off('movement/jump', this.onJump);
         this.bus.off('movement/wall_bounce', this.onWallBounce);
+        this.bus.off('coin/collected', this.onCoinCollected);
+        this.bus.off('run/heart_gained', this.onHeartGained);
+        this.bus.off('powerup/started', this.onPowerupStarted);
+        this.bus.off('powerup/expired', this.onPowerupExpired);
         this.comboBus.off('combo/tier', this.onComboTier);
         this.comboBus.off('combo/banked', this.onComboBanked);
         this.comboBus.off('combo/voided', this.onComboVoided);

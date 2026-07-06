@@ -8,12 +8,15 @@ import { Scene } from 'phaser';
 import type { RunEndedEvent, SegmentEndEvent } from '../../core/events';
 import { EventBus } from '../../core/events';
 import { InputRecorder } from '../../core/input/recorder';
-import type { RunSegmentHandoff, SegmentOutcome } from '../../core/map/run';
+import type { RunSegmentHandoff, SegmentOutcome } from '../../core/run/loop';
 import {
     buildSegmentTower,
     defaultSegmentSpec,
     type SegmentSpec,
 } from '../../core/pressure/segment';
+import { applyOwnedRelicLayers } from '../../core/relics/effects';
+import { relicById } from '../../core/relics/roster';
+import { RunState, type RunSnapshot } from '../../core/run/state';
 import { generateSandboxTower, type TowerLayout } from '../../core/tower';
 import { TuningStack } from '../../core/tuning';
 import { ensureGeneratedTextures } from '../assets';
@@ -25,28 +28,36 @@ import { PlayerSystem } from '../player/PlayerSystem';
 import { ReplayDriver } from '../player/ReplayDriver';
 import { AudioSystem } from '../systems/AudioSystem';
 import { CameraRig } from '../systems/CameraRig';
+import { CoinPickups } from '../systems/CoinPickups';
 import { ComboHud } from '../systems/ComboHud';
 import { ComboRelay } from '../systems/ComboRelay';
 import { InputMap } from '../systems/InputMap';
 import { JuiceSystem } from '../systems/JuiceSystem';
 import { ParallaxBackdrop } from '../systems/ParallaxBackdrop';
+import { PowerupSystem } from '../systems/PowerupSystem';
 import { PressureAudio } from '../systems/PressureAudio';
 import { PressureHud } from '../systems/PressureHud';
 import { PressureSystem } from '../systems/PressureSystem';
 import { PressureView } from '../systems/PressureView';
+import { RelicBelt } from '../systems/RelicBelt';
+import { RelicEffects } from '../systems/RelicEffects';
+import { RelicTells } from '../systems/RelicTells';
 import { SessionLog } from '../systems/SessionLog';
 import { TowerView } from '../systems/TowerView';
+import type { ShopLaunchData } from './ShopScene';
 
 const SANDBOX_SEED = 20260705;
 
 /** Scene (re)boot payload: absent segment = the endless feel-gate sandbox. */
 export interface SandboxBootData {
     segment?: SegmentSpec;
-    /** Run-scoped hearts carried across a segment loop; null = fresh run. */
-    hearts?: number | null;
-    /** CHOICE's run loop: when present, segment outcomes go to the
-     *  orchestrator instead of the sandbox's own restart loop. */
-    run?: RunSegmentHandoff;
+    /** Serialized run truth carried across a segment loop; absent = fresh
+     *  run (hearts, coins, relics, charges all ride this — IDENTITY). */
+    run?: RunSnapshot;
+    /** CHOICE's run loop: when present, segment outcomes return to the
+     *  orchestrator (with the new snapshot) instead of the sandbox's own
+     *  restart loop. */
+    handoff?: RunSegmentHandoff;
 }
 
 export class Sandbox extends Scene {
@@ -71,41 +82,47 @@ export class Sandbox extends Scene {
     private segmentSpec: SegmentSpec | null = null;
     private comboRelay!: ComboRelay;
     private comboHud!: ComboHud;
+    private runState!: RunState;
+    private relicEffects!: RelicEffects;
+    private relicBelt!: RelicBelt;
+    private relicTells!: RelicTells;
+    private coinPickups: CoinPickups | null = null;
+    private powerups: PowerupSystem | null = null;
     private runHandoff: RunSegmentHandoff | null = null;
 
     private readonly onResetKey = (): void => this.resetRun();
 
-    /** Segment end: a run hands its outcome to the orchestrator (CHOICE);
-     *  the bridge-driven sandbox loops the segment as before. */
+    /** Segment end: a run hands its outcome AND the new run truth to the
+     *  orchestrator (CHOICE ↔ IDENTITY, one contract); the bridge-driven
+     *  sandbox loops the segment, the whole run — hearts, coins, relics —
+     *  carrying over as a RunState snapshot. */
     private readonly onSegmentEnd = (e: SegmentEndEvent): void => {
-        const hearts = this.pressureSystem.heartsRemaining();
         if (this.runHandoff) {
-            const outcome = this.segmentOutcome('exit', e, hearts);
+            const outcome = this.segmentOutcome('exit', e, this.runState.hearts);
             const handoff = this.runHandoff;
-            this.time.delayedCall(1200, () => handoff.onOutcome(outcome));
+            this.time.delayedCall(1200, () => handoff.onOutcome(outcome, this.runState.snapshot()));
             return;
         }
         this.time.delayedCall(1200, () => {
             this.scene.restart({
                 segment: this.segmentSpec ?? undefined,
-                hearts,
+                run: this.runState.snapshot(),
             } satisfies SandboxBootData);
         });
     };
 
     /** Zero-heart catch: run over. A run reports the death to the
-     *  orchestrator; the sandbox loop restarts with fresh hearts. */
+     *  orchestrator; the sandbox loop restarts with a fresh run. */
     private readonly onRunEnded = (e: RunEndedEvent): void => {
         if (this.runHandoff) {
             const outcome = this.segmentOutcome('death_line', e, 0);
             const handoff = this.runHandoff;
-            this.time.delayedCall(1600, () => handoff.onOutcome(outcome));
+            this.time.delayedCall(1600, () => handoff.onOutcome(outcome, this.runState.snapshot()));
             return;
         }
         this.time.delayedCall(1600, () => {
             this.scene.restart({
                 segment: this.segmentSpec ?? undefined,
-                hearts: null,
             } satisfies SandboxBootData);
         });
     };
@@ -142,8 +159,21 @@ export class Sandbox extends Scene {
         // Segment mode: a bounded climb with line + door. The spec's line
         // profile and modifiers are tuning layers — repricing as data.
         this.segmentSpec = data.segment ?? null;
-        this.runHandoff = data.run ?? null;
+        this.runHandoff = data.handoff ?? null;
         const seed = this.segmentSpec ? this.segmentSpec.seed : SANDBOX_SEED;
+
+        // RunState — the single source of run truth (IDENTITY). Restored
+        // from the boot snapshot when a run carries across scene restarts;
+        // its relic layers re-apply BEFORE tower generation so the
+        // reachability contract reads the effective jump curve.
+        const emit = (event: Parameters<EventBus['emit']>[0]): void => this.bus.emit(event);
+        this.runState = data.run
+            ? RunState.restore(data.run, this.tuning, () => this.playerTick(), emit)
+            : // A run's snapshot always arrives via boot data — a fresh
+              // RunState here is the standalone sandbox, whose run seed is
+              // simply the scene seed as a string (streams fork from it).
+              new RunState({ seed: String(seed) }, this.tuning, () => this.playerTick(), emit);
+        applyOwnedRelicLayers(this.runState.relicIds(), relicById, this.tuning, 0);
         if (this.segmentSpec) {
             // Owner-tagged per the TuningStack contract (playthrough-trace.md
             // finding 6): a future segment pop is removeByOwner and can never
@@ -200,15 +230,49 @@ export class Sandbox extends Scene {
             this.comboRelay.comboBus,
         );
         this.audio = new AudioSystem(this, this.bus, this.tuning, this.comboRelay.comboBus);
+        // Relic effects: the triggered-surface pump (layers re-applied above;
+        // triggers re-attach here, eventlessly). Belt + tells render the build.
+        this.relicEffects = new RelicEffects(
+            this.bus,
+            this.comboRelay.comboBus,
+            this.tuning,
+            this.runState,
+            this.playerSystem,
+        );
+        this.relicBelt = new RelicBelt(this, this.bus, this.runState);
+        this.relicTells = new RelicTells(this, this.bus, this.runState, this.playerSystem);
+        // Loot lives in segments only — the endless sandbox stays the naked
+        // feel gate. Placement is seeded from the spec's loot profile.
+        this.coinPickups = this.segmentSpec
+            ? new CoinPickups(
+                  this,
+                  layout,
+                  this.segmentSpec,
+                  this.tuning,
+                  this.runState,
+                  this.playerSystem,
+              )
+            : null;
+        this.powerups = this.segmentSpec
+            ? new PowerupSystem(
+                  this,
+                  layout,
+                  this.segmentSpec,
+                  this.tuning,
+                  this.bus,
+                  this.playerSystem,
+              )
+            : null;
         // Pressure registers its world-step hook after PlayerSystem's, so it
         // always reads post-movement kinematics. Inert without a segment.
+        // RunState is its hearts port — pressure spends, never owns.
         this.pressureSystem = new PressureSystem(
             this,
             this.playerSystem,
             this.tuning,
             this.bus,
             segment,
-            data.hearts ?? null,
+            this.runState,
         );
         this.pressureView = new PressureView(
             this,
@@ -225,14 +289,15 @@ export class Sandbox extends Scene {
         // run-scoped input to tick-0 state flows through recorded channels).
         this.sessionLog = new SessionLog(this, this.bus, recorder, this.playerSystem, layout, {
             segment,
-            heartsCarried: data.hearts ?? null,
+            heartsCarried: data.run?.hearts ?? null,
             restartSegment: () => {
-                // Preserve the run handoff and carried hearts: this path is
-                // the recorder-idle resume, never a free run retry.
+                // Preserve the run handoff and the BOOT snapshot: this path
+                // is the recorder-idle resume — the segment re-enters as it
+                // began, never a free retry, never a mid-run dupe of loot.
                 this.scene.restart({
                     segment: this.segmentSpec ?? undefined,
-                    hearts: this.runHandoff ? (data.hearts ?? null) : null,
-                    run: this.runHandoff ?? undefined,
+                    run: this.runHandoff ? data.run : undefined,
+                    handoff: this.runHandoff ?? undefined,
                 } satisfies SandboxBootData);
             },
         });
@@ -252,6 +317,11 @@ export class Sandbox extends Scene {
                     this.scene.restart({} satisfies SandboxBootData);
                 },
             },
+            identity: {
+                run: this.runState,
+                relics: this.relicEffects,
+                enterShop: (nodeId?: string) => this.enterShop(nodeId),
+            },
         });
 
         if (this.segmentSpec) {
@@ -270,11 +340,11 @@ export class Sandbox extends Scene {
             return;
         }
         if (this.segmentSpec) {
-            // A pressured climb resets whole: fresh tower state, fresh line.
+            // A pressured climb resets whole: fresh tower state, fresh line,
+            // fresh run (a manual reset is a new run, not a continue).
             // The flight recorder saves this session from its shutdown hook.
             this.scene.restart({
                 segment: this.segmentSpec,
-                hearts: null,
             } satisfies SandboxBootData);
             return;
         }
@@ -295,9 +365,43 @@ export class Sandbox extends Scene {
             seed,
             lineProfile: partial.lineProfile ?? [],
             modifiers: partial.modifiers ?? [],
+            loot: partial.loot ?? defaults.loot,
         };
-        this.scene.restart({ segment: spec, hearts: null } satisfies SandboxBootData);
+        this.scene.restart({ segment: spec } satisfies SandboxBootData);
         return spec;
+    }
+
+    /** Tick provider for run-scoped events; 0 before the player exists. */
+    private playerTick(): number {
+        const player = this.playerSystem as PlayerSystem | undefined;
+        return player ? player.currentTick : 0;
+    }
+
+    /**
+     * Shop entry, bridge-driven (__ET2__.run.enterShop): pause play, overlay
+     * the shop above it. The map's committed Shop nodes launch the same
+     * scene through RunOrchestrator.shopLaunchData — one contract, two hosts.
+     */
+    private enterShop(nodeId?: string): void {
+        const id = nodeId ?? `debug-shop-${this.playerTick()}`;
+        if (!this.runHandoff) {
+            // Sandbox-only path bookkeeping. Inside a run the path belongs
+            // to the map — a debug shop must not pollute the snapshot the
+            // orchestrator adopts at segment end.
+            this.runState.commitNode(id);
+        }
+        const data: ShopLaunchData = {
+            run: this.runState,
+            tuning: this.tuning,
+            emit: (event) => this.bus.emit(event),
+            grantRelic: (relicId, source) => this.relicEffects.grantRelic(relicId, source),
+            nodeId: id,
+            act: this.runState.act,
+            tick: () => this.playerTick(),
+            onLeave: () => this.scene.resume(),
+        };
+        this.scene.pause();
+        this.scene.launch('Shop', data);
     }
 
     update(_time: number, delta: number): void {
@@ -307,6 +411,9 @@ export class Sandbox extends Scene {
         this.towerView.update(scrollY);
         this.animator.update(delta);
         this.juice.update();
+        this.relicTells.update(delta);
+        this.coinPickups?.update();
+        this.powerups?.update();
         this.pressureView.update(scrollY);
         this.pressureHud.update();
         this.pressureAudio.update();
@@ -324,6 +431,11 @@ export class Sandbox extends Scene {
         this.pressureHud.destroy();
         this.pressureView.destroy();
         this.pressureSystem.destroy();
+        this.powerups?.destroy();
+        this.coinPickups?.destroy();
+        this.relicTells.destroy();
+        this.relicBelt.destroy();
+        this.relicEffects.destroy();
         this.audio.destroy();
         this.comboHud.destroy();
         this.comboRelay.destroy();

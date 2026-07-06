@@ -260,6 +260,17 @@ for absorption into IDENTITY's RunState.
 **Path back:** IDENTITY replaces the bounty with placed loot (coinsMul then
 reprices placement), stocks the shop, and redeems `relicsOwed`.
 
+**RESOLVED** at the wave-2 integration (2026-07-06): shop nodes launch
+IDENTITY's real ShopScene (relics, hearts, rerolls — `ShopStock`/the overlay
+deleted); "coins by play" is placed loot (`SegmentSpec.loot`, node presets
+scale `coins.perFloor`, modifier `lootPatch.coinsMul` reprices placement);
+`clearBounty` survives only where the design names a bounty (Challenge,
+Boss); `relicsOwed` is gone — Elite clears grant their relic on the spot,
+seeded from `fork(seed, 'relic:<nodeId>')`; `MapRunState` was absorbed into
+RunState. One passthrough remains: `relicOddsAdd` (Challenge's relic-odds
+boost) has no shop-odds consumer yet — its label line stays until a later
+wave prices it into shop weighting.
+
 ## 12. The run bridge lives at `window.__ET2_MAP__` (+ a boot `__ET2_LOOP__.pump`) (map-modifiers.md, architecture)
 
 **The design says:** "Debug bridge: seed override, jump-to-node,
@@ -282,3 +293,40 @@ real wall-clock time.
 
 **Path back:** if a later phase merges the handles, fold `__ET2_MAP__` into
 `__ET2__` once the bridge outlives scenes.
+
+## 13. Relic heart-gains and the rescue impulse are unrecorded channels (session-logs.md / relics-economy.md)
+
+**The design says:** session-logs.md's contract is "run-scoped state changes
+must flow through recorded channels"; relics-economy.md gives relics
+triggered effects including Fireproof/Thick Skin heart gains and Second
+Wind's +400 px/s landing impulse.
+
+**What ships:** every relic/powerup TUNING effect rides the recorded tuning
+timeline (layer pushes/pops notify the recorder), so the physics of a
+relic-laden session replays bit-for-bit. Two triggered effects do not have a
+recorded channel yet: heart gains (RunState mutation) and Second Wind's
+one-shot body impulse (a velocity write through the same sanctioned surface
+as the hearts rescue — but unlike the rescue, not regenerated headless,
+because the effects runtime consumes combo events the headless replay does
+not currently re-derive). A session in which Fireproof/Thick Skin granted a
+heart before a later catch, or Second Wind fired, will (correctly) trip the
+divergence alarm — the deviation-9 precedent: the alarm is telling the
+truth. Correspondingly, run-economy events (coin/, relic/, shop/, powerup/,
+run/heart_gained) are excluded from the divergence eventIndex — they are
+wallet/orchestration facts the physics replay does not regenerate, and
+indexing them would make every coin pickup a false alarm.
+
+**Path back:** session schema v3 adds a run-command timeline (frame-stamped
+RunState commands + external impulses, recorded exactly like tuning
+mutations), OR the headless replay grows the full combo+effects pipeline so
+triggered effects regenerate instead of replaying. Either is additive under
+SESSION_SCHEMA_VERSION discipline; the manager session picks the ruling.
+
+## 14. `relic/acquired.source` admits `debug` (relics-economy.md, events table)
+
+**The design says:** `source: shop|elite|mystery`.
+
+**What ships:** the union plus `'debug'` — the bridge's grantRelic must mark
+its acquisitions honestly (a debug grant masquerading as a shop purchase
+would poison future stats/achievements). Debug never leaks into production
+surfaces; the value only exists on bridge-driven grants.

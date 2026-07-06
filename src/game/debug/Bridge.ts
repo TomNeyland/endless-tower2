@@ -28,8 +28,12 @@ import {
     type TuningTable,
 } from '../../core/tuning';
 import type { PressureSnapshot, SegmentSpec } from '../../core/pressure/segment';
+import { buildReadout } from '../../core/relics/roster';
+import type { RunSnapshot, RunState } from '../../core/run/state';
+import type { RelicSource } from '../../core/events';
 import type { PlayerSystem } from '../player/PlayerSystem';
 import type { PressureSystem } from '../systems/PressureSystem';
+import type { RelicEffects } from '../systems/RelicEffects';
 import {
     EngineFactChecker,
     type EngineFactReport,
@@ -101,6 +105,19 @@ export interface Et2Bridge {
         forceCatch(): boolean;
         forceExit(): boolean;
     };
+    /** IDENTITY: the run's build/economy handles (docs/design/relics-economy.md). */
+    run: {
+        /** Acquire a relic through the real acquisition path (layers +
+         *  triggers + RunState command + relic/acquired event). */
+        grantRelic(id: string, source?: RelicSource): void;
+        setCoins(coins: number): void;
+        grantHeart(source?: string): boolean;
+        /** The one-sentence build readout. */
+        build(): string;
+        snapshot(): RunSnapshot;
+        /** Pause play and open the shop overlay (seeded by nodeId). */
+        enterShop(nodeId?: string): void;
+    };
     combo: {
         schemaVersion: number;
         recent(count?: number, type?: AnyComboEventType): AnyComboEvent[];
@@ -155,6 +172,11 @@ interface BridgeDeps {
         startSegment: (spec?: Partial<SegmentSpec>) => SegmentSpec;
         stopSegment: () => void;
     };
+    identity: {
+        run: RunState;
+        relics: RelicEffects;
+        enterShop: (nodeId?: string) => void;
+    };
 }
 
 export class DebugBridge {
@@ -193,7 +215,8 @@ export class DebugBridge {
     }
 
     private buildApi(): Et2Bridge {
-        const { tuning, player, stats, combo, session, resetSandbox, pressure } = this.deps;
+        const { tuning, player, stats, combo, session, resetSandbox, pressure, identity } =
+            this.deps;
         return {
             schemaVersion: EVENT_SCHEMA_VERSION,
             tuning: {
@@ -257,6 +280,24 @@ export class DebugBridge {
                     pressure.system.debugLineSpeedOverride(pxPerSec),
                 forceCatch: () => pressure.system.debugForceCatch(),
                 forceExit: () => pressure.system.debugForceExit(),
+            },
+            run: {
+                grantRelic: (id: string, source: RelicSource = 'debug') =>
+                    identity.relics.grantRelic(id, source),
+                setCoins: (coins: number) => identity.run.debugSetCoins(coins),
+                grantHeart: (source = 'debug') => identity.run.gainHeart(source),
+                build: () => {
+                    const snap = identity.run.snapshot();
+                    return buildReadout(
+                        snap.relics,
+                        snap.hearts,
+                        identity.run.heartsMax(),
+                        snap.coins,
+                        snap.stumbleCharges,
+                    );
+                },
+                snapshot: () => identity.run.snapshot(),
+                enterShop: (nodeId?: string) => identity.enterShop(nodeId),
             },
             combo: {
                 schemaVersion: COMBO_SCHEMA_VERSION,

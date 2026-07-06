@@ -2,17 +2,18 @@
  * The map scene — composition root, nothing else (the Sandbox pattern).
  * Renders the act's tower exterior, routes keyboard + pointer to the run
  * orchestrator, opens the label card on focus, runs the traversal
- * animation on commit, and hosts the overlays (mystery, shop, results
- * toast, summit). All decisions live in RunOrchestrator and src/core/map.
+ * animation on commit, and hosts the overlays (mystery, results toast,
+ * summit). Committed Shop nodes launch IDENTITY's real ShopScene above
+ * this paused scene. All decisions live in RunOrchestrator and src/core.
  */
 import { Scene } from 'phaser';
 import { mysteryEventById } from '../../core/map/mystery';
 import { nodeById } from '../../core/map/types';
 import { ensureGeneratedTextures } from '../assets';
-import { MapHud } from '../map/MapHud';
+import { type HudReadout, MapHud } from '../map/MapHud';
 import { NodeCardView } from '../map/NodeCardView';
 import { actPalette } from '../map/palettes';
-import { MysteryOverlay, ResultsToast, ShopOverlay, SummitCard } from '../map/MapOverlays';
+import { MysteryOverlay, ResultsToast, SummitCard } from '../map/MapOverlays';
 import { TowerExteriorView } from '../map/TowerExteriorView';
 import type { RunOrchestrator } from '../systems/RunOrchestrator';
 
@@ -44,11 +45,12 @@ export class MapScene extends Scene {
         this.overlayOpen = false;
         this.traversing = false;
 
-        const palette = actPalette(this.run.state.act);
+        const snap = this.run.snapshot();
+        const palette = actPalette(snap.actIndex);
         const graph = this.run.actGraph();
-        this.view = new TowerExteriorView(this, graph, palette, this.run.state.seed);
+        this.view = new TowerExteriorView(this, graph, palette, snap.seed);
         this.card = new NodeCardView(this, palette);
-        this.hud = new MapHud(this, this.run.state, palette);
+        this.hud = new MapHud(this, palette, () => this.hudReadout());
         this.syncRunPosition();
 
         this.view.onPointerOver((nodeId) => {
@@ -70,7 +72,7 @@ export class MapScene extends Scene {
 
         if (this.run.isSummit()) {
             this.overlayOpen = true;
-            new SummitCard(this, palette, this.run.state, () => this.run.endRun());
+            new SummitCard(this, palette, this.run.snapshot(), () => this.run.endRun());
         } else {
             const toast = this.run.consumeToast();
             if (toast) {
@@ -82,10 +84,21 @@ export class MapScene extends Scene {
         this.events.once('shutdown', () => this.teardown());
     }
 
+    private hudReadout(): HudReadout {
+        const snap = this.run.snapshot();
+        return {
+            hearts: this.run.heartsDisplay(),
+            coins: snap.coins,
+            totalScore: snap.totalScore,
+            act: snap.actIndex,
+            seed: snap.seed,
+        };
+    }
+
     private syncRunPosition(): void {
         this.view.setRunPosition(
             this.run.actGraph(),
-            this.run.state.nodeId,
+            this.run.snapshot().nodeId,
             this.run.reachableIds(),
             this.run.actPath(),
         );
@@ -148,7 +161,7 @@ export class MapScene extends Scene {
             this.traversing = false;
             const route = this.run.commit(nodeId);
             // Segment routes swap scenes inside the orchestrator; the map
-            // routes open their overlay here.
+            // routes open their surface here.
             if (route.kind === 'mystery') {
                 this.openMystery();
             } else if (route.kind === 'shop') {
@@ -158,13 +171,13 @@ export class MapScene extends Scene {
     }
 
     private openMystery(): void {
-        const node = nodeById(this.run.actGraph(), this.run.state.nodeId as string);
+        const node = nodeById(this.run.actGraph(), this.run.snapshot().nodeId as string);
         if (node.mysteryEventId === null) {
             throw new Error(`MapScene: ${node.id} committed as mystery without an event`);
         }
         this.overlayOpen = true;
         this.syncRunPosition();
-        const palette = actPalette(this.run.state.act);
+        const palette = actPalette(this.run.snapshot().actIndex);
         new MysteryOverlay(
             this,
             palette,
@@ -175,29 +188,22 @@ export class MapScene extends Scene {
         );
     }
 
+    /** The real shop (relics, hearts, rerolls) above the paused map — the
+     *  same ShopScene contract the debug bridge drives mid-segment. */
     private openShop(): void {
         this.overlayOpen = true;
         this.syncRunPosition();
-        const palette = actPalette(this.run.state.act);
-        new ShopOverlay(
-            this,
-            palette,
-            () => this.run.shopStockText(),
-            () => this.run.shopWalletText(),
-            () => {
-                const bought = this.run.buyHeart();
-                if (bought) {
-                    this.hud.refresh(this.run.state);
-                }
-                return bought;
-            },
-            () => this.closeOverlay(),
-        );
+        const data = this.run.shopLaunchData(() => {
+            this.scene.resume();
+            this.closeOverlay();
+        });
+        this.scene.pause();
+        this.scene.launch('Shop', data);
     }
 
     private closeOverlay(): void {
         this.overlayOpen = false;
-        this.hud.refresh(this.run.state);
+        this.hud.refresh(this.hudReadout());
         this.syncRunPosition();
         this.focusFirstReachable();
     }

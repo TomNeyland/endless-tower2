@@ -1,51 +1,54 @@
 /**
- * The run loop: map → segment → results toast → map (map-modifiers.md).
- * Owns the RunSignal wiring until IDENTITY's RunState assumes it:
- * `map/node_committed` hands pressure its segment spec verbatim (modifier
- * layers ride the spec and are pushed owner-tagged `segment:<nodeId>` at
- * segment start, popped with the scene — the substrate already does this);
- * consumes segment outcomes (`run/segment_end`, `run/ended {death_line}`),
- * emits `run/act_completed` and `run/ended {summit}` after act 3's boss
- * node (the EXAM stub: summit fires on clearing the stub segment).
+ * The run loop: map → segment → results toast → map (map-modifiers.md),
+ * reconciled onto IDENTITY's RunState at the wave-2 integration. The truth
+ * lives in a RunHost (core/run/host.ts): the orchestrator routes commits,
+ * hands pressure its segment spec verbatim (`map/node_committed`; modifier
+ * layers ride the spec, owner-tagged `segment:<nodeId>`), launches the
+ * Sandbox with a RunSnapshot + outcome handoff, and adopts the returned
+ * snapshot whole — hearts spent, coins picked up, and relics bought
+ * mid-segment are already in it. It folds only what the segment could not
+ * know: run score totals, the bounty where the design names one, the
+ * Elite's on-the-spot relic, act advance, and the summit.
  *
  * Lives across scenes on the Game, not in any scene. Character select is
  * RETURN's (default Beige everywhere).
  */
 import type { Game } from 'phaser';
+import type { MovementEvent } from '../../core/events';
 import { groupDigits } from '../../core/format';
+import { rollRelicReward } from '../../core/economy/shop';
 import type { MapEvent } from '../../core/map/events';
-import { generateActGraph } from '../../core/map/gen';
+import { actGraphSummary, generateActGraph } from '../../core/map/gen';
 import { buildNodeLabel, type NodeLabel } from '../../core/map/label';
-import { modifierById } from '../../core/map/modifiers';
-import { type MysteryEffect, mysteryEventById, resolveMystery } from '../../core/map/mystery';
-import {
-    applySegmentOutcome,
-    createRunState,
-    type MapRunState,
-    type SegmentOutcome,
-} from '../../core/map/run';
-import {
-    ACT_COUNT,
-    type ActGraph,
-    nodeById,
-    type NodeSpec,
-    type NodeType,
-} from '../../core/map/types';
+import { mysteryEventById, type MysteryEffect, resolveMystery } from '../../core/map/mystery';
+import { ACT_COUNT, type ActGraph, nodeById, type NodeSpec } from '../../core/map/types';
 import type { SegmentSpec } from '../../core/pressure/segment';
-import { DEFAULT_TUNING } from '../../core/tuning';
+import { RunHost } from '../../core/run/host';
+import {
+    applyMysteryEffect,
+    committedModifierIds,
+    type SegmentOutcome,
+    specWithGifts,
+} from '../../core/run/loop';
+import type { RunSnapshot } from '../../core/run/state';
 import { installMapBridge, removeMapBridge } from '../debug/MapBridge';
 import type { ToastData } from '../map/MapOverlays';
 import type { SandboxBootData } from '../scenes/Sandbox';
+import type { ShopLaunchData } from '../scenes/ShopScene';
 
 const EVENT_RING_SIZE = 256;
 
 export type CommitRoute = { kind: 'segment' } | { kind: 'mystery' } | { kind: 'shop' };
 
+/** The diagnostics ring carries the map's own events plus the run-economy
+ *  events the map-side RunState emits (shop purchases, mystery hearts). */
+export type RunRingEvent = MapEvent | MovementEvent;
+
 export class RunOrchestrator {
-    readonly state: MapRunState;
+    private host: RunHost;
     private readonly game: Game;
     private graph: ActGraph;
-    private ring: MapEvent[] = [];
+    private ring: RunRingEvent[] = [];
     private toast: ToastData | null = null;
     private summit = false;
     private actStartPathIndex = 0;
@@ -59,7 +62,7 @@ export class RunOrchestrator {
 
     private constructor(game: Game, seed: string) {
         this.game = game;
-        this.state = createRunState(seed);
+        this.host = RunHost.begin(seed, (e) => this.emit(e));
         this.graph = this.generateAct(1);
         installMapBridge(this, game);
     }
@@ -74,25 +77,34 @@ export class RunOrchestrator {
         return this.summit;
     }
 
+    snapshot(): RunSnapshot {
+        return this.host.run.snapshot();
+    }
+
+    heartsDisplay(): { count: number; max: number } {
+        return this.host.heartsDisplay();
+    }
+
     /** Node ids the player may commit to right now. */
     reachableIds(): string[] {
         if (this.summit) {
             return [];
         }
-        if (this.state.nodeId === null) {
+        const nodeId = this.host.run.nodeId;
+        if (nodeId === null) {
             return this.graph.rows[0].map((n) => n.id);
         }
-        return [...nodeById(this.graph, this.state.nodeId).edgesUp];
+        return [...nodeById(this.graph, nodeId).edgesUp];
     }
 
     /** Node ids committed in the current act (the warm trail). */
     actPath(): string[] {
-        return this.state.path.slice(this.actStartPathIndex);
+        return this.host.run.pathIds().slice(this.actStartPathIndex);
     }
 
     preview(nodeId: string): NodeLabel {
         const node = nodeById(this.graph, nodeId);
-        const label = buildNodeLabel(node, this.state.pendingModifierIds);
+        const label = buildNodeLabel(node, this.host.run.pendingGiftIds());
         this.emit({ type: 'map/node_previewed', nodeId, label });
         return label;
     }
@@ -101,17 +113,17 @@ export class RunOrchestrator {
      *  scenes; mystery/shop stay on the map (the scene opens the overlay). */
     commit(nodeId: string): CommitRoute {
         if (!this.reachableIds().includes(nodeId)) {
-            throw new Error(`run: ${nodeId} is not reachable from ${this.state.nodeId}`);
+            throw new Error(`run: ${nodeId} is not reachable from ${this.host.run.nodeId}`);
         }
         const node = nodeById(this.graph, nodeId);
-        this.state.nodeId = nodeId;
-        this.state.path.push(nodeId);
-        const spec = node.segment === null ? null : this.specWithGifts(node);
+        this.host.run.commitNode(nodeId);
+        const gifts = this.host.run.pendingGiftIds();
+        const spec = node.segment === null ? null : specWithGifts(node, gifts);
         this.emit({
             type: 'map/node_committed',
             nodeId,
             nodeType: node.type,
-            modifiers: this.committedModifierIds(node),
+            modifiers: committedModifierIds(node, gifts),
             rewards: { ...node.rewards },
             segment: spec,
         });
@@ -131,13 +143,6 @@ export class RunOrchestrator {
         return toast;
     }
 
-    heartsDisplay(): { count: number; max: number } {
-        return {
-            count: this.state.hearts ?? DEFAULT_TUNING['hearts.start'],
-            max: DEFAULT_TUNING['hearts.max'],
-        };
-    }
-
     // --- Mystery (seeded outcomes — the roll was fixed at map generation) ---
 
     resolveMysteryChoice(choiceIndex: number): MysteryEffect {
@@ -150,117 +155,76 @@ export class RunOrchestrator {
             choiceIndex,
             node.mysteryRoll,
         );
-        this.applyMysteryEffect(effect);
+        applyMysteryEffect(this.host.run, effect);
         return effect;
     }
 
-    private applyMysteryEffect(effect: MysteryEffect): void {
-        if (effect.coinsDelta) {
-            this.state.coins = Math.max(0, this.state.coins + effect.coinsDelta);
-        }
-        if (effect.heartsDelta) {
-            const max = DEFAULT_TUNING['hearts.max'];
-            const current = this.state.hearts ?? DEFAULT_TUNING['hearts.start'];
-            // A mystery never ends a run: heart loss floors at 1 (pillar 1).
-            this.state.hearts = Math.min(max, Math.max(1, current + effect.heartsDelta));
-        }
-        if (effect.giftModifierId) {
-            modifierById(effect.giftModifierId); // throws on a data typo
-            this.state.pendingModifierIds.push(effect.giftModifierId);
-        }
-    }
+    // --- Shop (IDENTITY's real ShopScene, launched by MapScene) ---
 
-    // --- Shop (minimal, honest: hearts only until IDENTITY stocks it) ---
-
-    shopStockText(): string {
+    shopLaunchData(onLeave: () => void): ShopLaunchData {
         const node = this.currentNode();
-        if (node.shopStock === null) {
-            throw new Error(`run: ${node.id} has no shop stock`);
+        if (node.type !== 'shop') {
+            throw new Error(`run: ${node.id} is not a shop node`);
         }
-        const { heartPrice, heartsAvailable } = node.shopStock;
-        return heartsAvailable > 0
-            ? `${heartsAvailable} heart${heartsAvailable > 1 ? 's' : ''} in stock — ${heartPrice} coins each`
-            : 'sold out';
-    }
-
-    shopWalletText(): string {
-        const hearts = this.heartsDisplay();
-        return `you carry ${this.state.coins} coins · ${hearts.count}/${hearts.max} hearts`;
-    }
-
-    buyHeart(): boolean {
-        const node = this.currentNode();
-        const stock = node.shopStock;
-        if (stock === null || stock.heartsAvailable <= 0) {
-            return false;
-        }
-        const hearts = this.heartsDisplay();
-        if (hearts.count >= hearts.max || this.state.coins < stock.heartPrice) {
-            return false;
-        }
-        this.state.coins -= stock.heartPrice;
-        this.state.hearts = hearts.count + 1;
-        stock.heartsAvailable -= 1;
-        return true;
+        return {
+            run: this.host.run,
+            tuning: this.host.tuning,
+            emit: (e) => this.emit(e),
+            grantRelic: (relicId, source) => {
+                this.host.grantRelic(relicId, source);
+            },
+            nodeId: node.id,
+            act: this.host.run.act,
+            tick: () => 0, // the map is tickless; segment shops pass the player clock
+            onLeave,
+        };
     }
 
     // --- Segment launch and outcome (the RunSignal wiring) ---
-
-    private specWithGifts(node: NodeSpec): SegmentSpec {
-        if (node.segment === null) {
-            throw new Error(`run: ${node.id} has no segment`);
-        }
-        const spec: SegmentSpec = {
-            ...node.segment,
-            lineProfile: node.segment.lineProfile.map((o) => ({ ...o })),
-            modifiers: node.segment.modifiers.map((o) => ({ ...o })),
-        };
-        for (const giftId of this.state.pendingModifierIds) {
-            spec.modifiers.push(...modifierById(giftId).tuningLayers.map((o) => ({ ...o })));
-        }
-        return spec;
-    }
-
-    private committedModifierIds(node: NodeSpec): string[] {
-        return node.segment === null
-            ? [...node.modifierIds]
-            : [...node.modifierIds, ...this.state.pendingModifierIds];
-    }
 
     private launchSegment(node: NodeSpec, spec: SegmentSpec | null): void {
         if (spec === null) {
             throw new Error(`run: launching ${node.id} without a segment spec`);
         }
-        this.state.pendingModifierIds = [];
+        this.host.run.drainGiftModifiers(); // folded into the spec above
         this.hop('Sandbox', {
             segment: spec,
-            hearts: this.state.hearts,
-            run: { onOutcome: (outcome: SegmentOutcome) => this.onOutcome(node, outcome) },
+            run: this.host.run.snapshot(),
+            handoff: {
+                onOutcome: (outcome, snap) => this.onOutcome(node, outcome, snap),
+            },
         } satisfies SandboxBootData);
     }
 
-    private onOutcome(node: NodeSpec, outcome: SegmentOutcome): void {
-        const coinsEarned = applySegmentOutcome(
-            this.state,
-            outcome,
-            node.rewards.clearBounty,
-            node.rewards.coinsMul,
-        );
+    private onOutcome(node: NodeSpec, outcome: SegmentOutcome, snap: RunSnapshot): void {
+        // Adopt the segment's returned truth whole — the one live authority
+        // moves back to the map side (core/run/host.ts).
+        this.host = RunHost.adopt(snap, (e) => this.emit(e));
+        const run = this.host.run;
+        run.foldSegmentStats(outcome.stats);
         if (outcome.kind === 'death_line') {
             // pressure already emitted run/ended {death_line} on its bus; the
             // run loop just folds. A real results scene is RETURN's.
             this.endRun();
             return;
         }
-        if (node.rewards.guaranteedRelic) {
-            this.state.relicsOwed.push(node.id); // IDENTITY passthrough
+        const lines = [`+${groupDigits(outcome.stats.totalScore)} score`];
+        const bounty = Math.round(node.rewards.clearBounty * node.rewards.coinsMul);
+        if (bounty > 0) {
+            run.adjustCoins(bounty);
+            lines.unshift(`+${bounty} coins bounty`);
         }
-        const lines = [`+${coinsEarned} coins`, `+${groupDigits(outcome.stats.totalScore)} score`];
         if (outcome.stats.bestChainFace.length > 0) {
             lines.push(`best chain ${outcome.stats.bestChainFace}`);
         }
         if (node.rewards.guaranteedRelic) {
-            lines.push('relic secured (claimed when relics arrive)');
+            const relic = rollRelicReward(run.runSeed, node.id, run.act, run.relicIds());
+            if (relic === null) {
+                lines.push('the tower had no relic left to give');
+            } else {
+                this.host.grantRelic(relic.id, 'elite');
+                lines.push(`relic — ${relic.name}`);
+            }
         }
         this.toast = {
             headline: `${node.type === 'boss' ? 'ACT CLEARED' : 'CLIMB CLEARED'}`,
@@ -270,25 +234,24 @@ export class RunOrchestrator {
         if (node.type === 'boss') {
             this.emit({
                 type: 'run/act_completed',
-                actIndex: this.state.act,
+                actIndex: run.act,
                 path: this.actPath(),
                 stats: outcome.stats,
             });
-            if (this.state.act >= ACT_COUNT) {
+            if (run.act >= ACT_COUNT) {
                 this.summit = true;
                 this.emit({
                     type: 'run/ended',
                     reason: 'summit',
-                    seed: this.state.seed,
-                    path: [...this.state.path],
-                    totalScore: this.state.totalScore,
-                    coins: this.state.coins,
+                    seed: run.runSeed,
+                    path: [...run.pathIds()],
+                    totalScore: run.totalScore,
+                    coins: run.coins,
                 });
             } else {
-                this.state.act += 1;
-                this.state.nodeId = null;
-                this.actStartPathIndex = this.state.path.length;
-                this.graph = this.generateAct(this.state.act);
+                run.beginAct(run.act + 1);
+                this.actStartPathIndex = run.pathIds().length;
+                this.graph = this.generateAct(run.act);
             }
         }
         this.hop('MapScene', { run: this });
@@ -319,50 +282,43 @@ export class RunOrchestrator {
 
     // --- Events (MAP_SCHEMA_VERSION = 1): ring for the bridge ---
 
-    private emit(event: MapEvent): void {
+    private emit(event: RunRingEvent): void {
         this.ring.push(event);
         if (this.ring.length > EVENT_RING_SIZE) {
             this.ring.shift();
         }
     }
 
-    recentEvents(count = 50): MapEvent[] {
+    recentEvents(count = 50): RunRingEvent[] {
         return this.ring.slice(-count);
     }
 
     private generateAct(actIndex: number): ActGraph {
-        const graph = generateActGraph(this.state.seed, actIndex);
-        const countsByType = {} as Record<NodeType, number>;
-        for (const row of graph.rows) {
-            for (const node of row) {
-                countsByType[node.type] = (countsByType[node.type] ?? 0) + 1;
-            }
-        }
+        const graph = generateActGraph(this.host.run.runSeed, actIndex);
         this.emit({
             type: 'map/generated',
             actIndex,
-            seed: this.state.seed,
+            seed: this.host.run.runSeed,
             forkLabel: graph.forkLabel,
             regenCount: graph.regenCount,
-            rowWidths: graph.rows.map((r) => r.length),
-            countsByType,
+            ...actGraphSummary(graph),
         });
         return graph;
     }
 
     private currentNode(): NodeSpec {
-        if (this.state.nodeId === null) {
+        const nodeId = this.host.run.nodeId;
+        if (nodeId === null) {
             throw new Error('run: no committed node');
         }
-        return nodeById(this.graph, this.state.nodeId);
+        return nodeById(this.graph, nodeId);
     }
 
     // --- Debug bridge surfaces (harness handles; not gameplay) ---
 
     debugJumpToNode(nodeId: string): void {
         nodeById(this.graph, nodeId); // throws on unknown id
-        this.state.nodeId = nodeId;
-        this.state.path.push(nodeId);
+        this.host.run.commitNode(nodeId);
         if (this.game.scene.isActive('MapScene')) {
             this.hop('MapScene', { run: this });
         }

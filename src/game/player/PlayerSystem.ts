@@ -234,6 +234,16 @@ export class PlayerSystem {
         this.body.velocity.x *= vxKeep;
     }
 
+    /**
+     * External horizontal impulse (relic-triggered effects, e.g. Second
+     * Wind): the same body-velocity boundary as the launch — core state is
+     * never touched; the core reads the new velocity next tick as a
+     * kinematic fact. Not yet a recorded channel: see DEVIATIONS entry 13.
+     */
+    applyExternalImpulse(vxAdd: number): void {
+        this.body.velocity.x += vxAdd;
+    }
+
     kinematics(): PlayerKinematics {
         const body = this.body;
         return {
